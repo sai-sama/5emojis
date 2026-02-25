@@ -2,6 +2,8 @@
 
 > "Stop overthinking your first message. Just send 5 emojis."
 
+A friendship app that makes connecting with new people fun, low-pressure, and emoji-first.
+
 ---
 
 ## Tech Stack
@@ -14,6 +16,8 @@
 - **Emoji rendering**: Twemoji (consistent cross-platform) + emoji-mart (picker)
 - **Face detection**: Google ML Kit (on-device, free)
 - **Push notifications**: Expo Push Notifications (free)
+- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Navigation**: Expo Router (file-based)
 - **Web (Phase 2)**: Next.js
 - **OTA updates**: Expo EAS Update
 
@@ -30,9 +34,12 @@
 - [ ] Set up PostGIS extension in Supabase
 
 ### Database Schema
-- [ ] `profiles` — id, name, dob, city, state, zip, latitude, longitude, search_radius_miles, created_at
+- [ ] `profiles` — id, name, dob, race, religion, profession, life_stage, friendship_style, pronouns, is_new_to_city, city, state, zip, latitude, longitude, search_radius_miles, created_at
 - [ ] `profile_emojis` — user_id, emoji, position (1-5), unique per user+position
-- [ ] `profile_photos` — user_id, url, position (1-5), is_primary (position 1 = visible pre-match)
+- [ ] `profile_photos` — user_id, url, position (1-5), is_primary (position 1 = main photo on swipe card)
+- [ ] `profile_interests` — user_id, interest_tag (3-5 tags like "hiking", "gaming", "food", "live music")
+- [ ] `profile_languages` — user_id, language
+- [ ] `profile_reveals` — user_id, content, position (1-4), hidden until match
 - [ ] `swipes` — swiper_id, swiped_id, direction (right/left), created_at
 - [ ] `matches` — user1_id, user2_id, emoji_match_count, created_at, is_emoji_perfect (5/5)
 - [ ] `messages` — match_id, sender_id, content, is_emoji_only, created_at
@@ -47,32 +54,36 @@
 - [ ] Apple Sign In integration
 - [ ] Google Sign In integration
 - [ ] Phone number collection screen (store for later verification)
-- [ ] Onboarding flow: Name > DOB > Photo upload > 5 Emoji selection > City/location
+- [ ] Onboarding flow: Name > DOB > Photo upload > 5 Emoji selection > Details (race, religion, profession, life stage, languages, interests, friendship style, pronouns) > City/location
 - [ ] Face detection on primary photo upload (Google ML Kit — reject group shots, landscapes, sunglasses)
 - [ ] Photo guidelines screen explaining the main photo policy
 - [ ] Store lat/lng from city for geo queries
 
 ### Profile
-- [ ] Profile creation with: name, age (from DOB), 1 primary photo, 5 emojis, city
-- [ ] 4 additional "reveal" description points (hidden until match)
-- [ ] 4 additional photos (hidden until match)
-- [ ] Edit profile screen (change emojis, photos, location, descriptions)
+- [ ] Profile creation with: name, age (from DOB), up to 5 photos, 5 emojis, city
+- [ ] Extended profile fields: race, religion, profession, life stage, languages, interests (3-5 tags), friendship style, pronouns
+- [ ] 4 reveal/description points (hidden until match)
+- [ ] "New to City" badge (toggleable by user)
+- [ ] Edit profile screen (change emojis, photos, location, details, reveals)
 - [ ] Search radius slider (miles from specified city/zip)
 - [ ] Change search city/zip from profile
 
 ### Discovery & Swiping
 - [ ] Location-based card feed — default to profile city
-- [ ] Cards show: 5 emojis, 1 photo, age, city (pre-match)
+- [ ] Cards show: 5 emojis, 1 main photo, name, age, distance ("3 miles away"), profession
+- [ ] "New to City" badge visible on card when applicable
 - [ ] Swipe right (interested) / swipe left (pass)
 - [ ] Filter out: already swiped, blocked users, own profile
 - [ ] Radius-based filtering using PostGIS
 - [ ] Swipe animations (smooth, satisfying)
+- [ ] **No swipe limits** — generous free usage, no artificial caps
+- [ ] **No match expiry** — matches never expire, friendships don't have a countdown
 
 ### Matching
 - [ ] Detect mutual right-swipe → create match
 - [ ] Match notification (push notification)
 - [ ] Match screen animation — both emoji sets collide/merge with haptics
-- [ ] On match: reveal 4 additional photos + 4 description points
+- [ ] On match: reveal remaining photos + 4 reveal/description points + full profile details (interests, languages, life stage, friendship style, etc.)
 - [ ] Matches list screen
 
 ### Messaging (Emoji-First)
@@ -97,7 +108,7 @@
 
 ---
 
-## Phase 2 — Hard Mode, Badge, Web
+## Phase 2 — Hard Mode, Badge, Groups, Web
 
 ### Hard Mode
 - [ ] Toggle between Normal and Hard mode in settings
@@ -109,6 +120,16 @@
 - [ ] 5/5 perfect match: special badge on chat, full-screen fireworks animation
 - [ ] Perfect match: instantly view all 5 photos + full profile details
 - [ ] Badge visible in matches list
+
+### Group Mode
+- [ ] Merge 2+ matched friends into a group chat
+- [ ] Group discovery (find groups of friends with similar vibes)
+- [ ] Group emoji identity (group picks 5 emojis together)
+
+### Vibe Check Prompts
+- [ ] Daily/weekly rotating prompt on cards ("Last thing you binged?", "Go-to comfort food?")
+- [ ] User answers visible on their card — gives conversation starters
+- [ ] Optional participation (skip if not interested)
 
 ### Engagement Features
 - [ ] **Emoji Icebreaker Round**: After matching, both users simultaneously send 5-emoji opener, then "translate" each other's meaning — instant inside joke
@@ -131,12 +152,13 @@
 
 ## Phase 3 — Monetization & Scale
 
-### Premium Features
+### Premium Features (Cosmetic & Convenience — never gate core features)
 - [ ] See who swiped right on you
-- [ ] Unlimited daily swipes (free tier gets X per day)
 - [ ] Boost profile visibility
-- [ ] Change emojis more than once per week (or whatever limit)
+- [ ] Extra emoji themes / custom emoji packs
+- [ ] Profile customization (colors, backgrounds)
 - [ ] Undo last swipe
+- [ ] Change emojis more than once per week
 
 ### Analytics & Admin
 - [ ] Admin dashboard (user counts, match rates, report queue)
@@ -178,3 +200,5 @@ Upgrade triggers:
 3. **Less anxiety, more play** — this is a game, not a job interview
 4. **Safety first** — blocking, reporting, face photo requirements from day 1
 5. **Shareability built in** — emoji cards, personality insights, guess games are inherently viral
+6. **Friendships don't expire** — no artificial timers, no pressure, no pay-to-play on core features
+7. **Beat Bumble BFF by being generous** — no swipe limits, no match expiry, monetize cosmetics not access
