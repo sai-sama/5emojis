@@ -23,6 +23,71 @@ A friendship app that makes connecting with new people fun, low-pressure, and em
 
 ---
 
+## DONE — Bugs & Polish
+
+- [x] Fix swipe card flicker — added `cardOpacity` shared value to hide exiting card before React re-renders, reset position in `useEffect`, fade-in new card with 150ms `withTiming`.
+
+---
+
+## DONE — Supabase Setup
+
+- [x] Create Supabase project and connect (real URL + anon key in `.env`)
+- [x] Run full database migration (11 tables, PostGIS, RLS, triggers, storage bucket)
+- [x] Real email/password auth flow (sign up, sign in, session management)
+- [x] Onboarding context — collects data across screens, bulk-saves to Supabase on completion
+- [x] Route guard in root index (loading → auth → onboarding → home)
+
+---
+
+## DONE — Legal & Safety
+
+- [x] 18+ age enforcement — DB CHECK constraint, app-level validation, DOB screen gate
+- [x] Terms of Service — in-app screen at `/terms`
+- [x] Privacy Policy — in-app screen at `/privacy`
+- [x] Legal links on sign-up screen (tappable, navigate to in-app docs)
+- [x] Legal section in profile settings (always accessible)
+- [ ] Swap placeholder emails (`support@5emojis.app`, `privacy@5emojis.app`) for real addresses once domain/email is set up
+- [ ] Have a lawyer review ToS and Privacy Policy before App Store submission
+
+---
+
+## NEXT UP — Apple & Google Sign In Setup
+
+### Apple Sign In
+- [ ] Apple Developer Console → Certificates, Identifiers & Profiles
+- [ ] Create an App ID with "Sign in with Apple" capability
+- [ ] Create a Services ID (this is the OAuth client ID for web)
+- [ ] Create a Sign in with Apple private key (`.p8` file)
+- [ ] Note your **Team ID** and **Key ID**
+- [ ] Supabase Dashboard → Auth → Providers → Apple: paste Services ID, Secret Key, Team ID, Key ID
+- [ ] Install `expo-apple-authentication` and add provider button to sign-in screen
+
+### Google Sign In
+- [ ] Google Cloud Console → APIs & Services → Credentials
+- [ ] Create OAuth 2.0 Client IDs (iOS + Android + Web)
+- [ ] For iOS: set the bundle ID to match your Expo app
+- [ ] Supabase Dashboard → Auth → Providers → Google: paste Web Client ID + Client Secret
+- [ ] Install `expo-auth-session` and add provider button to sign-in screen
+
+### Supabase Auth Settings
+- [ ] Dashboard → Auth → Settings → disable "Confirm email" for faster dev testing (re-enable for production)
+- [ ] Set Site URL to your Expo deep link scheme (e.g. `exp://localhost:8081`)
+
+---
+
+## NEXT UP — Server-Side AI Content
+
+Move the daily Claude batch call (starter packs, emoji traits, icebreaker templates, summary templates) from client-side to server-side so it runs ONCE per day for ALL users instead of per-device.
+
+- [ ] Create `ai_content` table in Supabase — DONE (included in migration)
+- [ ] Create Supabase Edge Function `generate-ai-content` that calls Claude Haiku with the batch prompt
+- [ ] Set up daily cron (Supabase pg_cron or external) to trigger the Edge Function
+- [ ] Update `lib/starter-packs.ts` to fetch from Supabase instead of calling Claude directly
+- [ ] Remove `EXPO_PUBLIC_ANTHROPIC_API_KEY` from client — API key lives only in Edge Function secrets
+- [ ] Cost: ~$0.003/day total ($0.09/month) regardless of user count
+
+---
+
 ## Phase 1 — MVP
 
 ### Project Setup

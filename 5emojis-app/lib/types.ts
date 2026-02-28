@@ -20,6 +20,7 @@ export type Database = {
           longitude: number;
           search_radius_miles: number;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
@@ -40,6 +41,7 @@ export type Database = {
           search_radius_miles?: number;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
       };
       profile_emojis: {
         Row: {
@@ -54,6 +56,7 @@ export type Database = {
           position: number;
         };
         Update: Partial<Database["public"]["Tables"]["profile_emojis"]["Insert"]>;
+        Relationships: [];
       };
       profile_photos: {
         Row: {
@@ -62,6 +65,7 @@ export type Database = {
           url: string;
           position: number;
           is_primary: boolean;
+          created_at: string;
         };
         Insert: {
           user_id: string;
@@ -70,6 +74,7 @@ export type Database = {
           is_primary?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["profile_photos"]["Insert"]>;
+        Relationships: [];
       };
       profile_interests: {
         Row: {
@@ -82,6 +87,7 @@ export type Database = {
           interest_tag: string;
         };
         Update: Partial<Database["public"]["Tables"]["profile_interests"]["Insert"]>;
+        Relationships: [];
       };
       profile_languages: {
         Row: {
@@ -94,6 +100,7 @@ export type Database = {
           language: string;
         };
         Update: Partial<Database["public"]["Tables"]["profile_languages"]["Insert"]>;
+        Relationships: [];
       };
       profile_reveals: {
         Row: {
@@ -108,6 +115,7 @@ export type Database = {
           position: number;
         };
         Update: Partial<Database["public"]["Tables"]["profile_reveals"]["Insert"]>;
+        Relationships: [];
       };
       swipes: {
         Row: {
@@ -123,6 +131,7 @@ export type Database = {
           direction: "right" | "left";
         };
         Update: Partial<Database["public"]["Tables"]["swipes"]["Insert"]>;
+        Relationships: [];
       };
       matches: {
         Row: {
@@ -140,6 +149,7 @@ export type Database = {
           is_emoji_perfect?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["matches"]["Insert"]>;
+        Relationships: [];
       };
       messages: {
         Row: {
@@ -148,6 +158,7 @@ export type Database = {
           sender_id: string;
           content: string;
           is_emoji_only: boolean;
+          read_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -157,6 +168,7 @@ export type Database = {
           is_emoji_only?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["messages"]["Insert"]>;
+        Relationships: [];
       };
       blocks: {
         Row: {
@@ -170,6 +182,7 @@ export type Database = {
           blocked_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["blocks"]["Insert"]>;
+        Relationships: [];
       };
       reports: {
         Row: {
@@ -189,8 +202,35 @@ export type Database = {
           status?: string;
         };
         Update: Partial<Database["public"]["Tables"]["reports"]["Insert"]>;
+        Relationships: [];
+      };
+      ai_content: {
+        Row: {
+          id: string;
+          content: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          content: Record<string, unknown>;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_content"]["Insert"]>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: {
+      nearby_profiles: {
+        Args: {
+          user_lat: number;
+          user_lng: number;
+          radius_miles: number;
+          current_user_id: string;
+        };
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][];
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
 

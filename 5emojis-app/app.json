@@ -2,7 +2,7 @@
   "expo": {
     "name": "5emojis-app",
     "slug": "5emojis-app",
-    "scheme": "5emojis",
+    "scheme": "fiveemojis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fiveemojis.app"
     },
     "android": {
+      "package": "com.fiveemojis.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -29,7 +31,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-dev-client"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "50ed3586-2843-4128-a3c6-85824ef1104a"
+      }
+    }
   }
 }

@@ -5,28 +5,21 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  LayoutChangeEvent,
   Dimensions,
   Animated,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import { CUSTOM_EMOJIS, isCustomEmoji, getCustomEmojiComponent } from "./custom-emojis";
+import { getStarterPacks, STATIC_POOLS, type StarterPackPool } from "../lib/starter-packs";
 import { getEmojiName } from "./emoji-names";
+import { fonts } from "../lib/fonts";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 12;
 const EMOJI_SIZE = 44;
 const EMOJI_GAP = 2;
-const COLS = Math.floor((SCREEN_WIDTH - GRID_PADDING * 2) / (EMOJI_SIZE + EMOJI_GAP));
 
-// Categories
+// ─── Categories (used for browsing) ──────────────────────────
 const CATEGORIES: { id: string; name: string; icon: string; emojis: string[] }[] = [
-  {
-    id: "exclusive",
-    name: "Only on 5Emojis",
-    icon: "⭐",
-    emojis: CUSTOM_EMOJIS.map((e) => e.id),
-  },
   {
     id: "smileys",
     name: "Smileys",
@@ -134,7 +127,7 @@ const CATEGORIES: { id: string; name: string; icon: string; emojis: string[] }[]
   },
   {
     id: "symbols",
-    name: "Hearts",
+    name: "Hearts & Symbols",
     icon: "❤️",
     emojis: [
       "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
@@ -160,13 +153,26 @@ const CATEGORIES: { id: string; name: string; icon: string; emojis: string[] }[]
   },
 ];
 
-// AI associations for suggestions
+// Starter pack pools now live in lib/starter-packs.ts
+// (STATIC_POOLS imported above as immediate fallback, LLM packs loaded async)
+
+// Fisher-Yates shuffle
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ─── AI suggestions ──────────────────────────────────────────
 const ASSOCIATIONS: Record<string, string[]> = {
   "🍕": ["🍝", "🧀", "🍷", "🇮🇹"], "🍣": ["🥢", "🍱", "🇯🇵", "🌊"],
   "🌮": ["🌶️", "🥑", "🍹", "💃"], "☕": ["📚", "🧘", "💻", "🎵"],
-  "🍺": ["⚽", "🍔", "🤝", "🎶"], "🧋": ["✨", "💅", "🌸", "🛍️"],
+  "🍺": ["⚽", "🍔", "🤝", "🎶"], "🧋": ["✨", "💅", "🌸"],
   "⚽": ["🏃", "🏆", "💪", "🎉"], "🏀": ["🏆", "🔥", "💪", "🎯"],
-  "🏋️": ["💪", "🥗", "🔥", "💯"], "🧘": ["🌿", "🌸", "✨", "🕯️"],
+  "🏋️": ["💪", "🥗", "🔥", "💯"], "🧘": ["🌿", "🌸", "✨"],
   "🏄": ["🌊", "☀️", "🏖️", "🤙"], "🎨": ["🌈", "✨", "🎭", "💡"],
   "🎮": ["🕹️", "🎧", "💻", "🤖"], "🎵": ["🎧", "🎸", "🎤", "💃"],
   "🎬": ["🍿", "🎭", "⭐", "📺"], "📚": ["🤓", "☕", "🧠", "💡"],
@@ -180,66 +186,63 @@ const ASSOCIATIONS: Record<string, string[]> = {
   "😂": ["🤣", "😭", "💀", "✨"], "🎧": ["🎵", "🎶", "💻", "🌙"],
   "📸": ["✈️", "🌅", "🏖️", "🎨"], "🏖️": ["☀️", "🌊", "🏄", "😎"],
   "🌴": ["🏖️", "☀️", "🌊", "✈️"], "🏃": ["💪", "🏋️", "⚡", "☀️"],
-  "💃": ["🕺", "🎵", "🎉", "✨"], "🌿": ["🧘", "🌸", "🌱", "☮️"],
+  "💃": ["🕺", "🎵", "🎉", "✨"], "🌿": ["🧘", "🌸", "🌱"],
   "🎸": ["🎵", "🎤", "🤘", "🔥"], "🏕️": ["🏔️", "🌲", "🔥", "🌌"],
 };
 
-const STARTER_PACKS = [
-  { label: "Foodie", icon: "🍕", emojis: ["🍕", "🍣", "☕", "🧁", "🌮"] },
-  { label: "Adventurer", icon: "✈️", emojis: ["✈️", "🏔️", "🌊", "🏕️", "📸"] },
-  { label: "Creative", icon: "🎨", emojis: ["🎨", "🎵", "📚", "✨", "🌸"] },
-  { label: "Athlete", icon: "💪", emojis: ["💪", "🏃", "🏀", "🔥", "🏆"] },
-  { label: "Techie", icon: "💻", emojis: ["💻", "🚀", "🤖", "🎮", "☕"] },
-  { label: "Social", icon: "🎉", emojis: ["🎉", "💃", "🤝", "😂", "✨"] },
-  { label: "Nature", icon: "🌿", emojis: ["🌿", "🐶", "🌊", "🌸", "☀️"] },
-  { label: "Night Owl", icon: "🌙", emojis: ["🌙", "☕", "🎵", "💻", "🌌"] },
-];
-
-// Build a flat searchable list of all emojis with keywords
+// ─── Searchable index ────────────────────────────────────────
 const SEARCHABLE = (() => {
   const items: { emoji: string; terms: string }[] = [];
   for (const cat of CATEGORIES) {
     for (const emoji of cat.emojis) {
-      if (isCustomEmoji(emoji)) {
-        const custom = CUSTOM_EMOJIS.find((c) => c.id === emoji);
-        if (custom) items.push({ emoji, terms: custom.keywords.join(" ") + " " + custom.name.toLowerCase() });
-      } else {
-        const name = getEmojiName(emoji);
-        items.push({ emoji, terms: name ? name.toLowerCase() : "" });
-      }
+      const name = getEmojiName(emoji);
+      items.push({ emoji, terms: name ? name.toLowerCase() : "" });
     }
   }
   return items;
 })();
 
 function getDisplayName(emoji: string): string | null {
-  if (isCustomEmoji(emoji)) {
-    const custom = CUSTOM_EMOJIS.find((c) => c.id === emoji);
-    return custom?.name || null;
-  }
   return getEmojiName(emoji);
 }
 
 type Props = {
   selected: string[];
   onToggle: (emoji: string) => void;
+  onSetAll?: (emojis: string[]) => void;
   maxSelection?: number;
 };
 
-export default function EmojiPicker({ selected, onToggle, maxSelection = 5 }: Props) {
-  const [activeTab, setActiveTab] = useState("exclusive");
+export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection = 5 }: Props) {
+  // Shuffle pools → pick random 5 from each
+  const buildPacks = (pools: StarterPackPool[]) =>
+    shuffle(pools).map((pack) => ({
+      label: pack.label,
+      icon: pack.icon,
+      emojis: shuffle(pack.pool).slice(0, 5),
+    }));
+
+  // Start with static pools (instant), then swap in LLM packs if available
+  const [starterPacks, setStarterPacks] = useState(() => buildPacks(STATIC_POOLS));
+
+  useEffect(() => {
+    let cancelled = false;
+    getStarterPacks().then((pools) => {
+      if (!cancelled && pools !== STATIC_POOLS) {
+        setStarterPacks(buildPacks(pools));
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const [search, setSearch] = useState("");
   const [tooltip, setTooltip] = useState<{ emoji: string; name: string } | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
-  const offsets = useRef<Record<string, number>>({});
-  const tapping = useRef(false);
   const tooltipOpacity = useRef(new Animated.Value(0)).current;
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showTooltip = useCallback((emoji: string) => {
     const name = getDisplayName(emoji);
     if (!name) return;
-
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
     setTooltip({ emoji, name });
     Animated.timing(tooltipOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
@@ -264,29 +267,8 @@ export default function EmojiPicker({ selected, onToggle, maxSelection = 5 }: Pr
         if (!selected.includes(r)) s.add(r);
       }
     }
-    const fallback = ["🔥", "✨", "💯", "🎉", "💜", "🌊", "🚀", "🎵", "🍕", "😎", "🧘", "🎮", "📚", "🏔️", "🐶", "🎨", "🌸", "💃", "🎧", "🏖️"];
-    for (const p of fallback) {
-      if (!selected.includes(p) && !s.has(p)) s.add(p);
-      if (s.size >= COLS * 3) break;
-    }
-    return Array.from(s);
+    return Array.from(s).slice(0, 12);
   }, [selected]);
-
-  const allSections = useMemo(() => {
-    const sections = [...CATEGORIES];
-    if (suggestions.length > 0) {
-      sections.splice(1, 0, { id: "suggested", name: "Suggested for You", icon: "✨", emojis: suggestions });
-    }
-    return sections;
-  }, [suggestions]);
-
-  const tabList = useMemo(() => {
-    const tabs = CATEGORIES.map((c) => ({ id: c.id, icon: c.icon }));
-    if (suggestions.length > 0) {
-      tabs.splice(1, 0, { id: "suggested", icon: "✨" });
-    }
-    return tabs;
-  }, [suggestions]);
 
   const handleToggle = useCallback((emoji: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -294,38 +276,9 @@ export default function EmojiPicker({ selected, onToggle, maxSelection = 5 }: Pr
     onToggle(emoji);
   }, [onToggle, showTooltip]);
 
-  const scrollTo = useCallback((id: string) => {
-    setActiveTab(id);
-    setSearch("");
-    const y = offsets.current[id];
-    if (y !== undefined && scrollRef.current) {
-      tapping.current = true;
-      scrollRef.current.scrollTo({ y, animated: true });
-      setTimeout(() => { tapping.current = false; }, 400);
-    }
-  }, []);
-
-  const onScroll = useCallback((e: any) => {
-    if (tapping.current) return;
-    const y = e.nativeEvent.contentOffset.y + 20;
-    const sorted = Object.entries(offsets.current).sort((a, b) => a[1] - b[1]);
-    let current = sorted[0]?.[0] || "exclusive";
-    for (const [id, offset] of sorted) {
-      if (y >= offset) current = id;
-      else break;
-    }
-    setActiveTab(current);
-  }, []);
-
-  const onLayout = useCallback((id: string, e: LayoutChangeEvent) => {
-    offsets.current[id] = e.nativeEvent.layout.y;
-  }, []);
-
   const renderItem = useCallback((emoji: string, idx: number) => {
     const sel = selected.includes(emoji);
     const full = !sel && selected.length >= maxSelection;
-    const custom = isCustomEmoji(emoji);
-    const Comp = custom ? getCustomEmojiComponent(emoji) : null;
 
     return (
       <TouchableOpacity
@@ -338,12 +291,12 @@ export default function EmojiPicker({ selected, onToggle, maxSelection = 5 }: Pr
           borderRadius: 12,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: sel ? "#6C5CE7" : "transparent",
+          backgroundColor: sel ? "#7C3AED" : "transparent",
           opacity: full ? 0.25 : 1,
           margin: EMOJI_GAP / 2,
         }}
       >
-        {Comp ? <Comp size={28} /> : <Text style={{ fontSize: 28 }}>{emoji}</Text>}
+        <Text style={{ fontSize: 28 }}>{emoji}</Text>
       </TouchableOpacity>
     );
   }, [selected, maxSelection, handleToggle]);
@@ -373,192 +326,155 @@ export default function EmojiPicker({ selected, onToggle, maxSelection = 5 }: Pr
             elevation: 8,
           }}
         >
-          {isCustomEmoji(tooltip.emoji) ? (
-            (() => {
-              const Comp = getCustomEmojiComponent(tooltip.emoji);
-              return Comp ? <Comp size={22} /> : null;
-            })()
-          ) : (
-            <Text style={{ fontSize: 22 }}>{tooltip.emoji}</Text>
-          )}
-          <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+          <Text style={{ fontSize: 22 }}>{tooltip.emoji}</Text>
+          <Text style={{ color: "#FFF", fontSize: 14, fontFamily: fonts.bodySemiBold, marginLeft: 8 }}>
             {tooltip.name}
           </Text>
         </Animated.View>
       )}
 
-      {/* Search bar */}
-      <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 8, paddingBottom: 4 }}>
-        <View style={{
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: "#F3F4F6",
-          borderRadius: 12,
-          paddingHorizontal: 12,
-          height: 38,
-        }}>
-          <Text style={{ fontSize: 16, marginRight: 6, opacity: 0.5 }}>🔍</Text>
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search emojis..."
-            placeholderTextColor="#9CA3AF"
-            style={{
-              flex: 1,
-              fontSize: 15,
-              color: "#2D3436",
-              padding: 0,
-            }}
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Text style={{ fontSize: 16, color: "#9CA3AF" }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Category tab bar — hidden during search */}
-      {!searchResults && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ maxHeight: 44, borderBottomWidth: 1, borderBottomColor: "#F0F0F0" }}
-          contentContainerStyle={{ paddingHorizontal: 8, alignItems: "center" }}
-        >
-          {tabList.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              onPress={() => scrollTo(tab.id)}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                marginRight: 2,
-                borderBottomWidth: 3,
-                borderBottomColor: activeTab === tab.id ? "#6C5CE7" : "transparent",
-              }}
-            >
-              <Text style={{ fontSize: 22, opacity: activeTab === tab.id ? 1 : 0.4 }}>
-                {tab.icon}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Emoji grid */}
       <ScrollView
-        ref={scrollRef}
-        onScroll={searchResults ? undefined : onScroll}
-        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 20 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Search results mode */}
-        {searchResults ? (
-          <View>
+        {/* ═══ 1. QUICK START PACKS (always visible, tap to swap) ═══ */}
+        {!searchResults && (
+          <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 8, paddingBottom: 12 }}>
+            <Text style={{
+              fontSize: 13,
+              fontFamily: fonts.heading,
+              color: "#7C3AED",
+              letterSpacing: 0.5,
+              marginBottom: 10,
+            }}>
+              ⚡ QUICK START — TAP TO FILL ALL 5
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {starterPacks.map((pack) => {
+                const isActive = selected.length === 5 &&
+                  pack.emojis.every((e, i) => selected[i] === e);
+                return (
+                  <TouchableOpacity
+                    key={pack.label}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      if (onSetAll) {
+                        onSetAll(pack.emojis);
+                      } else {
+                        for (const e of pack.emojis) onToggle(e);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: isActive ? "#F5F0FF" : "#FFF",
+                      borderRadius: 16,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                      marginRight: 10,
+                      borderWidth: 1.5,
+                      borderColor: isActive ? "#7C3AED" : "#E4DAFF",
+                      minWidth: 130,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: "#7C3AED", marginBottom: 6 }}>
+                      {pack.icon} {pack.label}{isActive ? " ✓" : ""}
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      {pack.emojis.map((e, i) => (
+                        <Text key={i} style={{ fontSize: 22 }}>{e}</Text>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ═══ 2. SUGGESTIONS (when user has picked some) ═══ */}
+        {suggestions.length > 0 && !searchResults && (
+          <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 4, paddingBottom: 8 }}>
             <Text style={{
               fontSize: 12,
-              fontWeight: "700",
+              fontFamily: fonts.bodyBold,
               color: "#9CA3AF",
               letterSpacing: 1,
-              paddingHorizontal: GRID_PADDING,
-              paddingTop: 12,
+              marginBottom: 6,
+            }}>
+              ✨  PICKS FOR YOU
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {suggestions.map((e, i) => renderItem(e, i))}
+            </View>
+          </View>
+        )}
+
+        {/* ═══ 4. SEARCH BAR ═══ */}
+        <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 4, paddingBottom: 8 }}>
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: "#F5F0EC",
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            height: 40,
+          }}>
+            <Text style={{ fontSize: 16, marginRight: 6, opacity: 0.5 }}>🔍</Text>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search emojis..."
+              placeholderTextColor="#9CA3AF"
+              style={{ flex: 1, fontSize: 15, fontFamily: fonts.body, color: "#2D3436", padding: 0 }}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch("")}>
+                <Text style={{ fontSize: 16, color: "#9CA3AF" }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* ═══ 5. SEARCH RESULTS or BROWSE SECTIONS ═══ */}
+        {searchResults ? (
+          <View style={{ paddingHorizontal: GRID_PADDING }}>
+            <Text style={{
+              fontSize: 12,
+              fontFamily: fonts.bodyBold,
+              color: "#9CA3AF",
+              letterSpacing: 1,
+              paddingTop: 4,
               paddingBottom: 6,
             }}>
               {searchResults.length > 0 ? `${searchResults.length} RESULTS` : "NO RESULTS"}
             </Text>
-            <View style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              paddingHorizontal: GRID_PADDING - EMOJI_GAP / 2,
-            }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {searchResults.map((e, i) => renderItem(e, i))}
             </View>
             {searchResults.length === 0 && (
-              <Text style={{ textAlign: "center", color: "#9CA3AF", marginTop: 24, fontSize: 14 }}>
+              <Text style={{ textAlign: "center", color: "#9CA3AF", marginTop: 24, fontSize: 14, fontFamily: fonts.body }}>
                 Try a different search term
               </Text>
             )}
           </View>
         ) : (
           <>
-            {/* Starter packs — only when empty */}
-            {selected.length === 0 && (
-              <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 12, paddingBottom: 8 }}>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: "#636E72", marginBottom: 8 }}>
-                  QUICK START
+            {CATEGORIES.map((section) => (
+              <View key={section.id}>
+                <Text style={{
+                  fontSize: 12,
+                  fontFamily: fonts.bodyBold,
+                  color: "#9CA3AF",
+                  letterSpacing: 1,
+                  paddingHorizontal: GRID_PADDING,
+                  paddingTop: 14,
+                  paddingBottom: 6,
+                }}>
+                  {section.icon}  {section.name.toUpperCase()}
                 </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {STARTER_PACKS.map((pack) => (
-                    <TouchableOpacity
-                      key={pack.label}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        for (const e of pack.emojis) onToggle(e);
-                      }}
-                      style={{
-                        backgroundColor: "#FFF",
-                        borderRadius: 14,
-                        paddingHorizontal: 14,
-                        paddingVertical: 10,
-                        marginRight: 8,
-                        borderWidth: 1,
-                        borderColor: "#EEE",
-                        minWidth: 110,
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#6C5CE7", marginBottom: 4 }}>
-                        {pack.icon} {pack.label}
-                      </Text>
-                      <Text style={{ fontSize: 20, letterSpacing: 2 }}>{pack.emojis.join(" ")}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Sections */}
-            {allSections.map((section) => (
-              <View key={section.id} onLayout={(e) => onLayout(section.id, e)}>
-                {/* Section header */}
-                {section.id === "exclusive" ? (
-                  <View style={{
-                    marginHorizontal: GRID_PADDING,
-                    marginTop: 14,
-                    marginBottom: 8,
-                    backgroundColor: "#F3F0FF",
-                    borderRadius: 12,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderWidth: 1,
-                    borderColor: "#E0D9FF",
-                  }}>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#6C5CE7" }}>
-                      ⭐ ONLY ON 5EMOJIS
-                    </Text>
-                    <Text style={{ fontSize: 11, color: "#8B7FD4", marginTop: 2 }}>
-                      Exclusive emojis you won't find anywhere else
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={{
-                    fontSize: 12,
-                    fontWeight: "700",
-                    color: "#9CA3AF",
-                    letterSpacing: 1,
-                    paddingHorizontal: GRID_PADDING,
-                    paddingTop: 16,
-                    paddingBottom: 6,
-                  }}>
-                    {section.icon}  {section.name.toUpperCase()}
-                  </Text>
-                )}
-
-                {/* Emoji grid */}
                 <View style={{
                   flexDirection: "row",
                   flexWrap: "wrap",

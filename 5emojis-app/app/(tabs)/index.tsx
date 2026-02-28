@@ -1,24 +1,14 @@
-import { View, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
+import SwipeCardStack from "../../components/swipe/SwipeCardStack";
+import AuroraBackground from "../../components/skia/AuroraBackground";
+import TabHeader from "../../components/navigation/TabHeader";
 
 export default function DiscoverScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <View className="px-6 pt-4 pb-2">
-        <Text className="text-2xl font-bold text-text">Discover</Text>
-      </View>
-
-      <View className="flex-1 items-center justify-center px-8">
-        {/* TODO: Swipe card stack */}
-        <Text className="text-6xl mb-4">🃏</Text>
-        <Text className="text-xl font-semibold text-text mb-2">
-          Swipe cards coming soon
-        </Text>
-        <Text className="text-text-secondary text-center">
-          This is where you'll discover new friends based on their 5 emojis,
-          photo, and vibe.
-        </Text>
-      </View>
-    </SafeAreaView>
+    <View style={{ flex: 1 }}>
+      <AuroraBackground variant="warm" />
+      <TabHeader title="Discover" />
+      <SwipeCardStack />
+    </View>
   );
 }

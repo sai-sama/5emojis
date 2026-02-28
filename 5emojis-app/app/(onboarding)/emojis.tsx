@@ -4,11 +4,11 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import EmojiPicker from "../../components/EmojiPicker";
-import { isCustomEmoji, getCustomEmojiComponent } from "../../components/custom-emojis";
+import { useOnboarding } from "../../lib/onboarding-context";
+import { fonts } from "../../lib/fonts";
+import EmojiBackground from "../../components/EmojiBackground";
 
 function SelectedSlot({ emoji, onRemove }: { emoji?: string; onRemove: () => void }) {
-  const isCustom = emoji && isCustomEmoji(emoji);
-  const CustomComponent = isCustom ? getCustomEmojiComponent(emoji) : null;
   const filled = !!emoji;
 
   return (
@@ -21,23 +21,20 @@ function SelectedSlot({ emoji, onRemove }: { emoji?: string; onRemove: () => voi
         borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: filled ? "#EDE9FE" : "#F3F4F6",
-        borderWidth: filled ? 0 : 2,
-        borderStyle: "dashed",
-        borderColor: "#D1D5DB",
+        backgroundColor: filled ? "#F5F0FF" : "#FFF",
+        borderWidth: 2,
+        borderStyle: filled ? "solid" : "dashed",
+        borderColor: filled ? "#7C3AED" : "#D1D5DB",
       }}
     >
-      {CustomComponent ? (
-        <CustomComponent size={32} />
-      ) : emoji ? (
-        <Text style={{ fontSize: 32 }}>{emoji}</Text>
-      ) : null}
+      {emoji ? <Text style={{ fontSize: 32 }}>{emoji}</Text> : null}
     </TouchableOpacity>
   );
 }
 
 export default function EmojisScreen() {
-  const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
+  const { data, update } = useOnboarding();
+  const [selectedEmojis, setSelectedEmojis] = useState<string[]>(data.emojis);
 
   const toggleEmoji = (emoji: string) => {
     if (selectedEmojis.includes(emoji)) {
@@ -54,13 +51,14 @@ export default function EmojisScreen() {
   const isFull = selectedEmojis.length === 5;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FAFAFA" }} edges={["bottom"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF8F0" }} edges={["bottom"]}>
+      <EmojiBackground />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <Text style={{ fontSize: 26, fontWeight: "800", color: "#2D3436" }}>
+        <Text style={{ fontSize: 26, fontFamily: fonts.heading, color: "#2D3436" }}>
           Pick your 5 emojis
         </Text>
-        <Text style={{ fontSize: 15, color: "#636E72", marginTop: 2 }}>
+        <Text style={{ fontSize: 15, fontFamily: fonts.body, color: "#636E72", marginTop: 2 }}>
           Choose 5 that represent you. Tap to remove.
         </Text>
 
@@ -84,6 +82,7 @@ export default function EmojisScreen() {
         <EmojiPicker
           selected={selectedEmojis}
           onToggle={toggleEmoji}
+          onSetAll={setSelectedEmojis}
           maxSelection={5}
         />
       </View>
@@ -94,15 +93,16 @@ export default function EmojisScreen() {
           style={{
             borderRadius: 14,
             paddingVertical: 16,
-            backgroundColor: isFull ? "#6C5CE7" : "#D1D5DB",
+            backgroundColor: isFull ? "#7C3AED" : "#D1D5DB",
           }}
           disabled={!isFull}
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            update({ emojis: selectedEmojis });
             router.push("/(onboarding)/details");
           }}
         >
-          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontWeight: "600" }}>
+          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
             {isFull ? "Continue" : `Pick ${5 - selectedEmojis.length} more`}
           </Text>
         </TouchableOpacity>

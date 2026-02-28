@@ -1,11 +1,14 @@
 export const COLORS = {
-  primary: "#6C5CE7",
-  secondary: "#A29BFE",
-  accent: "#FD79A8",
-  background: "#FAFAFA",
+  primary: "#7C3AED",
+  secondary: "#F97316",
+  accent: "#FF6B6B",
+  highlight: "#FBBF24",
+  success: "#06B6D4",
+  background: "#FFF8F0",
   surface: "#FFFFFF",
   text: "#2D3436",
   textSecondary: "#636E72",
+  border: "#E8E4DE",
 } as const;
 
 export const MAX_PHOTOS = 5;
@@ -32,3 +35,13 @@ export const FRIENDSHIP_STYLES = [
   "Work Friends",
   "Adventure Crew",
 ] as const;
+
+// ─── Premium Feature Flags ──────────────────────────────────
+// Flip these to `true` to gate features behind premium.
+// When true, tapping the feature shows a paywall prompt.
+export const PREMIUM_GATES = {
+  undoSwipe: false,        // Undo last swipe
+  seeWhoVibedYou: false,   // See who swiped right on you
+  profileBoost: false,      // Boost profile visibility
+  unlimitedEmojiChanges: false, // Change emojis anytime (vs once/week)
+} as const;

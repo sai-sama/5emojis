@@ -3,6 +3,9 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-nativ
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { useOnboarding } from "../../lib/onboarding-context";
+import { fonts } from "../../lib/fonts";
+import EmojiBackground from "../../components/EmojiBackground";
 
 // "I'm currently..." — completes a sentence naturally
 const SITUATIONS = [
@@ -54,7 +57,6 @@ const ALL_INTERESTS = [
   { label: "Climbing", icon: "🧗" },
 ];
 
-// AI: profession keywords → suggested interests
 const PROFESSION_HINTS: Record<string, string[]> = {
   engineer: ["Tech", "Coffee", "Gaming", "Hiking"],
   software: ["Tech", "Coffee", "Gaming", "Podcasts"],
@@ -76,7 +78,6 @@ const PROFESSION_HINTS: Record<string, string[]> = {
   default: ["Coffee", "Music", "Travel", "Hiking"],
 };
 
-// AI: interest → related interests
 const INTEREST_GRAPH: Record<string, string[]> = {
   Cooking: ["Wine", "Brunch", "Travel", "Gardening"],
   Hiking: ["Climbing", "Fitness", "Photography", "Travel"],
@@ -107,7 +108,6 @@ const INTEREST_GRAPH: Record<string, string[]> = {
 function getAISuggestions(profession: string, selected: string[]): string[] {
   const suggestions = new Set<string>();
 
-  // From profession
   const profLower = profession.toLowerCase();
   for (const [keyword, interests] of Object.entries(PROFESSION_HINTS)) {
     if (keyword !== "default" && profLower.includes(keyword)) {
@@ -118,13 +118,11 @@ function getAISuggestions(profession: string, selected: string[]): string[] {
     PROFESSION_HINTS.default.forEach((i) => suggestions.add(i));
   }
 
-  // From selected interests (graph traversal)
   for (const interest of selected) {
     const related = INTEREST_GRAPH[interest] || [];
     related.forEach((r) => suggestions.add(r));
   }
 
-  // Remove already selected
   for (const s of selected) suggestions.delete(s);
 
   return Array.from(suggestions).slice(0, 6);
@@ -134,10 +132,11 @@ const MAX_INTERESTS = 5;
 const MAX_FRIENDSHIP_STYLES = 3;
 
 export default function DetailsScreen() {
-  const [profession, setProfession] = useState("");
-  const [selectedSituation, setSelectedSituation] = useState("");
-  const [selectedFriendshipStyles, setSelectedFriendshipStyles] = useState<string[]>([]);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const { data, update } = useOnboarding();
+  const [profession, setProfession] = useState(data.profession);
+  const [selectedSituation, setSelectedSituation] = useState(data.lifeStage);
+  const [selectedFriendshipStyles, setSelectedFriendshipStyles] = useState<string[]>(data.friendshipStyles);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(data.interests);
 
   const toggleFriendshipStyle = (style: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -169,22 +168,23 @@ export default function DetailsScreen() {
     selectedInterests.length >= 3;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FAFAFA" }} edges={["bottom"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF8F0" }} edges={["bottom"]}>
+      <EmojiBackground />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ fontSize: 28, fontWeight: "800", color: "#2D3436" }}>
+        <Text style={{ fontSize: 28, fontFamily: fonts.heading, color: "#2D3436" }}>
           Tell us about you
         </Text>
-        <Text style={{ fontSize: 15, color: "#636E72", marginTop: 4, marginBottom: 28 }}>
+        <Text style={{ fontSize: 15, fontFamily: fonts.body, color: "#636E72", marginTop: 4, marginBottom: 28 }}>
           Our AI uses this to find your people. Be yourself!
         </Text>
 
         {/* Profession */}
-        <Text style={{ fontSize: 13, fontWeight: "700", color: "#636E72", letterSpacing: 0.5, marginBottom: 8 }}>
+        <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: "#636E72", letterSpacing: 0.5, marginBottom: 8 }}>
           💼  WHAT DO YOU DO?
         </Text>
         <TextInput
@@ -199,15 +199,16 @@ export default function DetailsScreen() {
             paddingHorizontal: 16,
             paddingVertical: 14,
             fontSize: 16,
+            fontFamily: fonts.body,
             color: "#2D3436",
             borderWidth: 1.5,
-            borderColor: profession.trim() ? "#6C5CE7" : "#E8E8E8",
+            borderColor: profession.trim() ? "#7C3AED" : "#E8E4DE",
             marginBottom: 24,
           }}
         />
 
-        {/* Situation (formerly Life Stage) */}
-        <Text style={{ fontSize: 13, fontWeight: "700", color: "#636E72", letterSpacing: 0.5, marginBottom: 10 }}>
+        {/* Situation */}
+        <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: "#636E72", letterSpacing: 0.5, marginBottom: 10 }}>
           🧭  I'M CURRENTLY...
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
@@ -226,13 +227,13 @@ export default function DetailsScreen() {
                   paddingHorizontal: 14,
                   paddingVertical: 10,
                   borderRadius: 20,
-                  backgroundColor: sel ? "#6C5CE7" : "#FFF",
+                  backgroundColor: sel ? "#7C3AED" : "#FFF",
                   borderWidth: 1.5,
-                  borderColor: sel ? "#6C5CE7" : "#E8E8E8",
+                  borderColor: sel ? "#7C3AED" : "#E8E4DE",
                 }}
               >
                 <Text style={{ fontSize: 16, marginRight: 6 }}>{icon}</Text>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: sel ? "#FFF" : "#2D3436" }}>
+                <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : "#2D3436" }}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -242,10 +243,10 @@ export default function DetailsScreen() {
 
         {/* Friendship Style */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#636E72", letterSpacing: 0.5 }}>
+          <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: "#636E72", letterSpacing: 0.5 }}>
             🤝  LOOKING FOR
           </Text>
-          <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
+          <Text style={{ fontSize: 12, fontFamily: fonts.bodyMedium, color: "#B2BEC3" }}>
             {selectedFriendshipStyles.length}/{MAX_FRIENDSHIP_STYLES}
           </Text>
         </View>
@@ -264,14 +265,14 @@ export default function DetailsScreen() {
                   paddingHorizontal: 14,
                   paddingVertical: 10,
                   borderRadius: 20,
-                  backgroundColor: sel ? "#6C5CE7" : "#FFF",
+                  backgroundColor: sel ? "#7C3AED" : "#FFF",
                   borderWidth: 1.5,
-                  borderColor: sel ? "#6C5CE7" : "#E8E8E8",
+                  borderColor: sel ? "#7C3AED" : "#E8E4DE",
                   opacity: full ? 0.4 : 1,
                 }}
               >
                 <Text style={{ fontSize: 16, marginRight: 6 }}>{icon}</Text>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: sel ? "#FFF" : "#2D3436" }}>
+                <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : "#2D3436" }}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -282,15 +283,15 @@ export default function DetailsScreen() {
         {/* AI Suggestions */}
         {aiSuggestions.length > 0 && selectedInterests.length < MAX_INTERESTS && (
           <View style={{
-            backgroundColor: "#F3F0FF",
+            backgroundColor: "#FFF7ED",
             borderRadius: 14,
             padding: 14,
             marginBottom: 16,
             borderWidth: 1,
-            borderColor: "#E0D9FF",
+            borderColor: "#FED7AA",
           }}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-              <Text style={{ fontSize: 12, fontWeight: "800", color: "#6C5CE7" }}>
+              <Text style={{ fontSize: 12, fontFamily: fonts.heading, color: "#F97316" }}>
                 ✨ PICKS FOR YOU
               </Text>
             </View>
@@ -312,12 +313,12 @@ export default function DetailsScreen() {
                       borderRadius: 18,
                       backgroundColor: "#FFF",
                       borderWidth: 1.5,
-                      borderColor: "#D4CCFF",
+                      borderColor: "#FDBA74",
                       opacity: full ? 0.35 : 1,
                     }}
                   >
                     <Text style={{ fontSize: 14, marginRight: 5 }}>{interest.icon}</Text>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#6C5CE7" }}>
+                    <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: "#F97316" }}>
                       {label}
                     </Text>
                   </TouchableOpacity>
@@ -329,10 +330,10 @@ export default function DetailsScreen() {
 
         {/* Interests */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#636E72", letterSpacing: 0.5 }}>
+          <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: "#636E72", letterSpacing: 0.5 }}>
             ✨  INTERESTS
           </Text>
-          <Text style={{ fontSize: 12, color: selectedInterests.length >= 3 ? "#6C5CE7" : "#9CA3AF" }}>
+          <Text style={{ fontSize: 12, fontFamily: fonts.bodyMedium, color: selectedInterests.length >= 3 ? "#7C3AED" : "#B2BEC3" }}>
             {selectedInterests.length}/{MAX_INTERESTS} {selectedInterests.length < 3 ? "(pick at least 3)" : ""}
           </Text>
         </View>
@@ -351,17 +352,17 @@ export default function DetailsScreen() {
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 18,
-                  backgroundColor: sel ? "#EDE9FE" : "#FFF",
+                  backgroundColor: sel ? "#F5F0FF" : "#FFF",
                   borderWidth: 1.5,
-                  borderColor: sel ? "#6C5CE7" : "#E8E8E8",
+                  borderColor: sel ? "#7C3AED" : "#E8E4DE",
                   opacity: full ? 0.35 : 1,
                 }}
               >
                 <Text style={{ fontSize: 14, marginRight: 5 }}>{icon}</Text>
                 <Text style={{
                   fontSize: 13,
-                  fontWeight: "600",
-                  color: sel ? "#6C5CE7" : "#636E72",
+                  fontFamily: fonts.bodySemiBold,
+                  color: sel ? "#7C3AED" : "#636E72",
                 }}>
                   {label}
                 </Text>
@@ -372,20 +373,26 @@ export default function DetailsScreen() {
       </ScrollView>
 
       {/* Continue button */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 12, paddingTop: 8, backgroundColor: "#FAFAFA" }}>
+      <View style={{ paddingHorizontal: 24, paddingBottom: 12, paddingTop: 8, backgroundColor: "#FFF8F0" }}>
         <TouchableOpacity
           disabled={!canContinue}
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            update({
+              profession: profession.trim(),
+              lifeStage: selectedSituation,
+              friendshipStyles: selectedFriendshipStyles,
+              interests: selectedInterests,
+            });
             router.push("/(onboarding)/location");
           }}
           style={{
             borderRadius: 14,
             paddingVertical: 16,
-            backgroundColor: canContinue ? "#6C5CE7" : "#D1D5DB",
+            backgroundColor: canContinue ? "#7C3AED" : "#D1D5DB",
           }}
         >
-          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontWeight: "600" }}>
+          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
             Continue
           </Text>
         </TouchableOpacity>

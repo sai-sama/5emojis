@@ -4,9 +4,13 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { useOnboarding } from "../../lib/onboarding-context";
+import { fonts } from "../../lib/fonts";
+import EmojiBackground, { PHOTO_EMOJIS } from "../../components/EmojiBackground";
 
 export default function PhotosScreen() {
-  const [photos, setPhotos] = useState<string[]>([]);
+  const { data, update } = useOnboarding();
+  const [photos, setPhotos] = useState<string[]>(data.photos);
 
   const pickPhoto = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -39,68 +43,111 @@ export default function PhotosScreen() {
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
+  const slotEmojis = ["📸", "😄", "🎉", "🌟", "💫"];
+
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["bottom"]}>
-      <ScrollView className="flex-1 px-8 pt-8" contentContainerStyle={{ paddingBottom: 100 }}>
-        <Text className="text-3xl font-bold text-text mb-2">
-          Add your photos
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF8F0" }} edges={["bottom"]}>
+      <EmojiBackground emojis={PHOTO_EMOJIS} />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 32, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={{ fontSize: 28, fontFamily: fonts.heading, color: "#2D3436" }}>
+          📷  Add your photos
         </Text>
-        <Text className="text-text-secondary mb-8">
-          Up to 5 photos. Your first photo is your main one — make sure it clearly shows your face!
+        <Text style={{ fontSize: 15, fontFamily: fonts.body, color: "#636E72", marginTop: 4, marginBottom: 24 }}>
+          Up to 5 photos. Your first one is your main pic — make sure it clearly shows your face!
         </Text>
 
-        <View className="flex-row flex-wrap gap-3 mb-8">
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
           {Array.from({ length: 5 }).map((_, i) => (
             <TouchableOpacity
               key={i}
-              className="w-[30%] aspect-[3/4] bg-surface border-2 border-dashed border-gray-300 rounded-xl items-center justify-center overflow-hidden"
               onPress={() => pickPhoto(i)}
+              style={{
+                width: "30%",
+                aspectRatio: 3 / 4,
+                backgroundColor: photos[i] ? "#F5F0FF" : "#FFF",
+                borderWidth: 2,
+                borderStyle: photos[i] ? "solid" : "dashed",
+                borderColor: photos[i] ? "#7C3AED" : "#D1D5DB",
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
             >
               {photos[i] ? (
-                <View className="w-full h-full">
+                <View style={{ width: "100%", height: "100%" }}>
                   <Image
                     source={{ uri: photos[i] }}
-                    className="w-full h-full rounded-xl"
+                    style={{ width: "100%", height: "100%", borderRadius: 14 }}
                     resizeMode="cover"
                   />
                   <TouchableOpacity
-                    className="absolute top-1 right-1 bg-black/60 rounded-full w-6 h-6 items-center justify-center"
                     onPress={() => removePhoto(i)}
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      backgroundColor: "rgba(0,0,0,0.6)",
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    <Text className="text-white text-xs">✕</Text>
+                    <Text style={{ color: "#FFF", fontSize: 12, fontFamily: fonts.bodyBold }}>✕</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <Text className="text-3xl text-gray-400">
-                  {i === 0 ? "📸" : "+"}
-                </Text>
+                <View style={{ alignItems: "center", gap: 4 }}>
+                  <Text style={{ fontSize: 28 }}>{slotEmojis[i]}</Text>
+                  {i === 0 && (
+                    <Text style={{ fontSize: 10, color: "#636E72", fontFamily: fonts.bodySemiBold }}>MAIN</Text>
+                  )}
+                </View>
               )}
             </TouchableOpacity>
           ))}
         </View>
 
         {photos.length === 0 && (
-          <View className="bg-purple-50 rounded-xl p-4 mb-4">
-            <Text className="text-primary font-semibold mb-1">Photo tips</Text>
-            <Text className="text-text-secondary text-sm">
-              • Clear face photo required for your main pic{"\n"}
-              • No group shots for photo #1{"\n"}
-              • Show your personality!
+          <View style={{
+            backgroundColor: "#F5F0FF",
+            borderRadius: 14,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: "#E4DAFF",
+          }}>
+            <Text style={{ fontSize: 14, fontFamily: fonts.bodyBold, color: "#7C3AED", marginBottom: 6 }}>
+              💡 Photo tips
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: fonts.body, color: "#636E72", lineHeight: 20 }}>
+              {"• Clear face photo for pic #1 — no sunglasses!\n• No group shots for your main pic\n• Show your personality — hobbies, travel, pets 🐶"}
             </Text>
           </View>
         )}
       </ScrollView>
 
-      <View className="px-8 pb-4">
+      <View style={{ paddingHorizontal: 32, paddingBottom: 16, paddingTop: 8, backgroundColor: "#FFF8F0" }}>
         <TouchableOpacity
-          className={`rounded-xl py-4 ${photos.length > 0 ? "bg-primary" : "bg-gray-300"}`}
           disabled={photos.length === 0}
           onPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            update({ photos });
             router.push("/(onboarding)/emojis");
           }}
+          style={{
+            borderRadius: 14,
+            paddingVertical: 16,
+            backgroundColor: photos.length > 0 ? "#7C3AED" : "#D1D5DB",
+          }}
         >
-          <Text className="text-white text-center text-lg font-semibold">
-            Continue
+          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
+            {photos.length > 0 ? "Continue" : "Add at least 1 photo"}
           </Text>
         </TouchableOpacity>
       </View>
