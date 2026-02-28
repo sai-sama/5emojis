@@ -5,37 +5,30 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, ActivityIndicator } from "react-native";
 import { useFonts } from "expo-font";
+import { YoungSerif_400Regular } from "@expo-google-fonts/young-serif";
 import {
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-} from "@expo-google-fonts/nunito";
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from "@expo-google-fonts/dm-sans";
 import { AuthProvider } from "../lib/auth-context";
+import { COLORS } from "../lib/constants";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    "Nunito-Regular": Nunito_400Regular,
-    "Nunito-SemiBold": Nunito_600SemiBold,
-    "Nunito-Bold": Nunito_700Bold,
-    "Nunito-ExtraBold": Nunito_800ExtraBold,
-    "Inter-Regular": Inter_400Regular,
-    "Inter-Medium": Inter_500Medium,
-    "Inter-SemiBold": Inter_600SemiBold,
-    "Inter-Bold": Inter_700Bold,
+    "YoungSerif-Regular": YoungSerif_400Regular,
+    "DMSans-Regular": DMSans_400Regular,
+    "DMSans-Medium": DMSans_500Medium,
+    "DMSans-SemiBold": DMSans_600SemiBold,
+    "DMSans-Bold": DMSans_700Bold,
   });
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF8F0" }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.background }}>
         <Text style={{ fontSize: 48, marginBottom: 16 }}>👋🎉🌟💜🤝</Text>
-        <ActivityIndicator size="large" color="#7C3AED" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -54,6 +47,13 @@ export default function RootLayout() {
               options={{
                 presentation: "modal",
                 headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="chat/[matchId]"
+              options={{
+                headerShown: false,
+                animation: "slide_from_right",
               }}
             />
           </Stack>

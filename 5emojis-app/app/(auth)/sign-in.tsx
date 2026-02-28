@@ -17,6 +17,7 @@ import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import EmojiBackground from "../../components/EmojiBackground";
 import AuroraBackground from "../../components/skia/AuroraBackground";
+import BrandLogo from "../../components/BrandLogo";
 
 export default function SignIn() {
   const { signIn, signUp } = useAuth();
@@ -123,9 +124,9 @@ export default function SignIn() {
           <Text style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>
             👋🎉🌟💜🤝
           </Text>
-          <Text style={{ fontSize: 36, fontFamily: fonts.heading, color: COLORS.primary, textAlign: "center" }}>
-            5Emojis
-          </Text>
+          <View style={{ alignItems: "center" }}>
+            <BrandLogo size="large" />
+          </View>
           <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", marginBottom: 32 }}>
             Stop overthinking your first message.{"\n"}Just send 5 emojis.
           </Text>

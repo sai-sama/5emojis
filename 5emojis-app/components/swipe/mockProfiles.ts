@@ -74,6 +74,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Deep Convos",
       pronouns: "she/her",
+      intent: "friends",
       is_new_to_city: true,
       city: "San Francisco",
       state: "CA",
@@ -98,6 +99,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Activity Buddy",
       pronouns: "he/him",
+      intent: "both",
       is_new_to_city: false,
       city: "San Francisco",
       state: "CA",
@@ -122,6 +124,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "In School",
       friendship_style: "Group Hangs",
       pronouns: "she/her",
+      intent: "dating",
       is_new_to_city: true,
       city: "San Francisco",
       state: "CA",
@@ -146,6 +149,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Freelancing",
       friendship_style: "Adventure Crew",
       pronouns: "they/them",
+      intent: "friends",
       is_new_to_city: false,
       city: "Oakland",
       state: "CA",
@@ -170,6 +174,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Deep Convos",
       pronouns: "she/her",
+      intent: "both",
       is_new_to_city: true,
       city: "San Francisco",
       state: "CA",
@@ -194,6 +199,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Gym Partner",
       pronouns: "he/him",
+      intent: "dating",
       is_new_to_city: false,
       city: "San Francisco",
       state: "CA",
@@ -218,6 +224,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Activity Buddy",
       pronouns: "she/her",
+      intent: "friends",
       is_new_to_city: false,
       city: "San Francisco",
       state: "CA",
@@ -242,6 +249,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Freelancing",
       friendship_style: "Creative Collab",
       pronouns: "he/him",
+      intent: "both",
       is_new_to_city: true,
       city: "San Francisco",
       state: "CA",
@@ -266,6 +274,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Working",
       friendship_style: "Study Buddy",
       pronouns: "she/her",
+      intent: "dating",
       is_new_to_city: false,
       city: "San Francisco",
       state: "CA",
@@ -290,6 +299,7 @@ export const MOCK_PROFILES: SwipeProfile[] = [
       life_stage: "Freelancing",
       friendship_style: "Adventure Crew",
       pronouns: "they/them",
+      intent: "friends",
       is_new_to_city: true,
       city: "Berkeley",
       state: "CA",
@@ -308,3 +318,19 @@ export const MOCK_PROFILES: SwipeProfile[] = [
 // Mock current user location (SF downtown)
 export const MOCK_USER_LAT = SF_LAT;
 export const MOCK_USER_LNG = SF_LNG;
+
+// Mock current user's emojis — overlaps with several mock profiles for testing:
+// 🎨 matches Priya(mock-1) + Luna(mock-7)
+// ☕ matches Priya(mock-1) + Luna(mock-7)
+// 🎮 matches Marcus(mock-2) + Mei(mock-9)
+// 🏔️ matches Kai(mock-4)
+// 🎵 matches Priya(mock-1) + Tyler(mock-6)
+export const MOCK_USER_EMOJIS = ["🎨", "☕", "🎮", "🏔️", "🎵"];
+
+// ─── Mock pre-existing swipes (these users already swiped right on you) ──────
+// When you swipe right on them → instant match for testing
+export const MOCK_PRE_SWIPED_IDS = new Set([
+  "mock-1",  // Priya — 3 emoji overlap (best test for match + emoji count)
+  "mock-4",  // Kai — 1 emoji overlap
+  "mock-7",  // Luna — 2 emoji overlap
+]);

@@ -1,24 +1,34 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../lib/auth-context";
-import { fonts } from "../../lib/fonts";
+import { supabase } from "../../lib/supabase";
 import { COLORS } from "../../lib/constants";
+import BrandLogo from "../BrandLogo";
 
-type TabHeaderProps = {
-  title: string;
-};
-
-export default function TabHeader({ title }: TabHeaderProps) {
+export default function TabHeader() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
-  // TODO: load user's primary photo from profile — for now use placeholder
-  const avatarUri: string | null = null;
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    supabase
+      .from("profile_photos")
+      .select("url")
+      .eq("user_id", session.user.id)
+      .eq("is_primary", true)
+      .single()
+      .then(({ data }) => {
+        if (data?.url) setAvatarUri(data.url);
+      });
+  }, [session?.user?.id]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 4 }]}>
-      <Text style={styles.title}>{title}</Text>
+      <BrandLogo size="compact" />
       <TouchableOpacity
         style={styles.avatarButton}
         onPress={() => router.push("/profile")}
@@ -43,11 +53,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingBottom: 4,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: fonts.heading,
-    color: COLORS.text,
   },
   avatarButton: {
     padding: 2,

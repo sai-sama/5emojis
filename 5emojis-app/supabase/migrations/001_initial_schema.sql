@@ -35,7 +35,7 @@ create table public.profiles (
   latitude    double precision not null,
   longitude   double precision not null,
   location    extensions.geography(Point, 4326),
-  search_radius_miles integer not null default 25,
+  search_radius_miles integer not null default 50,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );

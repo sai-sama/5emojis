@@ -15,6 +15,7 @@ import {
   type MatchWithProfile,
 } from "../../lib/swipe-service";
 import { calculateAge } from "../../components/swipe/mockProfiles";
+import { getZodiacSign } from "../../lib/zodiac";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
@@ -24,6 +25,8 @@ import TabHeader from "../../components/navigation/TabHeader";
 
 function MessageRow({ item }: { item: MatchWithProfile }) {
   const { otherUser, otherEmojis, otherPhoto, match } = item;
+  const zodiac = getZodiacSign(otherUser.dob);
+  const age = calculateAge(otherUser.dob);
   const sortedEmojis = [...otherEmojis]
     .sort((a, b) => a.position - b.position)
     .map((e) => e.emoji)
@@ -48,7 +51,7 @@ function MessageRow({ item }: { item: MatchWithProfile }) {
       {/* Info */}
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
-          {otherUser.name}
+          {otherUser.name}, {age} {zodiac.emoji}
         </Text>
         <Text style={styles.preview} numberOfLines={1}>
           Send the first emojis! {sortedEmojis}
@@ -98,7 +101,7 @@ export default function MessagesScreen() {
     <View style={{ flex: 1 }}>
       <AuroraBackground variant="warm" />
       <View style={styles.container}>
-        <TabHeader title="Messages" />
+        <TabHeader />
 
         {loading ? (
           <View style={styles.centered}>

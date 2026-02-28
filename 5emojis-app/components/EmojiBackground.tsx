@@ -31,9 +31,10 @@ const GAP = 24;
 
 type Props = {
   emojis?: string[];
+  opacity?: number;
 };
 
-function EmojiBackground({ emojis = DEFAULT_EMOJIS }: Props) {
+function EmojiBackground({ emojis = DEFAULT_EMOJIS, opacity = 0.13 }: Props) {
   const cols = Math.floor(width / GAP);
   // Extra rows so the drift loops seamlessly
   const rows = Math.ceil(height / GAP) + 3;
@@ -69,6 +70,7 @@ function EmojiBackground({ emojis = DEFAULT_EMOJIS }: Props) {
             {
               left: xStart + col * GAP,
               top: row * GAP,
+              opacity,
             },
           ]}
         >
@@ -102,7 +104,6 @@ const styles = StyleSheet.create({
   emoji: {
     position: "absolute",
     fontSize: EMOJI_SIZE,
-    opacity: 0.08,
     textAlign: "center",
     width: EMOJI_SIZE,
   },

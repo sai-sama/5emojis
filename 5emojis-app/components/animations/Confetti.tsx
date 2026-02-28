@@ -11,14 +11,16 @@ import Animated, {
 
 const { width: W, height: H } = Dimensions.get("window");
 
+import { COLORS } from "../../lib/constants";
+
 const PARTICLE_COUNT = 40;
-const COLORS = [
-  "#7C3AED", // primary purple
-  "#F97316", // secondary orange
-  "#FBBF24", // highlight gold
-  "#06B6D4", // success cyan
-  "#FF6B6B", // accent red
-  "#34D399", // green
+const CONFETTI_PALETTE = [
+  COLORS.primary,
+  COLORS.secondary,
+  COLORS.highlight,
+  COLORS.success,
+  COLORS.accent,
+  COLORS.vibe,
   "#F472B6", // pink
   "#818CF8", // indigo
 ];
@@ -52,7 +54,7 @@ function generateParticles(): Particle[] {
       targetX: centerX + Math.cos(angle) * distance,
       targetY: centerY + Math.sin(angle) * distance * 0.6 + Math.random() * 200,
       rotation: Math.random() * 720 - 360,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      color: CONFETTI_PALETTE[Math.floor(Math.random() * CONFETTI_PALETTE.length)],
       shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
       size: 6 + Math.random() * 8,
       delay: Math.random() * 300,

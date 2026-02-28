@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ type MatchModalProps = {
   otherPhoto: ProfilePhoto | null;
   emojiMatchCount: number;
   isPerfect: boolean;
+  userEmojis: string[];
   onClose: () => void;
   onSendEmojis: () => void;
 };
@@ -45,12 +46,12 @@ function FlyingEmoji({
   emoji,
   index,
   fromLeft,
-  total,
+  isMatch,
 }: {
   emoji: string;
   index: number;
   fromLeft: boolean;
-  total: number;
+  isMatch: boolean;
 }) {
   const translateX = useSharedValue(fromLeft ? -SCREEN_WIDTH : SCREEN_WIDTH);
   const scale = useSharedValue(0.3);
@@ -77,22 +78,15 @@ function FlyingEmoji({
     transform: [{ translateX: translateX.value }, { scale: scale.value }],
   }));
 
-  // Spread emojis evenly across the horizontal space
-  const spacing = SCREEN_WIDTH * 0.65;
-  const startX = -spacing / 2;
-  const step = total > 1 ? spacing / (total - 1) : 0;
-
   return (
     <Animated.View
       style={[
-        {
-          position: "absolute",
-          left: SCREEN_WIDTH / 2 + startX + step * index - 20,
-        },
+        styles.flyingEmojiWrap,
+        isMatch && styles.flyingEmojiMatch,
         style,
       ]}
     >
-      <Text style={{ fontSize: 40 }}>{emoji}</Text>
+      <Text style={styles.flyingEmojiText}>{emoji}</Text>
     </Animated.View>
   );
 }
@@ -104,9 +98,11 @@ export default function MatchModal({
   otherPhoto,
   emojiMatchCount,
   isPerfect,
+  userEmojis,
   onClose,
   onSendEmojis,
 }: MatchModalProps) {
+  const userEmojiSet = useMemo(() => new Set(userEmojis), [userEmojis]);
   const hasTriggeredHaptics = useRef(false);
 
   useEffect(() => {
@@ -210,7 +206,7 @@ export default function MatchModal({
                 emoji={e.emoji}
                 index={i}
                 fromLeft={i % 2 === 0}
-                total={sortedEmojis.length}
+                isMatch={userEmojiSet.has(e.emoji)}
               />
             ))}
           </View>
@@ -311,9 +307,32 @@ const styles = StyleSheet.create({
     color: COLORS.highlight,
   },
   emojiRow: {
-    height: 56,
-    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
     marginBottom: 32,
+  },
+  flyingEmojiWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  flyingEmojiMatch: {
+    backgroundColor: "rgba(251, 191, 36, 0.25)",
+    borderColor: COLORS.highlight,
+    shadowColor: COLORS.highlight,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  flyingEmojiText: {
+    fontSize: 28,
   },
   actions: {
     width: "100%",

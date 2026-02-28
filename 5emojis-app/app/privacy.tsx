@@ -97,6 +97,8 @@ Device Information: Device type, operating system, and app version for troublesh
 • Display your profile to other users within your search radius
 • Facilitate communication between matched users
 • Send you notifications about matches, messages, and App updates
+• Screen uploaded photos for content that violates our community guidelines using automated moderation services
+• Compress and resize photos to optimize performance
 • Enforce our Terms of Service and protect user safety
 • Analyze usage patterns to improve the App
 • Respond to your support requests
@@ -109,7 +111,7 @@ We do not sell your personal information to third parties.`}
 
 With Other Users: Your profile information (name, age, photos, emojis, profession, life stage, and city) is visible to other users. Your exact location, email address, and date of birth are never shared with other users.
 
-Service Providers: We use third-party services to help operate the App, including Supabase for database and authentication, cloud storage for photos, and analytics tools. These providers are bound by contractual obligations to protect your data.
+Service Providers: We use third-party services to help operate the App, including Supabase for database and authentication, cloud storage for photos, OpenAI for automated content moderation of uploaded photos, and analytics tools. These providers are bound by contractual obligations to protect your data. Photos submitted for content moderation are processed in real-time and are not retained by the moderation service.
 
 Legal Requirements: We may disclose your information if required by law, court order, or government request, or if we believe disclosure is necessary to protect our rights, your safety, or the safety of others.
 

@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
+import { preparePhoto } from "./image-utils";
 
 export type OnboardingData = {
   name: string;
   dob: Date | null;
+  intent: "friends" | "dating" | "both";
   photos: string[]; // local URIs
   emojis: string[];
   profession: string;
@@ -21,6 +23,7 @@ export type OnboardingData = {
 const EMPTY: OnboardingData = {
   name: "",
   dob: null,
+  intent: "both",
   photos: [],
   emojis: [],
   profession: "",
@@ -77,21 +80,27 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       // Location is already geocoded by the location screen
       const { latitude, longitude } = final;
 
-      // 1. Upload photos to Supabase Storage
+      // 1. Compress, validate, moderate, then upload photos
       const photoUrls: string[] = [];
       for (let i = 0; i < final.photos.length; i++) {
-        const uri = final.photos[i];
-        const rawExt = uri.split(".").pop()?.toLowerCase() || "";
-        const ext = ["jpg", "jpeg", "png", "webp", "heic"].includes(rawExt) ? rawExt : "jpg";
-        const path = `${userId}/${Date.now()}_${i}.${ext}`;
+        // Compress + validate size + content moderation
+        let compressedUri: string;
+        try {
+          compressedUri = await preparePhoto(final.photos[i]);
+        } catch (err: any) {
+          // Moderation or size rejection — skip this photo
+          console.warn(`Photo ${i + 1} rejected:`, err.message);
+          continue;
+        }
 
-        // Read file as ArrayBuffer (blob doesn't work in React Native)
-        const response = await fetch(uri);
+        const path = `${userId}/${Date.now()}_${i}.jpg`;
+
+        const response = await fetch(compressedUri);
         const arrayBuffer = await response.arrayBuffer();
 
         const { error: uploadError } = await supabase.storage
           .from("profile-photos")
-          .upload(path, arrayBuffer, { contentType: `image/${ext}` });
+          .upload(path, arrayBuffer, { contentType: "image/jpeg" });
 
         if (uploadError) {
           console.warn(`Photo upload failed (${i}):`, uploadError.message);
@@ -108,6 +117,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         id: userId,
         name: final.name,
         dob: final.dob.toISOString().split("T")[0],
+        intent: final.intent,
         profession: final.profession || null,
         life_stage: final.lifeStage || null,
         friendship_style: final.friendshipStyles[0] || null,

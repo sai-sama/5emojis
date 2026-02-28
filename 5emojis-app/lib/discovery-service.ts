@@ -25,7 +25,8 @@ export async function fetchDiscoveryFeed(
   userId: string,
   userLat: number,
   userLng: number,
-  radiusMiles: number
+  radiusMiles: number,
+  intentFilter?: string | null
 ): Promise<DiscoveryProfile[]> {
   // Call the PostGIS-powered RPC function
   // It already filters out: own profile, blocked users, already-swiped users
@@ -34,6 +35,7 @@ export async function fetchDiscoveryFeed(
     user_lng: userLng,
     radius_miles: radiusMiles,
     current_user_id: userId,
+    intent_filter: intentFilter ?? null,
   });
 
   if (error || !profiles?.length) {

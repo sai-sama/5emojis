@@ -1,36 +1,16 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import EmojiPicker from "../../components/EmojiPicker";
+import DraggableEmojiSlots from "../../components/DraggableEmojiSlots";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
+import { COLORS } from "../../lib/constants";
 import EmojiBackground from "../../components/EmojiBackground";
-
-function SelectedSlot({ emoji, onRemove }: { emoji?: string; onRemove: () => void }) {
-  const filled = !!emoji;
-
-  return (
-    <TouchableOpacity
-      onPress={filled ? onRemove : undefined}
-      activeOpacity={filled ? 0.6 : 1}
-      style={{
-        width: 56,
-        height: 56,
-        borderRadius: 16,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: filled ? "#F5F0FF" : "#FFF",
-        borderWidth: 2,
-        borderStyle: filled ? "solid" : "dashed",
-        borderColor: filled ? "#7C3AED" : "#D1D5DB",
-      }}
-    >
-      {emoji ? <Text style={{ fontSize: 32 }}>{emoji}</Text> : null}
-    </TouchableOpacity>
-  );
-}
+import OnboardingButton from "../../components/OnboardingButton";
 
 export default function EmojisScreen() {
   const { data, update } = useOnboarding();
@@ -51,33 +31,37 @@ export default function EmojisScreen() {
   const isFull = selectedEmojis.length === 5;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF8F0" }} edges={["bottom"]}>
-      <EmojiBackground />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
+      <EmojiBackground opacity={0.06} />
       {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <Text style={{ fontSize: 26, fontFamily: fonts.heading, color: "#2D3436" }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 80, paddingBottom: 12 }}>
+        <Animated.Text
+          entering={FadeInDown.duration(500).delay(100)}
+          style={{ fontSize: 26, fontFamily: fonts.heading, color: COLORS.text }}
+        >
           Pick your 5 emojis
-        </Text>
-        <Text style={{ fontSize: 15, fontFamily: fonts.body, color: "#636E72", marginTop: 2 }}>
-          Choose 5 that represent you. Tap to remove.
-        </Text>
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeInDown.duration(500).delay(200)}
+          style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 2 }}
+        >
+          Express yourself — pick 5 that capture your vibe
+        </Animated.Text>
 
-        {/* Selected slots */}
-        <View style={{ flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 16 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <SelectedSlot
-              key={i}
-              emoji={selectedEmojis[i]}
-              onRemove={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setSelectedEmojis(selectedEmojis.filter((_, idx) => idx !== i));
-              }}
-            />
-          ))}
-        </View>
+        {/* Selected slots — drag to reorder */}
+        <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginTop: 16 }}>
+          <DraggableEmojiSlots
+            emojis={selectedEmojis}
+            onReorder={setSelectedEmojis}
+            onRemove={(index) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setSelectedEmojis(selectedEmojis.filter((_, idx) => idx !== index));
+            }}
+          />
+        </Animated.View>
       </View>
 
-      {/* Emoji picker — fills remaining space */}
+      {/* Emoji picker */}
       <View style={{ flex: 1 }}>
         <EmojiPicker
           selected={selectedEmojis}
@@ -88,24 +72,16 @@ export default function EmojisScreen() {
       </View>
 
       {/* Continue button */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 12, paddingTop: 8 }}>
-        <TouchableOpacity
-          style={{
-            borderRadius: 14,
-            paddingVertical: 16,
-            backgroundColor: isFull ? "#7C3AED" : "#D1D5DB",
-          }}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 0, paddingTop: 8 }}>
+        <OnboardingButton
           disabled={!isFull}
+          label={isFull ? "Continue" : `Pick ${5 - selectedEmojis.length} more`}
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             update({ emojis: selectedEmojis });
             router.push("/(onboarding)/details");
           }}
-        >
-          <Text style={{ color: "#FFF", textAlign: "center", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
-            {isFull ? "Continue" : `Pick ${5 - selectedEmojis.length} more`}
-          </Text>
-        </TouchableOpacity>
+        />
       </View>
     </SafeAreaView>
   );

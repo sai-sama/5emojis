@@ -1,18 +1,14 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 // ═══════════════════════════════════════════════════════════════
-// 5Emojis AI Service — ONE Claude call per week powers everything
+// 5Emojis Starter Packs & Emoji Personality Engine
 // ═══════════════════════════════════════════════════════════════
 //
-// Weekly batch call generates:
-//   1. Starter packs (17 themed pools)
-//   2. Emoji traits dictionary (emoji → vibe + traits)
-//   3. Icebreaker templates (fill-in-the-blank with traits)
-//   4. Summary templates (combine traits into personality one-liners)
+// All data is static and curated. Zero API calls.
+// Randomization comes from shuffling large pools (25-30 emojis each).
+// With C(30,5) = 142,506 unique combos per theme, two users
+// picking the same pack will almost never get the same 5.
 //
-// Runtime: zero API calls — just lookups and string interpolation
-//
-// TODO: Move API call to Supabase Edge Function when backend is connected
+// Icebreakers and profile summaries use template interpolation
+// with the emoji traits dictionary — no LLM needed at runtime.
 // ═══════════════════════════════════════════════════════════════
 
 // ─── Types ───────────────────────────────────────────────────
@@ -28,40 +24,117 @@ type EmojiTrait = {
   activity: string;   // e.g. "grab food together"
 };
 
-type AIContent = {
-  packs: StarterPackPool[];
-  emojiTraits: Record<string, EmojiTrait>;
-  icebreakerTemplates: string[];
-  summaryTemplates: string[];
-  fetchedAt: number;
-};
-
-// ─── Config ──────────────────────────────────────────────────
-const CACHE_KEY = "5emojis_ai_content_v2";
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-// ─── Static fallbacks ────────────────────────────────────────
-const STATIC_POOLS: StarterPackPool[] = [
-  { label: "Foodie", icon: "🍕", pool: ["🍕", "🍣", "☕", "🧁", "🌮", "🍝", "🍜", "🥘", "🍔", "🧋", "🍰", "🍷", "🥑", "🍦"] },
-  { label: "Gym Bro", icon: "💪", pool: ["💪", "🏋️", "🔥", "🥗", "💯", "🏃", "🥊", "🏆", "⚡", "🚴", "🧘", "🥤"] },
-  { label: "Creative", icon: "🎨", pool: ["🎨", "🎵", "📚", "✨", "🌸", "🎭", "🎬", "🎹", "💡", "🌈", "📝", "🖌️"] },
-  { label: "Main Character", icon: "✨", pool: ["✨", "💅", "🔥", "😎", "👑", "🫶", "💜", "🌟", "🤳", "🍾", "💃", "🦋"] },
-  { label: "Chill Vibes", icon: "🌙", pool: ["🌙", "☕", "🎧", "📖", "🕯️", "🌌", "💤", "🎶", "🧘", "🌿", "🫖", "💫"] },
-  { label: "Chaos Energy", icon: "🤪", pool: ["🤪", "😂", "🎉", "💀", "🤣", "🙃", "🫠", "👀", "🤡", "😈", "🍕", "🔥"] },
-  { label: "Hopeless Romantic", icon: "🥹", pool: ["🥹", "🌸", "☕", "📖", "🌅", "💕", "🎵", "🕯️", "🧸", "🌷", "💌", "✨"] },
-  { label: "Wanderlust", icon: "✈️", pool: ["✈️", "🏔️", "🌊", "🏕️", "📸", "🌍", "🏖️", "🌅", "🧭", "🌴", "🗺️", "🎒"] },
-  { label: "Dog Parent", icon: "🐶", pool: ["🐶", "🐾", "🏃", "🌳", "❤️", "😊", "☀️", "🎾", "🐕", "🤗", "🏞️", "📸"] },
-  { label: "Plant Parent", icon: "🪴", pool: ["🪴", "🌿", "🌱", "☀️", "🌻", "🍄", "🌸", "🧘", "☕", "🐝", "🌺", "🦋"] },
-  { label: "Brunch Squad", icon: "🥂", pool: ["🥂", "🍳", "☕", "🥑", "📸", "😂", "🥞", "👯", "🌸", "🧋", "🍹", "💅"] },
-  { label: "Gamer", icon: "🎮", pool: ["🎮", "🕹️", "🎧", "💻", "🤖", "🔥", "🏆", "👾", "🎯", "☕", "🌙", "🧠"] },
-  { label: "Bookworm", icon: "📚", pool: ["📚", "☕", "🤓", "✨", "📖", "🧠", "🕯️", "🌙", "💡", "🫖", "🏛️", "🌸"] },
-  { label: "Music Nerd", icon: "🎵", pool: ["🎵", "🎧", "🎸", "🎤", "🎶", "🎹", "💃", "🕺", "🤘", "🎷", "🌙", "🔥"] },
-  { label: "Startup Life", icon: "🚀", pool: ["🚀", "💻", "☕", "💡", "📈", "🧠", "⚡", "🤝", "🔥", "🌟", "📱", "🎯"] },
-  { label: "New Here!", icon: "🆕", pool: ["🆕", "👋", "🤝", "🗺️", "☕", "😊", "✨", "🏙️", "📸", "🫶", "🌟", "🎉"] },
-  { label: "Looking for My Crew", icon: "👯", pool: ["👯", "🤝", "🎉", "💬", "😂", "🍕", "☕", "✨", "🫶", "🤗", "💜", "🌟"] },
+// ─── Starter Packs (20 themes × 25-30 emojis each) ──────────
+export const STATIC_POOLS: StarterPackPool[] = [
+  { label: "Foodie", icon: "🍕", pool: [
+    "🍕", "🍣", "☕", "🧁", "🌮", "🍝", "🍜", "🥘", "🍔", "🧋", "🍰", "🍷",
+    "🥑", "🍦", "🍩", "🥟", "🍤", "🥪", "🫕", "🍿", "🧀", "🥐", "🍓", "🍱",
+    "🍪", "🌯", "🍳", "🫔", "🥮", "🍽️",
+  ]},
+  { label: "Gym Bro", icon: "💪", pool: [
+    "💪", "🏋️", "🔥", "🥗", "💯", "🏃", "🥊", "🏆", "⚡", "🚴", "🧘", "🥤",
+    "🏅", "🤸", "🏊", "🦾", "🎽", "🧗", "🏄", "🤾", "🏇", "⛹️", "🥇", "🫀",
+    "🦵", "🥛", "🍌", "🏂", "🎿", "🥏",
+  ]},
+  { label: "Creative", icon: "🎨", pool: [
+    "🎨", "🎵", "📚", "✨", "🌸", "🎭", "🎬", "🎹", "💡", "🌈", "📝", "🖌️",
+    "🎻", "🎺", "🪡", "🧶", "📐", "🖊️", "🎞️", "🩰", "🪩", "🎪", "🧵", "🖼️",
+    "📸", "🎤", "🎼", "✏️", "🧩", "🪈",
+  ]},
+  { label: "Main Character", icon: "✨", pool: [
+    "✨", "💅", "🔥", "😎", "👑", "🫶", "💜", "🌟", "🤳", "🍾", "💃", "🦋",
+    "🪩", "💎", "🥂", "🧿", "🫧", "🌺", "👸", "🤩", "🫰", "💋", "🪞", "💗",
+    "🌠", "🎀", "🥹", "🪻", "⭐", "🩷",
+  ]},
+  { label: "Chill Vibes", icon: "🌙", pool: [
+    "🌙", "☕", "🎧", "📖", "🕯️", "🌌", "💤", "🎶", "🧘", "🌿", "🫖", "💫",
+    "🛋️", "🫧", "🧸", "☁️", "🌊", "🪷", "🐚", "🧊", "🍵", "🎐", "🌬️", "🦥",
+    "🐌", "🧺", "🪵", "🌾", "🫶", "🌛",
+  ]},
+  { label: "Chaos Energy", icon: "🤪", pool: [
+    "🤪", "😂", "🎉", "💀", "🤣", "🙃", "🫠", "👀", "🤡", "😈", "🍕", "🔥",
+    "🫣", "🥴", "🤯", "💥", "🌪️", "🎲", "👹", "🃏", "🫨", "😵‍💫", "🤬", "🦹",
+    "🎰", "⚡", "🧨", "🏴‍☠️", "🐒", "🤖",
+  ]},
+  { label: "Hopeless Romantic", icon: "🥹", pool: [
+    "🥹", "🌸", "☕", "📖", "🌅", "💕", "🎵", "🕯️", "🧸", "🌷", "💌", "✨",
+    "🫶", "💗", "🌹", "🦋", "💐", "🪻", "🩷", "🎀", "☁️", "🥀", "🌻", "💫",
+    "🎶", "🪷", "📝", "🩰", "🍰", "🫧",
+  ]},
+  { label: "Wanderlust", icon: "✈️", pool: [
+    "✈️", "🏔️", "🌊", "🏕️", "📸", "🌍", "🏖️", "🌅", "🧭", "🌴", "🗺️", "🎒",
+    "🏝️", "🚂", "🚀", "🗽", "🏜️", "🛤️", "🗻", "🌋", "🏰", "🌐", "⛵", "🎿",
+    "🛫", "🏛️", "🧳", "🪂", "🚁", "🌄",
+  ]},
+  { label: "Dog Parent", icon: "🐶", pool: [
+    "🐶", "🐾", "🏃", "🌳", "❤️", "😊", "☀️", "🎾", "🐕", "🤗", "🏞️", "📸",
+    "🦮", "🐩", "🐕‍🦺", "🦴", "🥏", "🏖️", "🌿", "🐾", "🧡", "🤝", "💛",
+    "🐺", "🏕️", "👟", "🎒", "🌈", "🧸", "🌻",
+  ]},
+  { label: "Plant Parent", icon: "🪴", pool: [
+    "🪴", "🌿", "🌱", "☀️", "🌻", "🍄", "🌸", "🧘", "☕", "🐝", "🌺", "🦋",
+    "🌵", "🪻", "🌲", "🍀", "🌾", "🫒", "🪹", "🪵", "🌼", "💐", "🪷", "☘️",
+    "🌳", "🪺", "🧑‍🌾", "🏡", "🐛", "🍃",
+  ]},
+  { label: "Brunch Squad", icon: "🥂", pool: [
+    "🥂", "🍳", "☕", "🥑", "📸", "😂", "🥞", "👯", "🌸", "🧋", "🍹", "💅",
+    "🍓", "🥐", "🧇", "🍊", "🫐", "🥝", "🧀", "🍾", "🎉", "🤳", "🌺",
+    "🥗", "🫖", "🍮", "🫶", "💬", "☀️", "🪺",
+  ]},
+  { label: "Gamer", icon: "🎮", pool: [
+    "🎮", "🕹️", "🎧", "💻", "🤖", "🔥", "🏆", "👾", "🎯", "☕", "🌙", "🧠",
+    "⌨️", "🖥️", "🎲", "🃏", "🧩", "🐉", "⚔️", "🛡️", "🏹", "🪄", "👻",
+    "🎰", "🎪", "💎", "⚡", "🗡️", "🎵", "🌟",
+  ]},
+  { label: "Bookworm", icon: "📚", pool: [
+    "📚", "☕", "🤓", "✨", "📖", "🧠", "🕯️", "🌙", "💡", "🫖", "🏛️", "🌸",
+    "📝", "🖊️", "🔍", "🪶", "🗞️", "📰", "🎓", "🧐", "🌍", "🦉", "📜",
+    "🏚️", "🔮", "🧙", "🌿", "🐈", "✏️", "📕",
+  ]},
+  { label: "Music Nerd", icon: "🎵", pool: [
+    "🎵", "🎧", "🎸", "🎤", "🎶", "🎹", "💃", "🕺", "🤘", "🎷", "🌙", "🔥",
+    "🎻", "🎺", "🪕", "🪘", "🥁", "📻", "🪩", "🎼", "🎙️", "🪈", "🎪",
+    "🩰", "🫶", "🌟", "⚡", "💜", "🎬", "🎫",
+  ]},
+  { label: "Startup Life", icon: "🚀", pool: [
+    "🚀", "💻", "☕", "💡", "📈", "🧠", "⚡", "🤝", "🔥", "🌟", "📱", "🎯",
+    "⚙️", "🏗️", "📊", "💸", "🪙", "🌐", "🦾", "📡", "🔬", "🤖", "🧪",
+    "💎", "🏆", "📋", "🗓️", "🛠️", "💼", "🫡",
+  ]},
+  { label: "New Here!", icon: "🆕", pool: [
+    "🆕", "👋", "🤝", "🗺️", "☕", "😊", "✨", "🏙️", "📸", "🫶", "🌟", "🎉",
+    "🧭", "🗽", "🏛️", "🌈", "🍕", "🚇", "🎒", "🔍", "💬", "🤗", "👀",
+    "🌃", "🏠", "🫣", "🎊", "🌸", "🥹", "🆓",
+  ]},
+  { label: "Looking for My Crew", icon: "👯", pool: [
+    "👯", "🤝", "🎉", "💬", "😂", "🍕", "☕", "✨", "🫶", "🤗", "💜", "🌟",
+    "👋", "🎊", "🥂", "🎮", "🎵", "🏖️", "🧋", "🎭", "🤙", "🫡", "❤️‍🔥",
+    "🌈", "💪", "🎯", "🎲", "🪩", "🤞", "🥳",
+  ]},
+  { label: "Cat Person", icon: "🐱", pool: [
+    "🐱", "😺", "🐈", "🐈‍⬛", "🧶", "🌙", "💤", "☕", "📖", "🕯️", "🐟",
+    "🧸", "✨", "🪴", "🎵", "😽", "🐾", "🫖", "💜", "🖤", "🌸", "🧘",
+    "🛋️", "📚", "🎧", "🌿", "☁️", "🫧", "😸", "🐭",
+  ]},
+  { label: "Outdoorsy", icon: "⛰️", pool: [
+    "⛰️", "🏕️", "🌲", "🏔️", "🌊", "🚵", "🛶", "🎣", "🌄", "🏞️", "🪵", "🔥",
+    "⛺", "🧗", "🌅", "🏖️", "🌻", "🐻", "🦅", "🌿", "🍃", "🐾", "🪨",
+    "🧭", "📸", "☀️", "🥾", "🏜️", "🌈", "🫧",
+  ]},
+  { label: "Night Owl", icon: "🦉", pool: [
+    "🦉", "🌙", "🌃", "🌌", "🎧", "💻", "☕", "🕹️", "🎶", "🌠", "💫", "🔮",
+    "🕯️", "🐺", "🦇", "⭐", "🫖", "🍿", "🎬", "📖", "🧠", "🌑", "💤",
+    "🫠", "🪩", "🎮", "🖤", "🎵", "🔭", "🧙",
+  ]},
+  { label: "Wellness", icon: "🧘", pool: [
+    "🧘", "🌿", "🥗", "🫧", "🧖", "💆", "🌸", "🍵", "🫖", "☀️", "🪷", "🧠",
+    "💪", "🥑", "🌊", "🍃", "🫀", "🧴", "🪴", "🌻", "🦋", "✨", "🍋",
+    "🥝", "💤", "🧊", "🏃", "🛁", "🌈", "🫶",
+  ]},
 ];
 
-const STATIC_EMOJI_TRAITS: Record<string, EmojiTrait> = {
+// ─── Emoji Traits Dictionary (250+ entries) ──────────────────
+const EMOJI_TRAITS: Record<string, EmojiTrait> = {
   // Food & Drink
   "🍕": { vibe: "social foodie", traits: ["loves trying new spots", "always down to eat"], activity: "grab a slice" },
   "🍣": { vibe: "refined foodie", traits: ["appreciates good food", "adventurous eater"], activity: "try that new sushi place" },
@@ -216,9 +289,41 @@ const STATIC_EMOJI_TRAITS: Record<string, EmojiTrait> = {
   "🌠": { vibe: "shooting star", traits: ["wish maker", "believes in magic"], activity: "stargazing spot" },
   "🎀": { vibe: "cute aesthetic", traits: ["bow-core", "curated everything"], activity: "thrift shopping" },
   "🧶": { vibe: "crafty", traits: ["maker energy", "handmade appreciation"], activity: "craft session" },
+
+  // Extended traits for new pool emojis
+  "🐈": { vibe: "cat lover", traits: ["feline fanatic", "quiet comfort"], activity: "cat cafe" },
+  "🐈‍⬛": { vibe: "black cat energy", traits: ["mysterious vibes", "edgy cute"], activity: "spooky hangout" },
+  "🧗": { vibe: "climber", traits: ["boulder bro", "heights don't scare me"], activity: "climbing gym" },
+  "🏊": { vibe: "swimmer", traits: ["water lover", "laps for days"], activity: "pool day" },
+  "🤸": { vibe: "acrobatic", traits: ["flexible AF", "life of the party"], activity: "trampoline park" },
+  "🪩": { vibe: "disco energy", traits: ["dance floor magnet", "sparkle enthusiast"], activity: "dance night" },
+  "🩰": { vibe: "graceful", traits: ["artistic movement", "poise and power"], activity: "dance class" },
+  "🪷": { vibe: "zen lotus", traits: ["peace seeker", "meditation lover"], activity: "meditation session" },
+  "🐚": { vibe: "beachy", traits: ["ocean treasures", "coastal soul"], activity: "beach walk" },
+  "🦥": { vibe: "lazy legend", traits: ["nap champion", "slow living advocate"], activity: "lazy sunday" },
+  "🧊": { vibe: "ice cold chill", traits: ["unflappable", "cool under pressure"], activity: "chill hangout" },
+  "🎐": { vibe: "wind chime soul", traits: ["zen aesthetic", "calming presence"], activity: "peaceful walk" },
+  "🌬️": { vibe: "breezy", traits: ["goes with the wind", "free spirit"], activity: "outdoor adventure" },
+  "🧺": { vibe: "picnic lover", traits: ["cottage core energy", "outdoor diner"], activity: "picnic in the park" },
+  "🦉": { vibe: "night owl", traits: ["stays up late", "wise beyond years"], activity: "late night adventure" },
+  "🔮": { vibe: "mystic", traits: ["spiritual energy", "tarot curious"], activity: "metaphysical shop visit" },
+  "⚔️": { vibe: "warrior spirit", traits: ["fierce competitor", "fantasy nerd"], activity: "escape room" },
+  "🪄": { vibe: "magical", traits: ["believes in magic", "makes things happen"], activity: "something unexpected" },
+  "🐉": { vibe: "dragon energy", traits: ["fierce and legendary", "fantasy lover"], activity: "fantasy movie marathon" },
+  "🦅": { vibe: "soaring spirit", traits: ["freedom seeker", "sees the big picture"], activity: "scenic overlook trip" },
+  "🛶": { vibe: "paddle life", traits: ["river runner", "nature immersed"], activity: "kayaking" },
+  "🎣": { vibe: "patient angler", traits: ["zen patience", "lake lover"], activity: "fishing trip" },
+  "⛺": { vibe: "campfire soul", traits: ["s'mores expert", "stargazer"], activity: "camping" },
+  "🧑‍🌾": { vibe: "farmer energy", traits: ["earth connected", "grows things"], activity: "farmers market" },
+  "🪶": { vibe: "light and free", traits: ["writer soul", "delicate touch"], activity: "journaling session" },
+  "🧪": { vibe: "mad scientist", traits: ["experimental", "loves trying new things"], activity: "DIY experiment" },
+  "🛁": { vibe: "self-care royalty", traits: ["bath bomb connoisseur", "relaxation expert"], activity: "spa day" },
+  "🧖": { vibe: "spa day advocate", traits: ["skin care obsessed", "pamper sessions"], activity: "facial or spa" },
+  "💆": { vibe: "zen mode", traits: ["stress-free zone", "massage lover"], activity: "wellness day" },
 };
 
-const STATIC_ICEBREAKER_TEMPLATES = [
+// ─── Icebreaker Templates ────────────────────────────────────
+const ICEBREAKER_TEMPLATES = [
   "I see you're into {their_activity} — I'm more of a {my_activity} person, but I feel like we'd have the best time doing both! 😄",
   "Your {their_vibe} energy + my {my_vibe} energy = a friendship that just makes sense. {activity}?",
   "OK so we both clearly have {shared_trait} vibes — when are we {shared_activity}?",
@@ -231,7 +336,8 @@ const STATIC_ICEBREAKER_TEMPLATES = [
   "Two words: {shared_trait}. When are we hanging out?",
 ];
 
-const STATIC_SUMMARY_TEMPLATES = [
+// ─── Summary Templates ───────────────────────────────────────
+const SUMMARY_TEMPLATES = [
   "{vibe1} meets {vibe2} with a dash of {trait}",
   "{trait1}, {trait2}, and {vibe1} energy all in one",
   "Part {vibe1}, part {vibe2} — fully {trait}",
@@ -240,138 +346,18 @@ const STATIC_SUMMARY_TEMPLATES = [
   "{trait1} with {vibe1} energy and a {vibe2} soul",
 ];
 
-// ─── Batch LLM prompt ────────────────────────────────────────
-const BATCH_PROMPT = `You power a friendship app called 5Emojis. Generate ALL of the following as a single JSON object:
-
-1. "packs" — 17 starter packs, each: {"label": "1-3 word name", "icon": "emoji", "pool": ["12-14 emojis"]}
-   Cover: food, fitness, creative, main character, chill, chaos, romantic, travel, dog/cat parent, plant parent, brunch, gamer, bookworm, music, startup, new in town, looking for crew
-
-2. "emojiTraits" — Dictionary of 100+ common emojis. Key = emoji, value = {"vibe": "2-3 word vibe", "traits": ["2 personality traits"], "activity": "friend activity suggestion"}
-
-3. "icebreakerTemplates" — 10 fill-in-the-blank icebreaker messages using placeholders: {my_vibe}, {their_vibe}, {my_emoji}, {their_emoji}, {shared_trait}, {my_activity}, {their_activity}, {shared_activity}, {activity}
-
-4. "summaryTemplates" — 6 personality summary templates using: {vibe1}, {vibe2}, {trait}, {trait1}, {trait2}
-
-Make everything trendy, Gen Z friendly, warm (friendship not dating), and fun. Return ONLY valid JSON, no markdown.`;
-
-// ─── LLM fetch ───────────────────────────────────────────────
-async function fetchBatchContent(): Promise<Omit<AIContent, "fetchedAt"> | null> {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey.includes("your-") || apiKey.length < 10) {
-    return null;
-  }
-
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 8000,
-        messages: [{ role: "user", content: BATCH_PROMPT }],
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn(`AI batch call failed: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    let text = data.content?.[0]?.text;
-    if (!text) return null;
-
-    // Strip markdown code fences if present (Claude sometimes wraps in ```json)
-    text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-
-    const parsed = JSON.parse(text);
-
-    // Validate minimal structure
-    if (
-      !parsed.packs?.length ||
-      !parsed.emojiTraits ||
-      !parsed.icebreakerTemplates?.length ||
-      !parsed.summaryTemplates?.length
-    ) {
-      console.warn("AI batch returned incomplete data");
-      return null;
-    }
-
-    return parsed;
-  } catch (e) {
-    console.warn("AI batch fetch error:", e);
-    return null;
-  }
-}
-
-// ─── Cache management ────────────────────────────────────────
-let _cachedContent: AIContent | null = null;
-
-async function getAIContent(): Promise<AIContent> {
-  // In-memory cache first
-  if (_cachedContent && Date.now() - _cachedContent.fetchedAt < CACHE_TTL) {
-    return _cachedContent;
-  }
-
-  // AsyncStorage cache
-  try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const cached: AIContent = JSON.parse(raw);
-      if (Date.now() - cached.fetchedAt < CACHE_TTL) {
-        _cachedContent = cached;
-        return cached;
-      }
-    }
-  } catch {}
-
-  // Fetch fresh from LLM
-  const fresh = await fetchBatchContent();
-  if (fresh) {
-    const content: AIContent = { ...fresh, fetchedAt: Date.now() };
-    _cachedContent = content;
-    try {
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(content));
-    } catch {}
-    return content;
-  }
-
-  // Fallback to static
-  const fallback: AIContent = {
-    packs: STATIC_POOLS,
-    emojiTraits: STATIC_EMOJI_TRAITS,
-    icebreakerTemplates: STATIC_ICEBREAKER_TEMPLATES,
-    summaryTemplates: STATIC_SUMMARY_TEMPLATES,
-    fetchedAt: 0, // marked as "not from LLM"
-  };
-  _cachedContent = fallback;
-  return fallback;
-}
-
 // ═══════════════════════════════════════════════════════════════
-// Public API
+// Public API — zero API calls, pure data + templates
 // ═══════════════════════════════════════════════════════════════
 
-/** Get starter pack pools (async, checks 7-day cache). */
+/** Get starter pack pools. Synchronous — returns static data directly. */
 export async function getStarterPacks(): Promise<StarterPackPool[]> {
-  const content = await getAIContent();
-  return content.packs;
-}
-
-/** Force refresh all AI content from LLM. */
-export async function refreshAllContent(): Promise<void> {
-  _cachedContent = null;
-  try { await AsyncStorage.removeItem(CACHE_KEY); } catch {}
-  await getAIContent();
+  return STATIC_POOLS;
 }
 
 /**
- * Generate icebreaker messages for a match. Zero API calls at runtime.
- * Uses cached emoji traits + templates with string interpolation.
+ * Generate icebreaker messages for a match. Zero API calls.
+ * Uses emoji traits + templates with string interpolation.
  */
 export async function generateIcebreaker(
   myEmojis: string[],
@@ -379,12 +365,9 @@ export async function generateIcebreaker(
   myName: string,
   theirName: string
 ): Promise<string[]> {
-  const content = await getAIContent();
-  const { emojiTraits, icebreakerTemplates } = content;
-
   // Look up traits for each user's emojis
-  const myTraits = myEmojis.map((e) => emojiTraits[e]).filter(Boolean);
-  const theirTraits = theirEmojis.map((e) => emojiTraits[e]).filter(Boolean);
+  const myTraits = myEmojis.map((e) => EMOJI_TRAITS[e]).filter(Boolean);
+  const theirTraits = theirEmojis.map((e) => EMOJI_TRAITS[e]).filter(Boolean);
 
   // Fallback if no traits found
   if (myTraits.length === 0 || theirTraits.length === 0) {
@@ -403,7 +386,7 @@ export async function generateIcebreaker(
   const sharedActivity = sharedActivities[Math.floor(Math.random() * sharedActivities.length)];
 
   // Fill 3 random templates
-  const shuffled = [...icebreakerTemplates].sort(() => Math.random() - 0.5);
+  const shuffled = [...ICEBREAKER_TEMPLATES].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 3).map((template) =>
     template
       .replace(/\{my_vibe\}/g, myTraits[0]?.vibe || "fun")
@@ -419,24 +402,21 @@ export async function generateIcebreaker(
 }
 
 /**
- * Generate a personality summary from 5 emojis. Zero API calls at runtime.
- * Uses cached emoji traits + templates.
+ * Generate a personality summary from 5 emojis. Zero API calls.
+ * Uses emoji traits + templates.
  */
 export async function generateProfileSummary(
   emojis: string[],
   name: string
 ): Promise<string> {
-  const content = await getAIContent();
-  const { emojiTraits, summaryTemplates } = content;
-
-  const traits = emojis.map((e) => emojiTraits[e]).filter(Boolean);
+  const traits = emojis.map((e) => EMOJI_TRAITS[e]).filter(Boolean);
 
   if (traits.length === 0) {
     return `${emojis.join(" ")} energy`;
   }
 
   // Pick a random template and fill it
-  const template = summaryTemplates[Math.floor(Math.random() * summaryTemplates.length)];
+  const template = SUMMARY_TEMPLATES[Math.floor(Math.random() * SUMMARY_TEMPLATES.length)];
   const allVibes = traits.map((t) => t.vibe);
   const allTraitStrings = traits.flatMap((t) => t.traits);
 
@@ -447,6 +427,3 @@ export async function generateProfileSummary(
     .replace(/\{trait1\}/g, allTraitStrings[0] || "fun")
     .replace(/\{trait2\}/g, allTraitStrings[1] || allTraitStrings[0] || "cool");
 }
-
-/** Static fallback pools (exported for immediate sync use in EmojiPicker). */
-export { STATIC_POOLS };

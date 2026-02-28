@@ -100,7 +100,7 @@ function CenterTab({
     >
       <Animated.View style={[styles.centerButton, { transform: [{ scale }] }]}>
         <LinearGradient
-          colors={["#7C3AED", "#9B59F0"]}
+          colors={[COLORS.primary, COLORS.primaryLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.centerGradient}
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    shadowColor: "#7C3AED",
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,

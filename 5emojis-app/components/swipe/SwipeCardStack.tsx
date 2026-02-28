@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -29,7 +30,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { COLORS, PREMIUM_GATES } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { SwipeCard } from "./SwipeCard";
@@ -42,15 +43,20 @@ import {
   fetchOwnProfile,
   type DiscoveryProfile,
 } from "../../lib/discovery-service";
+import { supabase } from "../../lib/supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "../../lib/types";
 import {
   MOCK_PROFILES,
   MOCK_USER_LAT,
   MOCK_USER_LNG,
+  MOCK_USER_EMOJIS,
+  MOCK_PRE_SWIPED_IDS,
   type SwipeProfile,
 } from "./mockProfiles";
+import IntentFilter from "./IntentFilter";
 import LottieEmptyState from "../lottie/LottieEmptyState";
 import { playSwipeSound } from "../../lib/sounds";
+import type { IntentValue } from "../../lib/constants";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -84,6 +90,23 @@ const SPRING_BACK = {
 const VIBE_EMOJIS = ["🎉", "✨", "💛", "🤝", "🔥"];
 const PASS_EMOJIS = ["💨", "👋", "😅", "🫠", "💭"];
 
+// ─── Themed emoji pairs for action buttons ──────────────────
+// Each theme has a [vibe, pass] pair — rotates per card
+const EMOJI_THEMES: [string, string][] = [
+  ["🤝", "👋"], // handshake vs wave
+  ["🔥", "💨"], // fire vs wind
+  ["🎉", "😴"], // party vs sleepy
+  ["💜", "👻"], // love vs ghost
+  ["🚀", "🐌"], // rocket vs snail
+  ["🌟", "🌧️"], // star vs rain
+  ["🍕", "🥦"], // pizza vs broccoli
+  ["🎵", "🔇"], // music vs mute
+  ["☀️", "🌙"], // sun vs moon
+  ["🦋", "🪨"], // butterfly vs rock
+  ["💃", "🧊"], // dance vs ice
+  ["🎯", "🎪"], // bullseye vs circus
+];
+
 // ═════════════════════════════════════════════════════════════
 // Per-card top card component
 // Each instance owns its own translateX/translateY.
@@ -103,8 +126,9 @@ const SwipeableTopCard = forwardRef<
     onSwipeComplete: (direction: "left" | "right") => void;
     userLat: number;
     userLng: number;
+    userEmojis: string[];
   }
->(function SwipeableTopCard({ profile, dragProgress, onSwipeComplete, userLat, userLng }, ref) {
+>(function SwipeableTopCard({ profile, dragProgress, onSwipeComplete, userLat, userLng, userEmojis }, ref) {
   // ─── Per-card shared values (never shared, never reset) ───
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -258,6 +282,7 @@ const SwipeableTopCard = forwardRef<
           translateX={translateX}
           userLat={userLat}
           userLng={userLng}
+          userEmojis={userEmojis}
         />
       </Animated.View>
     </GestureDetector>
@@ -318,7 +343,7 @@ function ActionButton({
           },
         ]}
       >
-        <Text style={{ fontSize: 30 }}>{emoji}</Text>
+        <Text style={{ fontSize: 26 }}>{emoji}</Text>
         <Text style={[styles.actionLabel, { color: labelColor }]}>{label}</Text>
       </RNAnimated.View>
     </Pressable>
@@ -334,6 +359,8 @@ export default function SwipeCardStack() {
   const [profiles, setProfiles] = useState<SwipeProfile[]>(MOCK_PROFILES);
   const [userLat, setUserLat] = useState(MOCK_USER_LAT);
   const [userLng, setUserLng] = useState(MOCK_USER_LNG);
+  const [userEmojis, setUserEmojis] = useState<string[]>(MOCK_USER_EMOJIS);
+  const [intentFilter, setIntentFilter] = useState<IntentValue | null>(null);
   const [feedLoaded, setFeedLoaded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sizzle, setSizzle] = useState<{
@@ -361,6 +388,12 @@ export default function SwipeCardStack() {
   // Shared drag progress for behind-card breathing
   const dragProgress = useSharedValue(0);
 
+  // Rotating themed emojis for action buttons
+  const [vibeEmoji, passEmoji] = useMemo(
+    () => EMOJI_THEMES[currentIndex % EMOJI_THEMES.length],
+    [currentIndex]
+  );
+
   // Ref for programmatic swipes via buttons
   const topCardRef = useRef<SwipeableTopCardHandle>(null);
 
@@ -383,25 +416,54 @@ export default function SwipeCardStack() {
         setUserLat(ownProfile.latitude);
         setUserLng(ownProfile.longitude);
 
+        // Fetch current user's emojis for match highlighting
+        const { data: myEmojis } = await supabase
+          .from("profile_emojis")
+          .select("emoji")
+          .eq("user_id", session.user.id)
+          .order("position");
+        if (myEmojis && myEmojis.length > 0) {
+          setUserEmojis(myEmojis.map((e) => e.emoji));
+        }
+
         const feed = await fetchDiscoveryFeed(
           session.user.id,
           ownProfile.latitude,
           ownProfile.longitude,
-          ownProfile.search_radius_miles
+          ownProfile.search_radius_miles,
+          intentFilter
         );
 
-        if (feed.length > 0) {
-          setProfiles(feed);
-          setCurrentIndex(0);
-        }
-        // If feed is empty, keep mock profiles for now
+        // Always append mock profiles after real results for testing
+        const combined = [...feed, ...MOCK_PROFILES];
+        setProfiles(combined);
+        setCurrentIndex(0);
       } catch {
         // Network error — keep mock profiles
       } finally {
         setFeedLoaded(true);
       }
     })();
-  }, [session, devMode]);
+  }, [session, devMode, intentFilter]);
+
+  // ─── Re-fetch user emojis when tab gains focus ─────────
+  // (e.g. after editing emojis on the profile screen)
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user || devMode) return;
+
+      (async () => {
+        const { data: myEmojis } = await supabase
+          .from("profile_emojis")
+          .select("emoji")
+          .eq("user_id", session.user.id)
+          .order("position");
+        if (myEmojis && myEmojis.length > 0) {
+          setUserEmojis(myEmojis.map((e) => e.emoji));
+        }
+      })();
+    }, [session, devMode])
+  );
 
   // ─── Prefetch images for upcoming cards ──────────────────
   useEffect(() => {
@@ -415,6 +477,14 @@ export default function SwipeCardStack() {
     }
   }, [currentIndex, profiles]);
 
+  // ─── Filter profiles locally (for mock/dev mode) ────────
+  const filteredProfiles = useMemo(() => {
+    if (!intentFilter) return profiles;
+    return profiles.filter(
+      (p) => p.profile.intent === intentFilter || p.profile.intent === "both" || intentFilter === "both"
+    );
+  }, [profiles, intentFilter]);
+
   // ─── Swipe complete handler ─────────────────────────────
   const onSwipeComplete = useCallback(
     (direction: "left" | "right") => {
@@ -424,13 +494,34 @@ export default function SwipeCardStack() {
       playSwipeSound();
 
       // Save last swipe for undo (before advancing index)
-      const swipedProfile = profiles[currentIndex];
+      const swipedProfile = filteredProfiles[currentIndex];
       if (swipedProfile) {
         setLastSwipe({ swipedId: swipedProfile.profile.id, direction });
       }
 
-      // Record swipe to Supabase
-      if (session?.user && swipedProfile) {
+      // Check for mock pre-swiped match (local simulation)
+      const isMock = swipedProfile?.profile.id.startsWith("mock-");
+      if (
+        direction === "right" &&
+        swipedProfile &&
+        isMock &&
+        MOCK_PRE_SWIPED_IDS.has(swipedProfile.profile.id)
+      ) {
+        // Simulate instant match locally — no DB needed
+        const emojiMatchCount = swipedProfile.emojis.filter((e) =>
+          userEmojis.includes(e.emoji)
+        ).length;
+        setLastSwipe(null);
+        setMatchData({
+          matchId: `mock-match-${swipedProfile.profile.id}`,
+          otherUser: swipedProfile.profile,
+          otherEmojis: swipedProfile.emojis,
+          otherPhoto: swipedProfile.photo,
+          emojiMatchCount,
+          isPerfect: emojiMatchCount === 5,
+        });
+      } else if (session?.user && swipedProfile && !isMock) {
+        // Record real swipe to Supabase
         recordSwipe(
           session.user.id,
           swipedProfile.profile.id,
@@ -449,7 +540,7 @@ export default function SwipeCardStack() {
             });
           }
         }).catch(() => {
-          // Swipe recording failed (expected with mock profiles)
+          // Swipe recording failed
         });
       }
 
@@ -458,7 +549,7 @@ export default function SwipeCardStack() {
       // The new SwipeableTopCard mounts with fresh translateX = 0.
       setCurrentIndex((prev) => prev + 1);
     },
-    [currentIndex, session, profiles]
+    [currentIndex, session, filteredProfiles, userEmojis]
   );
 
   // ─── Undo handler ──────────────────────────────────────────
@@ -511,12 +602,17 @@ export default function SwipeCardStack() {
     opacity: interpolate(dragProgress.value, [0, 1], [0.85, 1]),
   }));
 
+  // Reset index when filter changes
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [intentFilter]);
+
   // ─── Render ─────────────────────────────────────────────
-  const visibleProfiles = profiles.slice(
+  const visibleProfiles = filteredProfiles.slice(
     currentIndex,
     currentIndex + MAX_VISIBLE
   );
-  const allSwiped = currentIndex >= profiles.length;
+  const allSwiped = currentIndex >= filteredProfiles.length;
 
   const getCardStyle = (index: number) => {
     if (index === 1) return secondCardStyle;
@@ -525,6 +621,9 @@ export default function SwipeCardStack() {
 
   return (
     <View style={styles.container}>
+      {/* Intent filter chips */}
+      <IntentFilter selected={intentFilter} onSelect={setIntentFilter} />
+
       {/* Card stack area — empty state sits behind cards */}
       <View style={styles.cardArea}>
         {/* Empty state — always rendered, revealed when last card exits */}
@@ -572,6 +671,7 @@ export default function SwipeCardStack() {
                     translateX={dragProgress}
                     userLat={userLat}
                     userLng={userLng}
+                    userEmojis={userEmojis}
                   />
                 </Animated.View>
               </View>
@@ -588,6 +688,7 @@ export default function SwipeCardStack() {
             onSwipeComplete={onSwipeComplete}
             userLat={userLat}
             userLng={userLng}
+            userEmojis={userEmojis}
           />
         )}
       </View>
@@ -608,9 +709,9 @@ export default function SwipeCardStack() {
       {!allSwiped && (
         <View style={styles.actions}>
           <ActionButton
-            emoji="👋"
+            emoji={passEmoji}
             label="Pass"
-            labelColor="#E85D5D"
+            labelColor={COLORS.passButton}
             borderColor="#FFD6D6"
             onPress={() => topCardRef.current?.triggerSwipe("left")}
           />
@@ -624,9 +725,9 @@ export default function SwipeCardStack() {
             </Pressable>
           )}
           <ActionButton
-            emoji="🤝"
+            emoji={vibeEmoji}
             label="Vibe"
-            labelColor="#059669"
+            labelColor={COLORS.vibeDark}
             borderColor="#C6F6D5"
             onPress={() => topCardRef.current?.triggerSwipe("right")}
           />
@@ -642,6 +743,7 @@ export default function SwipeCardStack() {
           otherPhoto={matchData.otherPhoto}
           emojiMatchCount={matchData.emojiMatchCount}
           isPerfect={matchData.isPerfect}
+          userEmojis={userEmojis}
           onClose={() => setMatchData(null)}
           onSendEmojis={() => {
             const matchId = matchData.matchId;
@@ -673,14 +775,14 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 48,
-    paddingVertical: 14,
-    paddingBottom: 6,
+    gap: 44,
+    paddingVertical: 10,
+    paddingBottom: 4,
   },
   actionButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -690,9 +792,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   actionLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.bodySemiBold,
-    marginTop: -2,
+    marginTop: -1,
   },
   undoButton: {
     width: 48,

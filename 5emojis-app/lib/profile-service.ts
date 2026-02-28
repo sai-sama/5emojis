@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "./types";
+import { preparePhoto } from "./image-utils";
 
 // ─── Types ──────────────────────────────────────────────────
 export type FullProfile = {
@@ -32,10 +33,13 @@ export async function fetchFullProfile(userId: string): Promise<FullProfile | nu
 export async function updateProfileFields(
   userId: string,
   fields: {
+    name?: string;
+    pronouns?: string | null;
     profession?: string | null;
     life_stage?: string | null;
     friendship_style?: string | null;
     is_new_to_city?: boolean;
+    intent?: "friends" | "dating" | "both";
   }
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
@@ -139,17 +143,22 @@ export async function addPhoto(
   localUri: string,
   position: number
 ): Promise<{ url: string | null; error: string | null }> {
-  const rawExt = localUri.split(".").pop()?.toLowerCase() || "";
-  const ext = ["jpg", "jpeg", "png", "webp", "heic"].includes(rawExt) ? rawExt : "jpg";
-  const path = `${userId}/${Date.now()}_${position}.${ext}`;
+  // Compress + validate size + content moderation
+  let compressedUri: string;
+  try {
+    compressedUri = await preparePhoto(localUri);
+  } catch (err: any) {
+    return { url: null, error: err.message };
+  }
 
-  // Upload to storage (arrayBuffer works in React Native, blob does not)
-  const response = await fetch(localUri);
+  const path = `${userId}/${Date.now()}_${position}.jpg`;
+
+  const response = await fetch(compressedUri);
   const arrayBuffer = await response.arrayBuffer();
 
   const { error: uploadError } = await supabase.storage
     .from("profile-photos")
-    .upload(path, arrayBuffer, { contentType: `image/${ext}` });
+    .upload(path, arrayBuffer, { contentType: "image/jpeg" });
 
   if (uploadError) return { url: null, error: uploadError.message };
 

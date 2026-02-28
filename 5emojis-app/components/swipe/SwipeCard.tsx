@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { View, Text, Image, StyleSheet, Dimensions, Platform } from "react-native";
 import Animated, {
   SharedValue,
@@ -8,10 +8,10 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS } from "../../lib/constants";
+import { COLORS, INTENTS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
+import { getZodiacSign } from "../../lib/zodiac";
 import { SwipeProfile, calculateAge, formatDistance } from "./mockProfiles";
-import ShimmerOverlay from "../skia/ShimmerOverlay";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
@@ -22,6 +22,7 @@ type SwipeCardProps = {
   translateX: SharedValue<number>;
   userLat: number;
   userLng: number;
+  userEmojis: string[];
 };
 
 function SwipeCardInner({
@@ -30,10 +31,21 @@ function SwipeCardInner({
   translateX,
   userLat,
   userLng,
+  userEmojis,
 }: SwipeCardProps) {
   const { profile: p, emojis, photo } = profile;
   const age = calculateAge(p.dob);
+  const zodiac = getZodiacSign(p.dob);
   const distance = formatDistance(userLat, userLng, p.latitude, p.longitude);
+  const intentInfo = INTENTS.find((i) => i.value === p.intent) || INTENTS[2];
+
+  // ─── Emoji match calculation ─────────────────────────────
+  const userEmojiSet = useMemo(() => new Set(userEmojis), [userEmojis]);
+  const matchCount = useMemo(
+    () => emojis.filter((e) => userEmojiSet.has(e.emoji)).length,
+    [emojis, userEmojiSet]
+  );
+  const isPerfectMatch = matchCount === 5;
 
   // ─── VIBE stamp (swipe right) ──────────────────────────────
   const likeStyle = useAnimatedStyle(() => {
@@ -141,7 +153,7 @@ function SwipeCardInner({
         <View style={styles.nameOverlay}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>
-              {p.name}, {age}
+              {p.name}, {age} {zodiac.emoji}
             </Text>
             {p.is_new_to_city && (
               <View style={styles.newBadge}>
@@ -149,6 +161,10 @@ function SwipeCardInner({
                 <Text style={styles.newBadgeText}>New Here</Text>
               </View>
             )}
+          </View>
+          <View style={[styles.intentBadge, { backgroundColor: intentInfo.color }]}>
+            <Text style={styles.intentEmoji}>{intentInfo.emoji}</Text>
+            <Text style={styles.intentLabel}>{intentInfo.label}</Text>
           </View>
           {p.profession && (
             <Text style={styles.profession}>💼 {p.profession}</Text>
@@ -160,7 +176,7 @@ function SwipeCardInner({
         <Animated.View style={[styles.stampContainer, styles.likeStamp, likeStyle]}>
           <View style={[styles.stampBorder, styles.vibeStampBorder]}>
             <Text style={styles.stampEmoji}>🤝</Text>
-            <Text style={[styles.stampLabel, { color: "#34D399" }]}>VIBE</Text>
+            <Text style={[styles.stampLabel, { color: COLORS.vibe }]}>VIBE</Text>
           </View>
         </Animated.View>
 
@@ -168,32 +184,50 @@ function SwipeCardInner({
         <Animated.View style={[styles.stampContainer, styles.nopeStamp, nopeStyle]}>
           <View style={[styles.stampBorder, styles.passStampBorder]}>
             <Text style={styles.stampEmoji}>👋</Text>
-            <Text style={[styles.stampLabel, { color: "#FB7185" }]}>PASS</Text>
+            <Text style={[styles.stampLabel, { color: COLORS.pass }]}>PASS</Text>
           </View>
         </Animated.View>
       </View>
+
+      {/* ═══ Emoji match banner (perfect 5/5 only) ═══ */}
+      {isPerfectMatch && (
+        <LinearGradient
+          colors={[COLORS.highlight, COLORS.highlightDark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.perfectBanner}
+        >
+          <Text style={styles.perfectBannerText}>
+            PERFECT EMOJI MATCH
+          </Text>
+        </LinearGradient>
+      )}
 
       {/* ═══ Emoji strip — the 5Emojis signature ═══ */}
       <View style={styles.emojiStrip}>
         <View style={styles.emojiStripInner}>
           {emojis
             .sort((a, b) => a.position - b.position)
-            .map((e, i) => (
-              <View
-                key={e.id}
-                style={[
-                  styles.emojiBubble,
-                  i === 2 && styles.centerEmojiBubble, // Center emoji slightly larger
-                ]}
-              >
-                <Text style={[styles.emojiText, i === 2 && styles.centerEmojiText]}>
-                  {e.emoji}
-                </Text>
-              </View>
-            ))}
+            .map((e, i) => {
+              const isMatch = userEmojiSet.has(e.emoji);
+              const bubbleSize = 56 - i * 4; // 56, 52, 48, 44, 40
+              const emojiSize = 28 - i * 2;  // 28, 26, 24, 22, 20
+              return (
+                <View
+                  key={e.id}
+                  style={[
+                    styles.emojiBubble,
+                    { width: bubbleSize, height: bubbleSize },
+                    isMatch && styles.matchEmojiBubble,
+                  ]}
+                >
+                  <Text style={{ fontSize: emojiSize }}>
+                    {e.emoji}
+                  </Text>
+                </View>
+              );
+            })}
         </View>
-        {/* Skia shimmer across the emoji strip */}
-        <ShimmerOverlay width={SCREEN_WIDTH - 24} height={80} borderRadius={0} />
       </View>
     </View>
   );
@@ -244,16 +278,16 @@ const styles = StyleSheet.create({
   },
   vibeGlow: {
     borderWidth: 4,
-    borderColor: "#34D399",
-    shadowColor: "#34D399",
+    borderColor: COLORS.vibe,
+    shadowColor: COLORS.vibe,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
   },
   passGlow: {
     borderWidth: 4,
-    borderColor: "#FB7185",
-    shadowColor: "#FB7185",
+    borderColor: COLORS.pass,
+    shadowColor: COLORS.pass,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
@@ -294,6 +328,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.bodyBold,
   },
+  intentBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 5,
+    marginTop: 6,
+  },
+  intentEmoji: {
+    fontSize: 13,
+  },
+  intentLabel: {
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    textShadowColor: "rgba(0,0,0,0.2)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   profession: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
@@ -332,11 +387,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   vibeStampBorder: {
-    borderColor: "#34D399",
+    borderColor: COLORS.vibe,
     backgroundColor: "rgba(52, 211, 153, 0.2)",
   },
   passStampBorder: {
-    borderColor: "#FB7185",
+    borderColor: COLORS.pass,
     backgroundColor: "rgba(251, 113, 133, 0.2)",
   },
   stampEmoji: {
@@ -348,11 +403,30 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: -2,
   },
+  // ─── Match banner / indicator ──────────────────
+  perfectBanner: {
+    paddingVertical: 8,
+    alignItems: "center",
+    shadowColor: COLORS.highlight,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  perfectBannerText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontFamily: fonts.heading,
+    letterSpacing: 2,
+    textShadowColor: "rgba(0,0,0,0.15)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   // ─── Emoji strip ────────────────────────────────
   emojiStrip: {
     backgroundColor: COLORS.surface,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     // Top inner shadow for depth
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.04)",
@@ -364,14 +438,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emojiBubble: {
-    width: 50,
-    height: 50,
     borderRadius: 16,
-    backgroundColor: "#F5F0FF",
+    backgroundColor: COLORS.primarySurface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: "#E4DAFF",
+    borderColor: COLORS.primaryBorder,
     // Subtle shadow on each bubble
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 2 },
@@ -379,19 +451,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  centerEmojiBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    borderColor: COLORS.primary,
+  // ─── Matching emoji highlight ─────────────────
+  matchEmojiBubble: {
+    backgroundColor: COLORS.highlightSurface,
+    borderColor: COLORS.highlight,
     borderWidth: 2,
-    backgroundColor: "#EDE4FF",
-    shadowOpacity: 0.15,
-  },
-  emojiText: {
-    fontSize: 24,
-  },
-  centerEmojiText: {
-    fontSize: 28,
+    shadowColor: COLORS.highlight,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
 });

@@ -1,21 +1,49 @@
 export const COLORS = {
+  // ─── Primary (purple) ─────────────────────────
   primary: "#7C3AED",
-  secondary: "#F97316",
-  accent: "#FF6B6B",
-  highlight: "#FBBF24",
-  success: "#06B6D4",
-  background: "#FFF8F0",
-  surface: "#FFFFFF",
-  text: "#2D3436",
-  textSecondary: "#636E72",
-  border: "#E8E4DE",
+  primaryLight: "#9B59F0",       // gradient end, lighter purple
+  primarySoft: "#EDE4FF",        // slightly tinted background
+  primarySurface: "#F5F0FF",     // light purple card/input background
+  primaryBorder: "#E4DAFF",      // purple border / divider
+
+  // ─── Secondary & Accent ───────────────────────
+  secondary: "#F97316",          // orange
+  accent: "#FF6B6B",             // red
+
+  // ─── Highlight (gold) ─────────────────────────
+  highlight: "#FBBF24",          // gold
+  highlightDark: "#F59E0B",      // darker gold (gradient end)
+  highlightSurface: "#FFF7E0",   // light gold background
+  highlightMuted: "#FFF3CC",     // muted gold background
+
+  // ─── Vibe (green — swipe right, success) ──────
+  vibe: "#34D399",
+  vibeDark: "#059669",
+
+  // ─── Pass (pink — swipe left) ─────────────────
+  pass: "#FB7185",
+  passButton: "#E85D5D",
+  passSurface: "#FFF0F0",        // light red/pink background
+
+  // ─── Neutrals ─────────────────────────────────
+  background: "#F7EFE3",         // warm latte app background
+  surface: "#FFFFFF",            // card / sheet background
+  text: "#2D3436",               // primary text
+  textSecondary: "#636E72",      // secondary text
+  textMuted: "#9CA3AF",          // muted labels, placeholders
+  border: "#E8E4DE",             // standard border
+  borderLight: "#E2E8F0",        // lighter border / divider
+  disabled: "#D1D5DB",           // disabled state gray
+
+  // ─── Other ────────────────────────────────────
+  success: "#06B6D4",            // cyan info/success
 } as const;
 
 export const MAX_PHOTOS = 5;
 export const MAX_EMOJIS = 5;
 export const MAX_INTERESTS = 5;
 export const MAX_REVEALS = 4;
-export const DEFAULT_SEARCH_RADIUS_MILES = 25;
+export const DEFAULT_SEARCH_RADIUS_MILES = 50;
 
 export const LIFE_STAGES = [
   "Student",
@@ -35,6 +63,14 @@ export const FRIENDSHIP_STYLES = [
   "Work Friends",
   "Adventure Crew",
 ] as const;
+
+// ─── Intent Options ─────────────────────────────────────────
+export const INTENTS = [
+  { value: "friends" as const, label: "Friends", emoji: "🤝", description: "Looking for genuine friendships", color: "#22C55E", surface: "#F0FDF4" },
+  { value: "dating" as const, label: "Dating", emoji: "💕", description: "Open to a romantic connection", color: "#EC4899", surface: "#FDF2F8" },
+  { value: "both" as const, label: "Open to Both", emoji: "✨", description: "Friends, dating, or whatever clicks", color: "#8B5CF6", surface: "#F5F3FF" },
+] as const;
+export type IntentValue = "friends" | "dating" | "both";
 
 // ─── Premium Feature Flags ──────────────────────────────────
 // Flip these to `true` to gate features behind premium.

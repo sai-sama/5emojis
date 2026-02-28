@@ -313,7 +313,7 @@ export default function VibesScreen() {
     <View style={{ flex: 1 }}>
       <AuroraBackground variant="warm" />
       <View style={styles.container}>
-        <TabHeader title="Vibes" />
+        <TabHeader />
 
       {loading ? (
         <View style={styles.centered}>
@@ -512,19 +512,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#FFF0F0",
+    backgroundColor: COLORS.passSurface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFD6D6",
-    shadowColor: "#FF6B6B",
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   vibePassText: {
     fontSize: 16,
-    color: "#E85D5D",
+    color: COLORS.passButton,
     fontWeight: "700",
   },
   vibeBackBtn: {
@@ -616,12 +616,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   emojiCountBadge: {
-    backgroundColor: "#F5F0FF",
+    backgroundColor: COLORS.primarySurface,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E4DAFF",
+    borderColor: COLORS.primaryBorder,
   },
   emojiCountText: {
     fontSize: 12,
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   emojiChar: {
     fontSize: 16,
-    backgroundColor: "#F5F0FF",
+    backgroundColor: COLORS.primarySurface,
     borderRadius: 6,
     overflow: "hidden",
     width: 28,

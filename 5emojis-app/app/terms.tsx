@@ -110,53 +110,68 @@ You are solely responsible for your User Content. You represent that you have al
 We reserve the right to remove any User Content that violates these Terms or that we find objectionable, at our sole discretion.`}
         </Section>
 
-        <Section title="6. Interactions with Other Users">
+        <Section title="6. Content Moderation">
+          {`To maintain a safe and welcoming community, all photos uploaded to 5Emojis are automatically screened using third-party content moderation services. This automated screening checks for content that violates our community guidelines, including but not limited to:
+
+• Sexually explicit or pornographic material
+• Graphic violence
+• Content depicting or promoting self-harm
+• Content that exploits or endangers minors
+
+Photos that are flagged by our automated systems may be rejected and will not appear on your profile. We do not store rejected photos on our servers.
+
+By uploading photos to 5Emojis, you consent to this automated screening process. While we strive for accuracy, automated systems may occasionally make errors. If you believe your photo was incorrectly rejected, please contact us at support@5emojis.app.
+
+We also compress and resize uploaded photos to optimize performance and storage. Original full-resolution images are not retained after processing.`}
+        </Section>
+
+        <Section title="7. Interactions with Other Users">
           {`5Emojis is a platform for making friends. You are solely responsible for your interactions with other users. 5Emojis does not conduct criminal background checks or verify the identity of its users. We encourage you to exercise caution when communicating with other users and when deciding to meet in person.
 
 5Emojis is not responsible for the conduct of any user, whether online or offline.`}
         </Section>
 
-        <Section title="7. Safety">
+        <Section title="8. Safety">
           {`We take user safety seriously. If you encounter any user who violates these Terms or makes you feel unsafe, please report them through the App's reporting feature. We reserve the right to investigate reports and take action, including suspending or terminating accounts.
 
 When meeting someone in person for the first time, always meet in a public place and let a friend or family member know your plans.`}
         </Section>
 
-        <Section title="8. Premium Features">
+        <Section title="9. Premium Features">
           {`5Emojis may offer optional premium features or subscriptions ("Premium Services"). If you purchase Premium Services, you agree to pay all applicable fees. Subscriptions will automatically renew unless canceled before the renewal date. Refunds are handled in accordance with the policies of the app store through which you purchased.`}
         </Section>
 
-        <Section title="9. Intellectual Property">
+        <Section title="10. Intellectual Property">
           {`The App, including its design, features, branding, and technology, is owned by 5Emojis and is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the App without our prior written consent.`}
         </Section>
 
-        <Section title="10. Account Termination">
+        <Section title="11. Account Termination">
           {`You may delete your account at any time through the App's settings. We reserve the right to suspend or terminate your account at any time, with or without notice, for any reason, including but not limited to violation of these Terms.
 
 Upon termination, your right to use the App will immediately cease. We may retain certain information as required by law or for legitimate business purposes.`}
         </Section>
 
-        <Section title="11. Disclaimers">
+        <Section title="12. Disclaimers">
           {`THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. WE DO NOT WARRANT THAT THE APP WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE.
 
 WE MAKE NO REPRESENTATIONS OR WARRANTIES ABOUT THE ACCURACY OR COMPLETENESS OF USER CONTENT OR THE CONTENT OF ANY THIRD-PARTY SITES LINKED TO THE APP.`}
         </Section>
 
-        <Section title="12. Limitation of Liability">
+        <Section title="13. Limitation of Liability">
           {`TO THE MAXIMUM EXTENT PERMITTED BY LAW, 5EMOJIS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUE, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM YOUR USE OF THE APP.`}
         </Section>
 
-        <Section title="13. Dispute Resolution">
+        <Section title="14. Dispute Resolution">
           {`Any disputes arising from these Terms or your use of the App shall be resolved through binding arbitration, rather than in court, except that you may assert claims in small claims court. The arbitration will be conducted in accordance with the rules of the American Arbitration Association.
 
 You agree that any dispute resolution proceedings will be conducted on an individual basis and not in a class, consolidated, or representative action.`}
         </Section>
 
-        <Section title="14. Changes to Terms">
+        <Section title="15. Changes to Terms">
           {`We may update these Terms from time to time. We will notify you of material changes by posting the updated Terms in the App or by sending you a notification. Your continued use of the App after changes become effective constitutes your acceptance of the updated Terms.`}
         </Section>
 
-        <Section title="15. Contact Us">
+        <Section title="16. Contact Us">
           {`If you have any questions about these Terms, please contact us at:
 
 support@5emojis.app`}

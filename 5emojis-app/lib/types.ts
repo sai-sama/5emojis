@@ -18,6 +18,7 @@ export type Database = {
           zip: string | null;
           latitude: number;
           longitude: number;
+          intent: "friends" | "dating" | "both";
           search_radius_miles: number;
           created_at: string;
           updated_at: string;
@@ -32,6 +33,7 @@ export type Database = {
           life_stage?: string | null;
           friendship_style?: string | null;
           pronouns?: string | null;
+          intent?: "friends" | "dating" | "both";
           is_new_to_city?: boolean;
           city: string;
           state?: string | null;
@@ -225,6 +227,7 @@ export type Database = {
           user_lng: number;
           radius_miles: number;
           current_user_id: string;
+          intent_filter?: string | null;
         };
         Returns: Database["public"]["Tables"]["profiles"]["Row"][];
       };
