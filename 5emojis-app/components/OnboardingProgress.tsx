@@ -2,7 +2,7 @@ import { View, StyleSheet } from "react-native";
 import { usePathname } from "expo-router";
 import { COLORS } from "../lib/constants";
 
-const STEPS = ["name", "dob", "intent", "photos", "emojis", "details", "location"];
+const STEPS = ["name", "dob", "gender", "photos", "emojis", "details", "location"];
 
 export default function OnboardingProgress() {
   const pathname = usePathname();

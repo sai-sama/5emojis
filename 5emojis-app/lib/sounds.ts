@@ -1,41 +1,52 @@
 import { Audio } from "expo-av";
 import { Sound } from "expo-av/build/Audio";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Sound cache ──────────────────────────────────────────────
 let matchSound: Sound | null = null;
 let swipeSound: Sound | null = null;
 let popSound: Sound | null = null;
 
+// ─── Mute state ───────────────────────────────────────────────
+let _muted = false;
+
+export async function loadMuteSetting() {
+  const val = await AsyncStorage.getItem("sound_muted");
+  _muted = val === "true";
+}
+
+export async function setSoundMuted(muted: boolean) {
+  _muted = muted;
+  await AsyncStorage.setItem("sound_muted", muted ? "true" : "false");
+}
+
+export function isSoundMuted() {
+  return _muted;
+}
+
 // Initialize audio mode for background-compatible playback
 let audioInitialized = false;
 async function ensureAudio() {
   if (audioInitialized) return;
   audioInitialized = true;
+  await loadMuteSetting();
   await Audio.setAudioModeAsync({
     playsInSilentModeIOS: false,
     staysActiveInBackground: false,
   });
 }
 
-// ─── Generate simple tones using Expo AV ─────────────────────
-// Since we don't have sound files yet, we'll create a system
-// that plays haptic-like audio feedback using basic parameters.
-// Replace these with actual .mp3/.wav files when ready.
-
 /**
  * Play a celebratory sound on match.
- * TODO: Replace with a custom chime sound file.
- * For now, uses a system-compatible approach.
  */
 export async function playMatchSound() {
   try {
     await ensureAudio();
+    if (_muted) return;
     if (matchSound) {
       await matchSound.replayAsync();
       return;
     }
-    // Placeholder — will be replaced with actual sound file
-    // Create a simple ascending tone sequence
     const { sound } = await Audio.Sound.createAsync(
       require("../assets/sounds/match.mp3"),
       { shouldPlay: true, volume: 0.7 }
@@ -52,6 +63,7 @@ export async function playMatchSound() {
 export async function playSwipeSound() {
   try {
     await ensureAudio();
+    if (_muted) return;
     if (swipeSound) {
       await swipeSound.replayAsync();
       return;
@@ -72,6 +84,7 @@ export async function playSwipeSound() {
 export async function playPopSound() {
   try {
     await ensureAudio();
+    if (_muted) return;
     if (popSound) {
       await popSound.replayAsync();
       return;

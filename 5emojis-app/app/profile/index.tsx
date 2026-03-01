@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
 import { updateEmojis } from "../../lib/profile-service";
@@ -21,11 +22,65 @@ import EmojiPicker from "../../components/EmojiPicker";
 import PreviewCard from "../../components/profile/PreviewCard";
 import ProfileSectionRow from "../../components/profile/ProfileSectionRow";
 import { fonts } from "../../lib/fonts";
-import { COLORS } from "../../lib/constants";
+import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
+import { isSoundMuted, setSoundMuted } from "../../lib/sounds";
 
 export default function ProfileOverview() {
   const { session, signOut } = useAuth();
   const { profile, loading, refresh } = useProfile();
+
+  // Gender filter — multi-select (persisted via AsyncStorage, read by SwipeCardStack)
+  const ALL_GENDERS: GenderValue[] = GENDERS.map((g) => g.value);
+  const [genderFilters, setGenderFilters] = useState<GenderValue[]>(ALL_GENDERS);
+
+  useEffect(() => {
+    AsyncStorage.getItem("gender_filters").then((val) => {
+      if (val) {
+        try {
+          const parsed = JSON.parse(val) as GenderValue[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setGenderFilters(parsed);
+            return;
+          }
+        } catch {}
+      }
+      setGenderFilters(ALL_GENDERS);
+    });
+  }, []);
+
+  const handleGenderToggle = (value: GenderValue) => {
+    Haptics.selectionAsync();
+    setGenderFilters((prev) => {
+      let next: GenderValue[];
+      if (prev.includes(value)) {
+        // Don't allow deselecting the last one
+        if (prev.length === 1) return prev;
+        next = prev.filter((v) => v !== value);
+      } else {
+        next = [...prev, value];
+      }
+      AsyncStorage.setItem("gender_filters", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Sound mute toggle
+  const [soundMuted, _setSoundMuted] = useState(isSoundMuted());
+
+  useEffect(() => {
+    // Sync from AsyncStorage on mount (isSoundMuted reads cached value,
+    // but loadMuteSetting may not have run yet on first app launch)
+    AsyncStorage.getItem("sound_muted").then((val) => {
+      _setSoundMuted(val === "true");
+    });
+  }, []);
+
+  const handleSoundToggle = () => {
+    Haptics.selectionAsync();
+    const next = !soundMuted;
+    _setSoundMuted(next);
+    setSoundMuted(next);
+  };
 
   // Emoji modal
   const [emojiModalVisible, setEmojiModalVisible] = useState(false);
@@ -178,6 +233,38 @@ export default function ProfileOverview() {
           />
         </View>
 
+        {/* Discovery — gender filter (multi-select checkboxes) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={{ fontSize: 18, marginRight: 8 }}>🔍</Text>
+            <Text style={styles.sectionTitle}>Discovery</Text>
+          </View>
+          <Text style={styles.filterLabel}>Show me</Text>
+          <View style={styles.filterColumn}>
+            {GENDERS.map((g) => {
+              const isChecked = genderFilters.includes(g.value);
+              return (
+                <Pressable
+                  key={g.value}
+                  onPress={() => handleGenderToggle(g.value)}
+                  style={styles.filterCheckRow}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      isChecked && { backgroundColor: g.color, borderColor: g.color },
+                    ]}
+                  >
+                    {isChecked && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.filterCheckEmoji}>{g.emoji}</Text>
+                  <Text style={styles.filterCheckLabel}>{g.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Emojis — inline with modal picker */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -227,12 +314,29 @@ export default function ProfileOverview() {
           </Pressable>
         </View>
 
-        {/* Account */}
+        {/* Settings */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={{ fontSize: 18, marginRight: 8 }}>⚙️</Text>
-            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.sectionTitle}>Settings</Text>
           </View>
+          <Pressable style={styles.settingsRow} onPress={handleSoundToggle}>
+            <Text style={styles.settingsRowIcon}>{soundMuted ? "🔇" : "🔊"}</Text>
+            <Text style={styles.settingsRowLabel}>Sound Effects</Text>
+            <View
+              style={[
+                styles.toggle,
+                soundMuted ? styles.toggleOff : styles.toggleOn,
+              ]}
+            >
+              <View
+                style={[
+                  styles.toggleThumb,
+                  soundMuted ? styles.toggleThumbOff : styles.toggleThumbOn,
+                ]}
+              />
+            </View>
+          </Pressable>
           <Pressable style={styles.signOutButton} onPress={handleSignOut}>
             <Text style={styles.signOutText}>Sign Out</Text>
           </Pressable>
@@ -387,6 +491,46 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
 
+  // Discovery filter
+  filterLabel: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+  },
+  filterColumn: {
+    gap: 10,
+  },
+  filterCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.background,
+  },
+  checkmark: {
+    fontSize: 13,
+    color: "#FFF",
+    fontWeight: "700",
+    marginTop: -1,
+  },
+  filterCheckEmoji: {
+    fontSize: 16,
+  },
+  filterCheckLabel: {
+    fontSize: 15,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+  },
+
   // Emojis
   emojiDisplay: {
     flexDirection: "row",
@@ -432,6 +576,54 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: COLORS.textSecondary,
     fontWeight: "300",
+  },
+
+  // Settings row
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  settingsRowIcon: {
+    fontSize: 18,
+  },
+  settingsRowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+  },
+  toggle: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    padding: 2,
+    justifyContent: "center",
+  },
+  toggleOn: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleOff: {
+    backgroundColor: COLORS.disabled,
+  },
+  toggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleThumbOn: {
+    alignSelf: "flex-end",
+  },
+  toggleThumbOff: {
+    alignSelf: "flex-start",
   },
 
   // Sign out

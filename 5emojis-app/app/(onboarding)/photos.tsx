@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
@@ -31,11 +32,26 @@ export default function PhotosScreen() {
 
     if (!result.canceled && result.assets[0]) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Copy to persistent directory so the URI survives across screens.
+      // iOS can clean up ImagePicker temp URIs before onboarding finishes.
+      let persistentUri = result.assets[0].uri;
+      try {
+        const dir = `${FileSystem.documentDirectory}onboarding-photos/`;
+        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+        const dest = `${dir}photo_${index}_${Date.now()}.jpg`;
+        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+        persistentUri = dest;
+      } catch (e) {
+        // If copy fails, fall back to original URI
+        console.warn("Failed to persist photo, using temp URI:", e);
+      }
+
       const newPhotos = [...photos];
       if (index < photos.length) {
-        newPhotos[index] = result.assets[0].uri;
+        newPhotos[index] = persistentUri;
       } else {
-        newPhotos.push(result.assets[0].uri);
+        newPhotos.push(persistentUri);
       }
       setPhotos(newPhotos);
     }

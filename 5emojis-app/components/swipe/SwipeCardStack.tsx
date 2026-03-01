@@ -53,10 +53,10 @@ import {
   MOCK_PRE_SWIPED_IDS,
   type SwipeProfile,
 } from "./mockProfiles";
-import IntentFilter from "./IntentFilter";
 import LottieEmptyState from "../lottie/LottieEmptyState";
 import { playSwipeSound } from "../../lib/sounds";
-import type { IntentValue } from "../../lib/constants";
+import type { GenderValue } from "../../lib/constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -92,6 +92,36 @@ const PASS_EMOJIS = ["💨", "👋", "😅", "🫠", "💭"];
 
 // ─── Themed emoji pairs for action buttons ──────────────────
 // Each theme has a [vibe, pass] pair — rotates per card
+// ─── Mock icebreaker questions for local testing ─────────
+const MOCK_ICEBREAKERS = [
+  "my perfect weekend",
+  "my morning routine",
+  "my cooking skills",
+  "what my fridge contains right now",
+  "my relationship with my alarm clock",
+  "my dream vacation",
+  "my go-to comfort food",
+  "what I'm like at a party",
+  "my hidden talent",
+  "my Netflix queue",
+  "my ideal road trip",
+  "my coffee addiction level",
+  "my relationship with exercise",
+  "what my phone wallpaper says about me",
+  "my guilty pleasure playlist",
+  "what happens when I'm hungry",
+  "my pet peeve",
+  "my dream dinner guest list",
+  "my superpower if I had one",
+  "what I'm like before my first coffee",
+];
+let _mockIcebreakerIdx = 0;
+function getNextMockIcebreaker(): string {
+  const q = MOCK_ICEBREAKERS[_mockIcebreakerIdx % MOCK_ICEBREAKERS.length];
+  _mockIcebreakerIdx++;
+  return q;
+}
+
 const EMOJI_THEMES: [string, string][] = [
   ["🤝", "👋"], // handshake vs wave
   ["🔥", "💨"], // fire vs wind
@@ -360,8 +390,26 @@ export default function SwipeCardStack() {
   const [userLat, setUserLat] = useState(MOCK_USER_LAT);
   const [userLng, setUserLng] = useState(MOCK_USER_LNG);
   const [userEmojis, setUserEmojis] = useState<string[]>(MOCK_USER_EMOJIS);
-  const [intentFilter, setIntentFilter] = useState<IntentValue | null>(null);
+  const [genderFilters, setGenderFilters] = useState<GenderValue[]>(["male", "female", "nonbinary"]);
   const [feedLoaded, setFeedLoaded] = useState(false);
+
+  // ─── Read gender filters from AsyncStorage on focus ────────
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("gender_filters").then((val) => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val) as GenderValue[];
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setGenderFilters(parsed);
+              return;
+            }
+          } catch {}
+        }
+        setGenderFilters(["male", "female", "nonbinary"]);
+      });
+    }, [])
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sizzle, setSizzle] = useState<{
     emojis: string[];
@@ -377,6 +425,7 @@ export default function SwipeCardStack() {
     otherPhoto: ProfilePhoto | null;
     emojiMatchCount: number;
     isPerfect: boolean;
+    icebreakerQuestion: string | null;
   } | null>(null);
 
   // Undo state — stores the last swipe so it can be reversed
@@ -431,7 +480,7 @@ export default function SwipeCardStack() {
           ownProfile.latitude,
           ownProfile.longitude,
           ownProfile.search_radius_miles,
-          intentFilter
+          null // fetch all genders, filter client-side via genderFilters
         );
 
         // Always append mock profiles after real results for testing
@@ -444,7 +493,7 @@ export default function SwipeCardStack() {
         setFeedLoaded(true);
       }
     })();
-  }, [session, devMode, intentFilter]);
+  }, [session, devMode]);
 
   // ─── Re-fetch user emojis when tab gains focus ─────────
   // (e.g. after editing emojis on the profile screen)
@@ -477,13 +526,12 @@ export default function SwipeCardStack() {
     }
   }, [currentIndex, profiles]);
 
-  // ─── Filter profiles locally (for mock/dev mode) ────────
+  // ─── Filter profiles locally by gender preferences ──────
   const filteredProfiles = useMemo(() => {
-    if (!intentFilter) return profiles;
-    return profiles.filter(
-      (p) => p.profile.intent === intentFilter || p.profile.intent === "both" || intentFilter === "both"
-    );
-  }, [profiles, intentFilter]);
+    // All 3 selected = show everyone
+    if (genderFilters.length === 3) return profiles;
+    return profiles.filter((p) => genderFilters.includes(p.profile.gender as GenderValue));
+  }, [profiles, genderFilters]);
 
   // ─── Swipe complete handler ─────────────────────────────
   const onSwipeComplete = useCallback(
@@ -519,6 +567,7 @@ export default function SwipeCardStack() {
           otherPhoto: swipedProfile.photo,
           emojiMatchCount,
           isPerfect: emojiMatchCount === 5,
+          icebreakerQuestion: getNextMockIcebreaker(),
         });
       } else if (session?.user && swipedProfile && !isMock) {
         // Record real swipe to Supabase
@@ -537,6 +586,7 @@ export default function SwipeCardStack() {
               otherPhoto: result.otherPhoto,
               emojiMatchCount: result.match.emoji_match_count,
               isPerfect: result.match.is_emoji_perfect,
+              icebreakerQuestion: result.icebreakerQuestion,
             });
           }
         }).catch(() => {
@@ -605,7 +655,7 @@ export default function SwipeCardStack() {
   // Reset index when filter changes
   useEffect(() => {
     setCurrentIndex(0);
-  }, [intentFilter]);
+  }, [genderFilters]);
 
   // ─── Render ─────────────────────────────────────────────
   const visibleProfiles = filteredProfiles.slice(
@@ -621,9 +671,6 @@ export default function SwipeCardStack() {
 
   return (
     <View style={styles.container}>
-      {/* Intent filter chips */}
-      <IntentFilter selected={intentFilter} onSelect={setIntentFilter} />
-
       {/* Card stack area — empty state sits behind cards */}
       <View style={styles.cardArea}>
         {/* Empty state — always rendered, revealed when last card exits */}
@@ -744,11 +791,16 @@ export default function SwipeCardStack() {
           emojiMatchCount={matchData.emojiMatchCount}
           isPerfect={matchData.isPerfect}
           userEmojis={userEmojis}
+          icebreakerQuestion={matchData.icebreakerQuestion}
           onClose={() => setMatchData(null)}
           onSendEmojis={() => {
             const matchId = matchData.matchId;
+            const question = matchData.icebreakerQuestion;
             setMatchData(null);
-            router.push(`/chat/${matchId}`);
+            router.push({
+              pathname: "/chat/[matchId]",
+              params: { matchId, icebreakerQuestion: question ?? "" },
+            });
           }}
         />
       )}

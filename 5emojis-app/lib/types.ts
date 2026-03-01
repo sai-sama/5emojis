@@ -18,7 +18,7 @@ export type Database = {
           zip: string | null;
           latitude: number;
           longitude: number;
-          intent: "friends" | "dating" | "both";
+          gender: "male" | "female" | "nonbinary";
           search_radius_miles: number;
           created_at: string;
           updated_at: string;
@@ -33,7 +33,7 @@ export type Database = {
           life_stage?: string | null;
           friendship_style?: string | null;
           pronouns?: string | null;
-          intent?: "friends" | "dating" | "both";
+          gender?: "male" | "female" | "nonbinary";
           is_new_to_city?: boolean;
           city: string;
           state?: string | null;
@@ -142,6 +142,7 @@ export type Database = {
           user2_id: string;
           emoji_match_count: number;
           is_emoji_perfect: boolean;
+          icebreaker_question_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -149,6 +150,7 @@ export type Database = {
           user2_id: string;
           emoji_match_count?: number;
           is_emoji_perfect?: boolean;
+          icebreaker_question_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["matches"]["Insert"]>;
         Relationships: [];
@@ -169,7 +171,9 @@ export type Database = {
           content: string;
           is_emoji_only?: boolean;
         };
-        Update: Partial<Database["public"]["Tables"]["messages"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["messages"]["Insert"]> & {
+          read_at?: string | null;
+        };
         Relationships: [];
       };
       blocks: {
@@ -206,6 +210,20 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["reports"]["Insert"]>;
         Relationships: [];
       };
+      icebreaker_questions: {
+        Row: {
+          id: string;
+          question: string;
+          category: string | null;
+          created_at: string;
+        };
+        Insert: {
+          question: string;
+          category?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["icebreaker_questions"]["Insert"]>;
+        Relationships: [];
+      };
       ai_content: {
         Row: {
           id: string;
@@ -227,7 +245,7 @@ export type Database = {
           user_lng: number;
           radius_miles: number;
           current_user_id: string;
-          intent_filter?: string | null;
+          gender_filter?: string | null;
         };
         Returns: Database["public"]["Tables"]["profiles"]["Row"][];
       };
@@ -242,3 +260,4 @@ export type ProfileEmoji = Database["public"]["Tables"]["profile_emojis"]["Row"]
 export type ProfilePhoto = Database["public"]["Tables"]["profile_photos"]["Row"];
 export type Match = Database["public"]["Tables"]["matches"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
+export type IcebreakerQuestion = Database["public"]["Tables"]["icebreaker_questions"]["Row"];

@@ -2,11 +2,12 @@ import { createContext, useContext, useState, useCallback } from "react";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
 import { preparePhoto } from "./image-utils";
+import { decode } from "base64-arraybuffer";
 
 export type OnboardingData = {
   name: string;
   dob: Date | null;
-  intent: "friends" | "dating" | "both";
+  gender: "male" | "female" | "nonbinary";
   photos: string[]; // local URIs
   emojis: string[];
   profession: string;
@@ -23,7 +24,7 @@ export type OnboardingData = {
 const EMPTY: OnboardingData = {
   name: "",
   dob: null,
-  intent: "both",
+  gender: "male",
   photos: [],
   emojis: [],
   profession: "",
@@ -84,9 +85,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       const photoUrls: string[] = [];
       for (let i = 0; i < final.photos.length; i++) {
         // Compress + validate size + content moderation
-        let compressedUri: string;
+        let prepared: { uri: string; base64: string };
         try {
-          compressedUri = await preparePhoto(final.photos[i]);
+          prepared = await preparePhoto(final.photos[i]);
         } catch (err: any) {
           // Moderation or size rejection — skip this photo
           console.warn(`Photo ${i + 1} rejected:`, err.message);
@@ -95,15 +96,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
         const path = `${userId}/${Date.now()}_${i}.jpg`;
 
-        const response = await fetch(compressedUri);
-        const arrayBuffer = await response.arrayBuffer();
-
+        // decode base64 → ArrayBuffer (reliable in React Native,
+        // unlike fetch(localUri).blob() which often silently fails)
         const { error: uploadError } = await supabase.storage
           .from("profile-photos")
-          .upload(path, arrayBuffer, { contentType: "image/jpeg" });
+          .upload(path, decode(prepared.base64), { contentType: "image/jpeg" });
 
         if (uploadError) {
-          console.warn(`Photo upload failed (${i}):`, uploadError.message);
+          console.error(`Photo ${i + 1} upload failed:`, uploadError.message, uploadError);
         } else {
           const { data: urlData } = supabase.storage
             .from("profile-photos")
@@ -112,12 +112,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         }
       }
 
+      // Fail if zero photos uploaded successfully
+      if (photoUrls.length === 0 && final.photos.length > 0) {
+        setSubmitting(false);
+        return { error: "Photo upload failed. Please check your connection and try again." };
+      }
+
       // 2. Insert profile
       const { error: profileError } = await supabase.from("profiles").insert({
         id: userId,
         name: final.name,
         dob: final.dob.toISOString().split("T")[0],
-        intent: final.intent,
+        gender: final.gender,
         profession: final.profession || null,
         life_stage: final.lifeStage || null,
         friendship_style: final.friendshipStyles[0] || null,
@@ -147,7 +153,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
       // 4. Insert photos
       if (photoUrls.length > 0) {
-        await supabase.from("profile_photos").insert(
+        const { error: photosError } = await supabase.from("profile_photos").insert(
           photoUrls.map((url, i) => ({
             user_id: userId,
             url,
@@ -155,6 +161,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
             is_primary: i === 0,
           }))
         );
+        if (photosError) {
+          console.warn("profile_photos insert failed:", photosError.message);
+        }
       }
 
       // 5. Insert interests

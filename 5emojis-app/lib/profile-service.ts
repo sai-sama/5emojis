@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "./types";
 import { preparePhoto } from "./image-utils";
+import { decode } from "base64-arraybuffer";
 
 // ─── Types ──────────────────────────────────────────────────
 export type FullProfile = {
@@ -39,7 +40,7 @@ export async function updateProfileFields(
     life_stage?: string | null;
     friendship_style?: string | null;
     is_new_to_city?: boolean;
-    intent?: "friends" | "dating" | "both";
+    gender?: "male" | "female" | "nonbinary";
   }
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
@@ -144,21 +145,19 @@ export async function addPhoto(
   position: number
 ): Promise<{ url: string | null; error: string | null }> {
   // Compress + validate size + content moderation
-  let compressedUri: string;
+  let prepared: { uri: string; base64: string };
   try {
-    compressedUri = await preparePhoto(localUri);
+    prepared = await preparePhoto(localUri);
   } catch (err: any) {
     return { url: null, error: err.message };
   }
 
   const path = `${userId}/${Date.now()}_${position}.jpg`;
 
-  const response = await fetch(compressedUri);
-  const arrayBuffer = await response.arrayBuffer();
-
+  // decode base64 → ArrayBuffer (official Supabase RN approach)
   const { error: uploadError } = await supabase.storage
     .from("profile-photos")
-    .upload(path, arrayBuffer, { contentType: "image/jpeg" });
+    .upload(path, decode(prepared.base64), { contentType: "image/jpeg" });
 
   if (uploadError) return { url: null, error: uploadError.message };
 

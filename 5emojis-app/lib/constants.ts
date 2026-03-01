@@ -64,13 +64,13 @@ export const FRIENDSHIP_STYLES = [
   "Adventure Crew",
 ] as const;
 
-// ─── Intent Options ─────────────────────────────────────────
-export const INTENTS = [
-  { value: "friends" as const, label: "Friends", emoji: "🤝", description: "Looking for genuine friendships", color: "#22C55E", surface: "#F0FDF4" },
-  { value: "dating" as const, label: "Dating", emoji: "💕", description: "Open to a romantic connection", color: "#EC4899", surface: "#FDF2F8" },
-  { value: "both" as const, label: "Open to Both", emoji: "✨", description: "Friends, dating, or whatever clicks", color: "#8B5CF6", surface: "#F5F3FF" },
+// ─── Gender Options ──────────────────────────────────────────
+export const GENDERS = [
+  { value: "male" as const, label: "Male", emoji: "♂️", description: "Male", color: "#3B82F6", surface: "#EFF6FF" },
+  { value: "female" as const, label: "Female", emoji: "♀️", description: "Female", color: "#EC4899", surface: "#FDF2F8" },
+  { value: "nonbinary" as const, label: "Non-binary", emoji: "⚧️", description: "Non-binary", color: "#8B5CF6", surface: "#F5F3FF" },
 ] as const;
-export type IntentValue = "friends" | "dating" | "both";
+export type GenderValue = "male" | "female" | "nonbinary";
 
 // ─── Premium Feature Flags ──────────────────────────────────
 // Flip these to `true` to gate features behind premium.

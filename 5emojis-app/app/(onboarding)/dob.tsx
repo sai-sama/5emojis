@@ -173,7 +173,7 @@ export default function DOBScreen() {
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             update({ dob: date });
-            router.push("/(onboarding)/intent");
+            router.push("/(onboarding)/gender");
           }}
         />
       </View>

@@ -10,6 +10,7 @@ export type MatchResult = {
   otherUser: Profile;
   otherEmojis: ProfileEmoji[];
   otherPhoto: ProfilePhoto | null;
+  icebreakerQuestion: string | null;
 };
 
 export type MatchWithProfile = {
@@ -17,6 +18,7 @@ export type MatchWithProfile = {
   otherUser: Profile;
   otherEmojis: ProfileEmoji[];
   otherPhoto: ProfilePhoto | null;
+  icebreakerQuestion: string | null;
 };
 
 export type IncomingVibe = {
@@ -63,10 +65,10 @@ export async function recordSwipe(
     return { matched: false };
   }
 
-  // Fetch the other user's profile, emojis, and primary photo
+  // Fetch the other user's profile, emojis, primary photo, and icebreaker question
   const otherUserId = swipedId;
 
-  const [profileRes, emojisRes, photoRes] = await Promise.all([
+  const [profileRes, emojisRes, photoRes, questionRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", otherUserId).single(),
     supabase.from("profile_emojis").select("*").eq("user_id", otherUserId),
     supabase
@@ -75,6 +77,13 @@ export async function recordSwipe(
       .eq("user_id", otherUserId)
       .eq("is_primary", true)
       .single(),
+    match.icebreaker_question_id
+      ? supabase
+          .from("icebreaker_questions")
+          .select("question")
+          .eq("id", match.icebreaker_question_id)
+          .single()
+      : Promise.resolve({ data: null }),
   ]);
 
   return {
@@ -83,6 +92,7 @@ export async function recordSwipe(
     otherUser: profileRes.data!,
     otherEmojis: emojisRes.data ?? [],
     otherPhoto: photoRes.data,
+    icebreakerQuestion: questionRes.data?.question ?? null,
   };
 }
 
@@ -107,7 +117,7 @@ export async function fetchMatches(
       const otherUserId =
         match.user1_id === userId ? match.user2_id : match.user1_id;
 
-      const [profileRes, emojisRes, photoRes] = await Promise.all([
+      const [profileRes, emojisRes, photoRes, questionRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", otherUserId).single(),
         supabase
           .from("profile_emojis")
@@ -120,6 +130,13 @@ export async function fetchMatches(
           .eq("user_id", otherUserId)
           .eq("is_primary", true)
           .single(),
+        match.icebreaker_question_id
+          ? supabase
+              .from("icebreaker_questions")
+              .select("question")
+              .eq("id", match.icebreaker_question_id)
+              .single()
+          : Promise.resolve({ data: null }),
       ]);
 
       if (!profileRes.data) return null;
@@ -129,6 +146,7 @@ export async function fetchMatches(
         otherUser: profileRes.data,
         otherEmojis: emojisRes.data ?? [],
         otherPhoto: photoRes.data,
+        icebreakerQuestion: questionRes.data?.question ?? null,
       } satisfies MatchWithProfile;
     })
   );

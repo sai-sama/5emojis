@@ -8,7 +8,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, INTENTS } from "../../lib/constants";
+import { COLORS, GENDERS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { getZodiacSign } from "../../lib/zodiac";
 import { SwipeProfile, calculateAge, formatDistance } from "./mockProfiles";
@@ -37,7 +37,7 @@ function SwipeCardInner({
   const age = calculateAge(p.dob);
   const zodiac = getZodiacSign(p.dob);
   const distance = formatDistance(userLat, userLng, p.latitude, p.longitude);
-  const intentInfo = INTENTS.find((i) => i.value === p.intent) || INTENTS[2];
+  const genderInfo = GENDERS.find((g) => g.value === p.gender) || GENDERS[0];
 
   // ─── Emoji match calculation ─────────────────────────────
   const userEmojiSet = useMemo(() => new Set(userEmojis), [userEmojis]);
@@ -162,9 +162,9 @@ function SwipeCardInner({
               </View>
             )}
           </View>
-          <View style={[styles.intentBadge, { backgroundColor: intentInfo.color }]}>
-            <Text style={styles.intentEmoji}>{intentInfo.emoji}</Text>
-            <Text style={styles.intentLabel}>{intentInfo.label}</Text>
+          <View style={[styles.genderBadge, { backgroundColor: genderInfo.color }]}>
+            <Text style={styles.genderEmoji}>{genderInfo.emoji}</Text>
+            <Text style={styles.genderLabel}>{genderInfo.label}</Text>
           </View>
           {p.profession && (
             <Text style={styles.profession}>💼 {p.profession}</Text>
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.bodyBold,
   },
-  intentBadge: {
+  genderBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
@@ -338,10 +338,10 @@ const styles = StyleSheet.create({
     gap: 5,
     marginTop: 6,
   },
-  intentEmoji: {
+  genderEmoji: {
     fontSize: 13,
   },
-  intentLabel: {
+  genderLabel: {
     color: "#FFF",
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,

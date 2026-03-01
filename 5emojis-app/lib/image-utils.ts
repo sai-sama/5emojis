@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
 
 // ─── Constants ──────────────────────────────────────────────
@@ -94,17 +94,22 @@ export async function moderatePhoto(
 // ─── Full pipeline ──────────────────────────────────────────
 /**
  * Compress → validate size → moderate.
- * Returns the compressed URI if everything passes.
+ * Returns { uri, base64 } if everything passes.
  * Throws with a user-friendly message on failure.
+ *
+ * base64 is reused for the Supabase Storage upload — avoids the
+ * unreliable fetch(localUri).blob() pattern in React Native.
  */
-export async function preparePhoto(uri: string): Promise<string> {
+export async function preparePhoto(
+  uri: string
+): Promise<{ uri: string; base64: string }> {
   // 1. Compress (gracefully degrades if native module missing)
   const compressedUri = await compressPhoto(uri);
 
   // 2. Validate file size
   await validatePhotoSize(compressedUri);
 
-  // 3. Read as base64 for moderation
+  // 3. Read as base64 (reused for both moderation AND upload)
   const base64 = await FileSystem.readAsStringAsync(compressedUri, {
     encoding: "base64",
   });
@@ -118,5 +123,5 @@ export async function preparePhoto(uri: string): Promise<string> {
     );
   }
 
-  return compressedUri;
+  return { uri: compressedUri, base64 };
 }

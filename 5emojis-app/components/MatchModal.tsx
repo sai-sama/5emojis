@@ -37,6 +37,7 @@ type MatchModalProps = {
   emojiMatchCount: number;
   isPerfect: boolean;
   userEmojis: string[];
+  icebreakerQuestion: string | null;
   onClose: () => void;
   onSendEmojis: () => void;
 };
@@ -99,6 +100,7 @@ export default function MatchModal({
   emojiMatchCount,
   isPerfect,
   userEmojis,
+  icebreakerQuestion,
   onClose,
   onSendEmojis,
 }: MatchModalProps) {
@@ -211,13 +213,28 @@ export default function MatchModal({
             ))}
           </View>
 
+          {/* Icebreaker preview */}
+          {icebreakerQuestion && (
+            <Animated.View
+              entering={FadeIn.delay(800).duration(400)}
+              style={styles.icebreakerPreview}
+            >
+              <Text style={styles.icebreakerLabel}>Your first challenge:</Text>
+              <Text style={styles.icebreakerText}>
+                5 Emojis I would use to describe... {icebreakerQuestion}?
+              </Text>
+            </Animated.View>
+          )}
+
           {/* Actions */}
           <Animated.View
             entering={FadeIn.delay(900).duration(400)}
             style={styles.actions}
           >
             <Pressable style={styles.primaryButton} onPress={onSendEmojis}>
-              <Text style={styles.primaryButtonText}>Send 5 Emojis 💬</Text>
+              <Text style={styles.primaryButtonText}>
+                {icebreakerQuestion ? "Answer the Icebreaker ❓" : "Send 5 Emojis 💬"}
+              </Text>
             </Pressable>
             <Pressable style={styles.secondaryButton} onPress={onClose}>
               <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
@@ -363,5 +380,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.bodySemiBold,
     color: "rgba(255,255,255,0.7)",
+  },
+  icebreakerPreview: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  icebreakerLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: "rgba(255,255,255,0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  icebreakerText: {
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+    color: "#FFF",
+    lineHeight: 22,
   },
 });

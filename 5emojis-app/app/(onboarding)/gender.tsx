@@ -6,12 +6,12 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
-import { COLORS, INTENTS, type IntentValue } from "../../lib/constants";
+import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
 import OnboardingButton from "../../components/OnboardingButton";
 
-export default function IntentScreen() {
+export default function GenderScreen() {
   const { data, update } = useOnboarding();
-  const [selected, setSelected] = useState<IntentValue>(data.intent);
+  const [selected, setSelected] = useState<GenderValue>(data.gender);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
@@ -20,52 +20,44 @@ export default function IntentScreen() {
           entering={FadeInDown.duration(500).delay(100)}
           style={{ fontSize: 28, fontFamily: fonts.heading, color: COLORS.text }}
         >
-          What are you looking for?
+          What's your gender?
         </Animated.Text>
         <Animated.Text
           entering={FadeInDown.duration(500).delay(200)}
           style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 4, marginBottom: 32 }}
         >
-          You can always change this later.
+          This helps us personalize your experience
         </Animated.Text>
 
         <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ gap: 12 }}>
-          {INTENTS.map((intent) => {
-            const isSelected = selected === intent.value;
+          {GENDERS.map((gender) => {
+            const isSelected = selected === gender.value;
             return (
               <TouchableOpacity
-                key={intent.value}
+                key={gender.value}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelected(intent.value);
+                  setSelected(gender.value);
                 }}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  backgroundColor: isSelected ? intent.surface : COLORS.surface,
+                  backgroundColor: isSelected ? gender.surface : COLORS.surface,
                   borderRadius: 16,
                   padding: 20,
                   borderWidth: 2,
-                  borderColor: isSelected ? intent.color : COLORS.border,
+                  borderColor: isSelected ? gender.color : COLORS.border,
                 }}
               >
-                <Text style={{ fontSize: 32, marginRight: 16 }}>{intent.emoji}</Text>
+                <Text style={{ fontSize: 32, marginRight: 16 }}>{gender.emoji}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{
                     fontSize: 18,
                     fontFamily: fonts.bodySemiBold,
-                    color: isSelected ? intent.color : COLORS.text,
+                    color: isSelected ? gender.color : COLORS.text,
                   }}>
-                    {intent.label}
-                  </Text>
-                  <Text style={{
-                    fontSize: 14,
-                    fontFamily: fonts.body,
-                    color: COLORS.textSecondary,
-                    marginTop: 2,
-                  }}>
-                    {intent.description}
+                    {gender.label}
                   </Text>
                 </View>
                 {isSelected && (
@@ -73,7 +65,7 @@ export default function IntentScreen() {
                     width: 24,
                     height: 24,
                     borderRadius: 12,
-                    backgroundColor: intent.color,
+                    backgroundColor: gender.color,
                     alignItems: "center",
                     justifyContent: "center",
                   }}>
@@ -90,7 +82,7 @@ export default function IntentScreen() {
         <OnboardingButton
           onPress={() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            update({ intent: selected });
+            update({ gender: selected });
             router.push("/(onboarding)/photos");
           }}
         />

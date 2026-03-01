@@ -235,6 +235,7 @@ export default function VibesScreen() {
               otherUser: result.otherUser,
               otherEmojis: result.otherEmojis,
               otherPhoto: result.otherPhoto,
+              icebreakerQuestion: result.icebreakerQuestion,
             },
             ...prev,
           ]);

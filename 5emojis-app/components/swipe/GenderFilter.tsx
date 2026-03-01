@@ -1,28 +1,27 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
-import { COLORS, INTENTS, type IntentValue } from "../../lib/constants";
+import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 
 type Props = {
-  selected: IntentValue | null; // null = show everyone (same as "both")
-  onSelect: (value: IntentValue | null) => void;
+  selected: GenderValue | null; // null = show everyone
+  onSelect: (value: GenderValue | null) => void;
 };
 
-export default function IntentFilter({ selected, onSelect }: Props) {
-  const options = [
-    { value: null as IntentValue | null, label: "Everyone", emoji: "✨" },
-    { value: "friends" as IntentValue | null, label: "Friends", emoji: "🤝" },
-    { value: "dating" as IntentValue | null, label: "Dating", emoji: "💕" },
+export default function GenderFilter({ selected, onSelect }: Props) {
+  const options: { value: GenderValue | null; label: string; emoji: string }[] = [
+    { value: null, label: "All", emoji: "✨" },
+    ...GENDERS.map((g) => ({ value: g.value as GenderValue | null, label: g.label, emoji: g.emoji })),
   ];
 
   return (
     <View style={styles.container}>
       {options.map((opt) => {
         const isActive = selected === opt.value;
-        const intentInfo = opt.value
-          ? INTENTS.find((i) => i.value === opt.value)
+        const genderInfo = opt.value
+          ? GENDERS.find((g) => g.value === opt.value)
           : null;
-        const activeColor = intentInfo?.color ?? COLORS.primary;
+        const activeColor = genderInfo?.color ?? COLORS.primary;
 
         return (
           <Pressable
