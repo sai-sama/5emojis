@@ -19,7 +19,7 @@ export default function Index() {
   }
 
   if (needsOnboarding) {
-    return <Redirect href="/(onboarding)/name" />;
+    return <Redirect href="/(onboarding)/basics" />;
   }
 
   return <Redirect href="/(tabs)" />;

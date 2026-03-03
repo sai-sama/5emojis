@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Message } from "./types";
+import { Message, MessageReaction } from "./types";
 
 // ─── Chat state (determines UI mode) ─────────────────────────
 export type ChatState = "icebreaker_pending" | "icebreaker_waiting" | "chat_active";
@@ -85,7 +85,8 @@ export function getChatState(
 // ─── Subscribe to new messages (real-time) ───────────────────
 export function subscribeToMessages(
   matchId: string,
-  onMessage: (message: Message) => void
+  onMessage: (message: Message) => void,
+  onUpdate?: (message: Message) => void
 ) {
   const channel = supabase
     .channel(`chat-${matchId}`)
@@ -99,6 +100,101 @@ export function subscribeToMessages(
       },
       (payload) => {
         onMessage(payload.new as Message);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "messages",
+        filter: `match_id=eq.${matchId}`,
+      },
+      (payload) => {
+        if (onUpdate) {
+          onUpdate(payload.new as Message);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+// ─── Reaction quick-pick emojis ──────────────────────────────
+export const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
+
+// ─── Toggle a reaction on a message ─────────────────────────
+export async function toggleReaction(
+  messageId: string,
+  userId: string,
+  emoji: string
+): Promise<{ added: boolean; error: string | null }> {
+  // Check if reaction already exists
+  const { data: existing } = await supabase
+    .from("message_reactions")
+    .select("id")
+    .eq("message_id", messageId)
+    .eq("user_id", userId)
+    .eq("emoji", emoji)
+    .single();
+
+  if (existing) {
+    // Remove reaction
+    const { error } = await supabase
+      .from("message_reactions")
+      .delete()
+      .eq("id", existing.id);
+    return { added: false, error: error?.message ?? null };
+  } else {
+    // Add reaction
+    const { error } = await supabase
+      .from("message_reactions")
+      .insert({ message_id: messageId, user_id: userId, emoji });
+    return { added: true, error: error?.message ?? null };
+  }
+}
+
+// ─── Fetch reactions for all messages in a match ────────────
+export async function fetchReactions(
+  matchId: string
+): Promise<Record<string, MessageReaction[]>> {
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("*, messages!inner(match_id)")
+    .eq("messages.match_id", matchId);
+
+  if (error || !data) return {};
+
+  // Group by message_id
+  const grouped: Record<string, MessageReaction[]> = {};
+  for (const r of data) {
+    const reaction = r as unknown as MessageReaction;
+    if (!grouped[reaction.message_id]) grouped[reaction.message_id] = [];
+    grouped[reaction.message_id].push(reaction);
+  }
+  return grouped;
+}
+
+// ─── Subscribe to reaction changes ──────────────────────────
+export function subscribeToReactions(
+  matchId: string,
+  onReactionChange: () => void
+) {
+  const channel = supabase
+    .channel(`reactions-${matchId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "message_reactions",
+      },
+      () => {
+        // Re-fetch all reactions when any change happens
+        onReactionChange();
       }
     )
     .subscribe();

@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
+import { logError } from "./error-logger";
 
 export interface WellnessTip {
   tip: string;
@@ -65,7 +66,9 @@ export async function getTodaysTip(): Promise<WellnessTip | null> {
   // Already dismissed?
   try {
     if (await isTipDismissedToday()) return null;
-  } catch {}
+  } catch (err: any) {
+    logError(err, { screen: "WellnessTips", context: "check_tip_dismissed" });
+  }
 
   // Check cache
   try {
@@ -74,7 +77,9 @@ export async function getTodaysTip(): Promise<WellnessTip | null> {
       const { date, tip } = JSON.parse(cached);
       if (date === getTodayKey()) return tip as WellnessTip;
     }
-  } catch {}
+  } catch (err: any) {
+    logError(err, { screen: "WellnessTips", context: "read_tip_cache" });
+  }
 
   // Fetch from Supabase
   try {
@@ -94,7 +99,9 @@ export async function getTodaysTip(): Promise<WellnessTip | null> {
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ date: getTodayKey(), tip }));
       return tip;
     }
-  } catch {}
+  } catch (err: any) {
+    logError(err, { screen: "WellnessTips", context: "fetch_tip_from_supabase" });
+  }
 
   // Static fallback — always works
   return STATIC_TIPS[getDayOfWeek()];

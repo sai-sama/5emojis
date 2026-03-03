@@ -8,6 +8,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/onboarding-context";
+import { logError } from "../../lib/error-logger";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import EmojiBackground, { PHOTO_EMOJIS } from "../../components/EmojiBackground";
@@ -43,9 +44,10 @@ export default function PhotosScreen() {
         const dest = `${dir}photo_${index}_${Date.now()}.jpg`;
         await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
         persistentUri = dest;
-      } catch (e) {
+      } catch (e: any) {
         // If copy fails, fall back to original URI
         console.warn("Failed to persist photo, using temp URI:", e);
+        logError(e, { screen: "PhotosScreen", context: "persist_photo_to_documents" });
       }
 
       const newPhotos = [...photos];
@@ -141,22 +143,43 @@ export default function PhotosScreen() {
             ))}
           </View>
 
-          {photos.length === 0 && (
-            <View style={{
-              backgroundColor: COLORS.primarySurface,
-              borderRadius: 14,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: COLORS.primaryBorder,
-            }}>
-              <Text style={{ fontSize: 14, fontFamily: fonts.bodyBold, color: COLORS.primary, marginBottom: 6 }}>
-                💡 Photo tips
+          {/* Photo Guidelines — always visible */}
+          <View style={{
+            backgroundColor: COLORS.surface,
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            flexDirection: "row",
+            gap: 10,
+          }}>
+            <Ionicons name="information-circle" size={20} color={COLORS.primary} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: COLORS.text, marginBottom: 6 }}>
+                Photo Guidelines
               </Text>
-              <Text style={{ fontSize: 13, fontFamily: fonts.body, color: COLORS.textSecondary, lineHeight: 20 }}>
-                {"• Clear face photo for pic #1 — no sunglasses!\n• No group shots for your main pic\n• Show your personality — hobbies, travel, pets 🐶"}
-              </Text>
+              {[
+                "Your main photo must clearly show your face",
+                "No sunglasses, masks, or heavy filters on photo #1",
+                "No group photos for your main pic",
+                "Show your personality! Hobbies, travel, pets are great",
+                "Keep it appropriate — photos are moderated",
+              ].map((tip, idx) => (
+                <Text
+                  key={idx}
+                  style={{
+                    fontSize: 12,
+                    fontFamily: fonts.body,
+                    color: COLORS.textSecondary,
+                    lineHeight: 18,
+                    marginBottom: idx < 4 ? 2 : 0,
+                  }}
+                >
+                  {"\u2022  "}{tip}
+                </Text>
+              ))}
             </View>
-          )}
+          </View>
         </Animated.View>
       </ScrollView>
 

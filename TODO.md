@@ -8,169 +8,164 @@ A friendship app that makes connecting with new people fun, low-pressure, and em
 
 ## Tech Stack
 
-- **Frontend**: React Native + Expo (managed workflow) — iOS & Android
+- **Frontend**: React Native + Expo SDK 55 (managed workflow) — iOS & Android
 - **Backend**: Supabase (Auth, Database, Realtime, Storage)
 - **Database**: PostgreSQL + PostGIS (radius-based location search)
-- **Auth**: Apple Sign In + Google Sign In (required) + phone number collected (OTP verified on demand)
+- **Auth**: Apple Sign In + Google Sign In + email/password
 - **Chat**: Supabase Realtime subscriptions
 - **Emoji rendering**: Twemoji (consistent cross-platform) + emoji-mart (picker)
-- **Face detection**: Google ML Kit (on-device, free)
+- **Photo moderation**: Supabase Edge Function + OpenAI omni-moderation-latest
 - **Push notifications**: Expo Push Notifications (free)
-- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Styling**: StyleSheet (migrated from NativeWind) + design system in `lib/constants.ts`
 - **Navigation**: Expo Router (file-based)
+- **Testing**: Jest 29 + jest-expo + @testing-library/react-native
 - **Web (Phase 2)**: Next.js
 - **OTA updates**: Expo EAS Update
-
----
-
-## DONE — Bugs & Polish
-
-- [x] Fix swipe card flicker — added `cardOpacity` shared value to hide exiting card before React re-renders, reset position in `useEffect`, fade-in new card with 150ms `withTiming`.
-
----
-
-## DONE — Supabase Setup
-
-- [x] Create Supabase project and connect (real URL + anon key in `.env`)
-- [x] Run full database migration (11 tables, PostGIS, RLS, triggers, storage bucket)
-- [x] Real email/password auth flow (sign up, sign in, session management)
-- [x] Onboarding context — collects data across screens, bulk-saves to Supabase on completion
-- [x] Route guard in root index (loading → auth → onboarding → home)
-
----
-
-## DONE — Legal & Safety
-
-- [x] 18+ age enforcement — DB CHECK constraint, app-level validation, DOB screen gate
-- [x] Terms of Service — in-app screen at `/terms`
-- [x] Privacy Policy — in-app screen at `/privacy`
-- [x] Legal links on sign-up screen (tappable, navigate to in-app docs)
-- [x] Legal section in profile settings (always accessible)
-- [ ] Swap placeholder emails (`support@5emojis.app`, `privacy@5emojis.app`) for real addresses once domain/email is set up
-- [ ] Have a lawyer review ToS and Privacy Policy before App Store submission
-
----
-
-## NEXT UP — Apple & Google Sign In Setup
-
-### Apple Sign In
-- [ ] Apple Developer Console → Certificates, Identifiers & Profiles
-- [ ] Create an App ID with "Sign in with Apple" capability
-- [ ] Create a Services ID (this is the OAuth client ID for web)
-- [ ] Create a Sign in with Apple private key (`.p8` file)
-- [ ] Note your **Team ID** and **Key ID**
-- [ ] Supabase Dashboard → Auth → Providers → Apple: paste Services ID, Secret Key, Team ID, Key ID
-- [ ] Install `expo-apple-authentication` and add provider button to sign-in screen
-
-### Google Sign In
-- [ ] Google Cloud Console → APIs & Services → Credentials
-- [ ] Create OAuth 2.0 Client IDs (iOS + Android + Web)
-- [ ] For iOS: set the bundle ID to match your Expo app
-- [ ] Supabase Dashboard → Auth → Providers → Google: paste Web Client ID + Client Secret
-- [ ] Install `expo-auth-session` and add provider button to sign-in screen
-
-### Supabase Auth Settings
-- [ ] Dashboard → Auth → Settings → disable "Confirm email" for faster dev testing (re-enable for production)
-- [ ] Set Site URL to your Expo deep link scheme (e.g. `exp://localhost:8081`)
-
----
-
-## NEXT UP — Server-Side AI Content
-
-Move the daily Claude batch call (starter packs, emoji traits, icebreaker templates, summary templates) from client-side to server-side so it runs ONCE per day for ALL users instead of per-device.
-
-- [ ] Create `ai_content` table in Supabase — DONE (included in migration)
-- [ ] Create Supabase Edge Function `generate-ai-content` that calls Claude Haiku with the batch prompt
-- [ ] Set up daily cron (Supabase pg_cron or external) to trigger the Edge Function
-- [ ] Update `lib/starter-packs.ts` to fetch from Supabase instead of calling Claude directly
-- [ ] Remove `EXPO_PUBLIC_ANTHROPIC_API_KEY` from client — API key lives only in Edge Function secrets
-- [ ] Cost: ~$0.003/day total ($0.09/month) regardless of user count
 
 ---
 
 ## Phase 1 — MVP
 
 ### Project Setup
-- [ ] Initialize Expo project with TypeScript
-- [ ] Set up Supabase project (database, auth, storage)
-- [ ] Configure Expo environment variables for Supabase
-- [ ] Set up Git repo + branch strategy (main/dev)
+- [x] Initialize Expo project with TypeScript
+- [x] Set up Supabase project (database, auth, storage)
+- [x] Configure Expo environment variables for Supabase
+- [x] Set up Git repo
+- [x] Set up PostGIS extension in Supabase
 - [ ] Configure EAS Build for iOS and Android
-- [ ] Set up PostGIS extension in Supabase
 
 ### Database Schema
-- [ ] `profiles` — id, name, dob, race, religion, profession, life_stage, friendship_style, pronouns, is_new_to_city, city, state, zip, latitude, longitude, search_radius_miles, created_at
-- [ ] `profile_emojis` — user_id, emoji, position (1-5), unique per user+position
-- [ ] `profile_photos` — user_id, url, position (1-5), is_primary (position 1 = main photo on swipe card)
-- [ ] `profile_interests` — user_id, interest_tag (3-5 tags like "hiking", "gaming", "food", "live music")
-- [ ] `profile_languages` — user_id, language
-- [ ] `profile_reveals` — user_id, content, position (1-4), hidden until match
-- [ ] `swipes` — swiper_id, swiped_id, direction (right/left), created_at
-- [ ] `matches` — user1_id, user2_id, emoji_match_count, created_at, is_emoji_perfect (5/5)
-- [ ] `messages` — match_id, sender_id, content, is_emoji_only, created_at
-- [ ] `blocks` — blocker_id, blocked_id, created_at
-- [ ] `reports` — reporter_id, reported_id, reason, details, created_at, status
-- [ ] RLS policies for all tables
-- [ ] Trigger: auto-create match row when both users swipe right
-- [ ] Trigger: calculate emoji_match_count on match creation
-- [ ] Function: radius search using PostGIS `ST_DWithin`
+- [x] `profiles` — id, name, dob, gender, profession, life_stage, friendship_style, pronouns, is_new_to_city, city, state, latitude, longitude, search_radius_miles, personality_type, communication_style, kids, relationship_status, work_style
+- [x] `profile_emojis` — user_id, emoji, position (1-5)
+- [x] `profile_photos` — user_id, url, position, is_primary
+- [x] `profile_interests` — user_id, interest_tag
+- [x] `profile_reveals` — user_id, content, position (1-4)
+- [x] `profile_availability` — user_id, slot
+- [x] `profile_pets` — user_id, pet
+- [x] `profile_dietary` — user_id, preference
+- [x] `swipes` — swiper_id, swiped_id, direction
+- [x] `matches` — user1_id, user2_id, emoji_match_count, icebreaker_question_id
+- [x] `messages` — match_id, sender_id, content, is_emoji_only, read_at, reactions
+- [x] `blocks` — blocker_id, blocked_id
+- [x] `reports` — reporter_id, reported_id, reason, details, status
+- [x] `icebreaker_questions` — question, category
+- [x] `error_logs` — user_id, message, stack, context, platform
+- [x] RLS policies for all tables
+- [x] Trigger: auto-create match with random icebreaker on mutual right-swipe
+- [x] Trigger: calculate emoji_match_count on match creation
+- [x] Function: `nearby_profiles` — radius search using PostGIS with gender/block filtering
+- [x] ON DELETE CASCADE on all profile-related tables
 
 ### Auth & Onboarding
-- [ ] Apple Sign In integration
-- [ ] Google Sign In integration
+- [x] Email/password auth flow (sign up, sign in, session management)
+- [x] Apple Sign In integration (code complete, needs Apple Developer config)
+- [x] Google Sign In integration (code complete, needs Google Cloud config)
+- [x] Route guard in root index (loading → auth → onboarding → home)
+- [x] Consolidated 5-screen onboarding: Basics (name+dob+gender) → Photos → Emojis → Details → Location
+- [x] 18+ age enforcement (DB CHECK + app validation)
+- [x] Photo upload with compression + content moderation (Edge Function)
+- [x] Photo guidelines modal explaining photo policy
+- [x] Store lat/lng from city for geo queries
 - [ ] Phone number collection screen (store for later verification)
-- [ ] Onboarding flow: Name > DOB > Photo upload > 5 Emoji selection > Details (race, religion, profession, life stage, languages, interests, friendship style, pronouns) > City/location
-- [ ] Face detection on primary photo upload (Google ML Kit — reject group shots, landscapes, sunglasses)
-- [ ] Photo guidelines screen explaining the main photo policy
-- [ ] Store lat/lng from city for geo queries
+- [ ] Face detection on primary photo (Google ML Kit)
 
 ### Profile
-- [ ] Profile creation with: name, age (from DOB), up to 5 photos, 5 emojis, city
-- [ ] Extended profile fields: race, religion, profession, life stage, languages, interests (3-5 tags), friendship style, pronouns
-- [ ] 4 reveal/description points (hidden until match)
-- [ ] "New to City" badge (toggleable by user)
-- [ ] Edit profile screen (change emojis, photos, location, details, reveals)
-- [ ] Search radius slider (miles from specified city/zip)
-- [ ] Change search city/zip from profile
+- [x] Profile creation with: name, age (from DOB), up to 5 photos, 5 emojis, city, gender
+- [x] Extended profile fields: profession, life stage, interests, friendship style, pronouns, personality type, communication style, availability, pets, dietary
+- [x] 4 reveal/description points (hidden until match)
+- [x] Edit profile screen (photos, emojis, personal info, about, more, location)
+- [x] Search radius slider
+- [x] Change search city from profile
+- [x] Profile completion tracking + nudge card
+- [x] Zodiac sign auto-detection from DOB
+- [x] Emoji edit cooldown (24h) with paid bypass placeholder
+- [x] Delete account with photo cleanup + confirmation UI
 
 ### Discovery & Swiping
-- [ ] Location-based card feed — default to profile city
-- [ ] Cards show: 5 emojis, 1 main photo, name, age, distance ("3 miles away"), profession
-- [ ] "New to City" badge visible on card when applicable
-- [ ] Swipe right (interested) / swipe left (pass)
-- [ ] Filter out: already swiped, blocked users, own profile
-- [ ] Radius-based filtering using PostGIS
-- [ ] Swipe animations (smooth, satisfying)
-- [ ] **No swipe limits** — generous free usage, no artificial caps
-- [ ] **No match expiry** — matches never expire, friendships don't have a countdown
+- [x] Location-based card feed via `nearby_profiles` RPC
+- [x] Cards show: 5 emojis, 1 main photo, name, age, distance, profession, gender badge
+- [x] Swipe right (Vibe) / swipe left (Pass) with Reanimated gestures
+- [x] Filter out: already swiped, blocked users, own profile
+- [x] Radius-based filtering using PostGIS
+- [x] Gender filter (multi-select, persisted via AsyncStorage)
+- [x] Swipe animations (smooth gesture + card transitions)
+- [x] New user swipe tutorial overlay
+- [x] Undo last swipe
+- [x] Empty state when no profiles nearby
+- [x] No swipe limits
+- [x] No match expiry
 
 ### Matching
-- [ ] Detect mutual right-swipe → create match
-- [ ] Match notification (push notification)
-- [ ] Match screen animation — both emoji sets collide/merge with haptics
-- [ ] On match: reveal remaining photos + 4 reveal/description points + full profile details (interests, languages, life stage, friendship style, etc.)
-- [ ] Matches list screen
+- [x] Detect mutual right-swipe → create match (DB trigger)
+- [x] Match modal with icebreaker question preview
+- [x] Icebreaker system: random question assigned per match
+- [x] 1000+ icebreaker questions seeded across 20 categories
+- [x] Match notification (push notification on match)
+- [x] On match: reveal profile details + reveals
+- [x] Matches list with chat state indicators
 
-### Messaging (Emoji-First)
-- [ ] Chat screen per match
-- [ ] First message restricted to exactly 5 emojis (emoji keyboard only)
-- [ ] After first emoji exchange from both sides → unlock full text messaging
-- [ ] Real-time message delivery via Supabase Realtime
-- [ ] Push notifications for new messages
-- [ ] Message read receipts
+### Messaging (Icebreaker-First)
+- [x] Chat screen per match with 3 states: icebreaker_pending → icebreaker_waiting → chat_active
+- [x] Icebreaker flow: both users answer with 5 emojis, responses blurred until both answer
+- [x] After both answer: responses revealed, text chat unlocks
+- [x] Real-time message delivery via Supabase Realtime
+- [x] Push notifications for new messages
+- [x] Message read receipts (blue checkmarks)
+- [x] Emoji reactions on messages (long-press)
+- [x] Date separators in chat
 
 ### Blocking & Reporting
-- [ ] Block user from profile or chat — hides them everywhere
-- [ ] Report user with reason selection + optional details
-- [ ] Blocked users excluded from all discovery queries
-- [ ] Report review system (admin side — can be simple at first)
+- [x] Block user from chat header
+- [x] Block + report via ReportModal with reason selection + optional details
+- [x] Blocked users excluded from discovery (bidirectional in `nearby_profiles` RPC)
+- [x] Block removes existing match
+- [x] Silent block (blocked user can't tell via RLS)
+- [x] Block filtering in incoming vibes
+- [ ] Admin report review system
+
+### Safety & Legal
+- [x] Terms of Service — in-app screen
+- [x] Privacy Policy — in-app screen
+- [x] Legal links on sign-up screen
+- [x] Legal section in profile settings
+- [x] Photo content moderation via Edge Function
+- [ ] Swap placeholder emails for real addresses
+- [ ] Lawyer review of ToS/Privacy before App Store
 
 ### Core UX Polish
-- [ ] Haptic feedback on emoji selection, swiping, matching
-- [ ] Loading states and error handling throughout
-- [ ] Empty states (no more profiles nearby, no matches yet)
-- [ ] App icon and splash screen
-- [ ] New user swipe tutorial — on first login, show a brief overlay/walkthrough teaching users to swipe left (Pass) and right (Vibe), with animated hand gesture demo
+- [x] Haptic feedback (emoji selection, swiping, matching, reactions)
+- [x] Sound effects (match, swipe) with mute toggle
+- [x] Loading states throughout
+- [x] Error logging to Supabase `error_logs` table (35+ catch blocks wired)
+- [x] Error boundary + global error handler
+- [x] Empty states (no profiles, no matches, no messages)
+- [x] App icon
+- [x] Swipe tutorial overlay
+- [x] Design system (COLORS, fonts centralized)
+
+### Testing & Quality
+- [x] Jest 29 + jest-expo test framework configured
+- [x] 61 unit tests across 5 suites (zodiac, constants, profile-completion, message-service, onboarding-progress)
+- [x] TypeScript strict mode — zero errors
+- [ ] Integration tests for Supabase services
+- [ ] E2E tests (Detox or Maestro)
+
+---
+
+## NEXT UP — External Service Config
+
+### Apple Sign In (code ready, needs console setup)
+- [ ] Apple Developer Console → Create App ID + "Sign in with Apple" capability
+- [ ] Create Services ID + Sign in with Apple private key (`.p8`)
+- [ ] Supabase Dashboard → Auth → Providers → Apple: paste credentials
+
+### Google Sign In (code ready, needs console setup)
+- [ ] Google Cloud Console → Create OAuth 2.0 Client IDs (iOS + Android + Web)
+- [ ] Supabase Dashboard → Auth → Providers → Google: paste Web Client ID + Secret
+
+### Supabase Auth Settings
+- [ ] Set Site URL to Expo deep link scheme
+- [ ] Re-enable email confirmation for production
 
 ---
 
@@ -193,25 +188,23 @@ Move the daily Claude batch call (starter packs, emoji traits, icebreaker templa
 - [ ] Group emoji identity (group picks 5 emojis together)
 
 ### Vibe Check Prompts
-- [ ] Daily/weekly rotating prompt on cards ("Last thing you binged?", "Go-to comfort food?")
-- [ ] User answers visible on their card — gives conversation starters
-- [ ] Optional participation (skip if not interested)
+- [ ] Daily/weekly rotating prompt on cards
+- [ ] User answers visible on their card
+- [ ] Optional participation
 
 ### Engagement Features
-- [ ] **Emoji Icebreaker Round**: After matching, both users simultaneously send 5-emoji opener, then "translate" each other's meaning — instant inside joke
-- [ ] **Daily Emoji Vibe**: Daily prompt "Pick the emoji that matches your vibe today" — shows as badge on card, daily open reason
-- [ ] **Emoji Personality Insights**: After onboarding, generate shareable personality card from emoji picks ("3 food emojis = Foodie Soul")
-- [ ] **Emoji Compatibility Animation**: On match, animate 10 emojis colliding, overlapping ones explode with confetti + sound
-- [ ] **"Guess My Emojis" Social Game**: Share blurred profile to friends, they tap to guess your 5 emojis → reveal
+- [ ] Daily Emoji Vibe badge
+- [ ] Emoji Personality Insights (shareable card from emoji picks)
+- [ ] Emoji Compatibility Animation on match
 
 ### Viral & Sharing
 - [ ] Shareable emoji profile card (Instagram Stories, TikTok)
 - [ ] "Guess My Emojis" link sharing
-- [ ] Referral system — invite friends, both get a perk
+- [ ] Referral system
 
 ### Web Interface (Next.js)
 - [ ] Landing page / marketing site
-- [ ] Web app with same core features (profile, swiping, chat)
+- [ ] Web app with same core features
 - [ ] Shared Supabase backend
 
 ---
@@ -223,8 +216,8 @@ Move the daily Claude batch call (starter packs, emoji traits, icebreaker templa
 - [ ] Boost profile visibility
 - [ ] Extra emoji themes / custom emoji packs
 - [ ] Profile customization (colors, backgrounds)
-- [ ] Undo last swipe
-- [ ] Change emojis more than once per week
+- [ ] Undo last swipe (currently free — gate behind premium later)
+- [ ] Unlimited emoji changes (bypass 24h cooldown)
 
 ### Analytics & Admin
 - [ ] Admin dashboard (user counts, match rates, report queue)

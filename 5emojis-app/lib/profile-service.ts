@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "./types";
 import { preparePhoto } from "./image-utils";
 import { decode } from "base64-arraybuffer";
+import { logError } from "./error-logger";
 
 // ─── Types ──────────────────────────────────────────────────
 export type FullProfile = {
@@ -12,11 +13,12 @@ export type FullProfile = {
   availability: string[];
   pets: string[];
   dietary: string[];
+  reveals: string[];
 };
 
 // ─── Fetch full profile ─────────────────────────────────────
 export async function fetchFullProfile(userId: string): Promise<FullProfile | null> {
-  const [profileRes, emojisRes, photosRes, interestsRes, availRes, petsRes, dietaryRes] = await Promise.all([
+  const [profileRes, emojisRes, photosRes, interestsRes, availRes, petsRes, dietaryRes, revealsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase.from("profile_emojis").select("*").eq("user_id", userId).order("position"),
     supabase.from("profile_photos").select("*").eq("user_id", userId).order("position"),
@@ -24,6 +26,7 @@ export async function fetchFullProfile(userId: string): Promise<FullProfile | nu
     supabase.from("profile_availability").select("*").eq("user_id", userId),
     supabase.from("profile_pets").select("*").eq("user_id", userId),
     supabase.from("profile_dietary").select("*").eq("user_id", userId),
+    supabase.from("profile_reveals").select("*").eq("user_id", userId).order("position"),
   ]);
 
   if (!profileRes.data) return null;
@@ -36,6 +39,7 @@ export async function fetchFullProfile(userId: string): Promise<FullProfile | nu
     availability: (availRes.data ?? []).map((a: any) => a.slot),
     pets: (petsRes.data ?? []).map((p: any) => p.pet),
     dietary: (dietaryRes.data ?? []).map((d: any) => d.preference),
+    reveals: (revealsRes.data ?? []).map((r: any) => r.content),
   };
 }
 
@@ -160,6 +164,35 @@ export async function updateInterests(
   return { error: null };
 }
 
+// ─── Replace reveals (delete all + re-insert) ───────────────
+export async function updateReveals(
+  userId: string,
+  reveals: string[]
+): Promise<{ error: string | null }> {
+  const { error: deleteError } = await supabase
+    .from("profile_reveals")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  // Only insert non-empty reveals
+  const nonEmpty = reveals.filter((r) => r.trim().length > 0);
+  if (nonEmpty.length > 0) {
+    const { error: insertError } = await supabase
+      .from("profile_reveals")
+      .insert(nonEmpty.map((content, i) => ({
+        user_id: userId,
+        content: content.trim(),
+        position: i + 1,
+      })));
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  return { error: null };
+}
+
 // ─── Replace availability (delete all + re-insert) ──────────
 export async function updateAvailability(
   userId: string,
@@ -240,6 +273,7 @@ export async function addPhoto(
   try {
     prepared = await preparePhoto(localUri);
   } catch (err: any) {
+    logError(err, { screen: "ProfileService", context: "add_photo_prepare" });
     return { url: null, error: err.message };
   }
 
@@ -271,6 +305,46 @@ export async function addPhoto(
   return { url: urlData.publicUrl, error: null };
 }
 
+// ─── Delete account (photos from storage + profile cascade) ──
+export async function deleteAccount(
+  userId: string
+): Promise<{ error: string | null }> {
+  // 1. Fetch all photos so we can clean up storage files
+  const { data: photos } = await supabase
+    .from("profile_photos")
+    .select("url")
+    .eq("user_id", userId);
+
+  // 2. Delete photo files from Supabase Storage
+  if (photos && photos.length > 0) {
+    const filePaths: string[] = [];
+    for (const photo of photos) {
+      try {
+        const url = new URL(photo.url);
+        const pathMatch = url.pathname.match(/\/profile-photos\/(.+)/);
+        if (pathMatch) filePaths.push(pathMatch[1]);
+      } catch {
+        // Invalid URL — skip
+      }
+    }
+    if (filePaths.length > 0) {
+      await supabase.storage.from("profile-photos").remove(filePaths);
+    }
+  }
+
+  // 3. Delete profile row — all related tables cascade-delete
+  //    (emojis, photos, interests, reveals, availability, pets, dietary,
+  //     swipes, matches, messages, blocks, reports)
+  const { error } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  return { error: null };
+}
+
 // ─── Remove a photo ──────────────────────────────────────────
 export async function removePhoto(
   photoId: string,
@@ -283,8 +357,9 @@ export async function removePhoto(
     if (pathMatch) {
       await supabase.storage.from("profile-photos").remove([pathMatch[1]]);
     }
-  } catch {
+  } catch (err: any) {
     // Storage delete failed — continue with DB delete
+    logError(err, { screen: "ProfileService", context: "remove_photo_storage" });
   }
 
   const { error } = await supabase

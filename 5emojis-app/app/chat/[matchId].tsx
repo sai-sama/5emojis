@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Alert,
 } from "react-native";
 import Animated, {
   FadeIn,
@@ -23,6 +24,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieCelebration from "../../components/lottie/LottieCelebration";
+import ReportModal from "../../components/ReportModal";
 import { useAuth } from "../../lib/auth-context";
 import { fetchMatches, type MatchWithProfile } from "../../lib/swipe-service";
 import {
@@ -33,14 +35,21 @@ import {
   getChatState,
   subscribeToMessages,
   markMessagesAsRead,
+  toggleReaction,
+  fetchReactions,
+  subscribeToReactions,
+  REACTION_EMOJIS,
   type ChatState,
 } from "../../lib/message-service";
+import { blockUser } from "../../lib/block-report-service";
+import { notifyNewMessage } from "../../lib/push-notifications";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import { getZodiacSign } from "../../lib/zodiac";
 import { COLORS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
-import { Message } from "../../lib/types";
+import { Message, MessageReaction } from "../../lib/types";
 import EmojiPicker from "../../components/EmojiPicker";
+import { logError } from "../../lib/error-logger";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -66,6 +75,17 @@ export default function ChatScreen() {
   const [textInput, setTextInput] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  // Reveals state
+  const [revealsExpanded, setRevealsExpanded] = useState(false);
+
+  // Reactions state
+  const [reactions, setReactions] = useState<Record<string, MessageReaction[]>>({});
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+
+  // Block & Report state
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const currentUserId = session?.user?.id ?? "";
 
@@ -101,8 +121,13 @@ export default function ChatScreen() {
           }
 
           markMessagesAsRead(matchId, session.user.id);
-        } catch (err) {
+
+          // Fetch reactions
+          const rxns = await fetchReactions(matchId);
+          setReactions(rxns);
+        } catch (err: any) {
           console.warn("Chat data load failed:", err);
+          logError(err, { screen: "ChatScreen", context: "load_chat_data" });
         } finally {
           setLoading(false);
         }
@@ -114,32 +139,50 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!matchId || !session?.user) return;
 
-    const unsubscribe = subscribeToMessages(matchId, (newMsg) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        const updated = [...prev, newMsg];
+    const unsubscribe = subscribeToMessages(
+      matchId,
+      // INSERT handler — new messages
+      (newMsg) => {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          const updated = [...prev, newMsg];
 
-        // Recalculate chat state
-        const other = matchData;
-        if (other) {
-          const otherUserId =
-            other.match.user1_id === session.user.id
-              ? other.match.user2_id
-              : other.match.user1_id;
-          setChatState(getChatState(updated, session.user.id, otherUserId));
+          // Recalculate chat state
+          const other = matchData;
+          if (other) {
+            const otherUserId =
+              other.match.user1_id === session.user.id
+                ? other.match.user2_id
+                : other.match.user1_id;
+            setChatState(getChatState(updated, session.user.id, otherUserId));
+          }
+
+          return updated;
+        });
+
+        // Mark as read if from other user
+        if (newMsg.sender_id !== session.user.id) {
+          markMessagesAsRead(matchId, session.user.id);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
-
-        return updated;
-      });
-
-      // Mark as read if from other user
-      if (newMsg.sender_id !== session.user.id) {
-        markMessagesAsRead(matchId, session.user.id);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      // UPDATE handler — read receipts and other field changes
+      (updatedMsg) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
+        );
       }
+    );
+
+    // Also subscribe to reaction changes
+    const unsubReactions = subscribeToReactions(matchId, () => {
+      fetchReactions(matchId).then(setReactions);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      unsubReactions();
+    };
   }, [matchId, session, matchData]);
 
   // ─── Derived data ──────────────────────────────────────────
@@ -205,9 +248,14 @@ export default function ChatScreen() {
       const msgs = await fetchMessages(matchId);
       setMessages(msgs);
       setChatState(getChatState(msgs, session.user.id, otherUserId));
+
+      // Notify the other user
+      if (otherUserId) {
+        notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true);
+      }
     }
     setSendingIcebreaker(false);
-  }, [selectedEmojis, session, matchId, otherUserId]);
+  }, [selectedEmojis, session, matchId, otherUserId, other]);
 
   // ─── Send text message ────────────────────────────────────
   const handleSendText = useCallback(async () => {
@@ -219,6 +267,11 @@ export default function ChatScreen() {
 
     await sendMessage(matchId, session.user.id, text);
 
+    // Notify the other user
+    if (otherUserId) {
+      notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, false);
+    }
+
     const msgs = await fetchMessages(matchId);
     setMessages(msgs);
     setSendingMessage(false);
@@ -226,7 +279,59 @@ export default function ChatScreen() {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  }, [textInput, session, matchId]);
+  }, [textInput, session, matchId, otherUserId, other]);
+
+  // ─── Emoji reaction handler ────────────────────────────────
+  const handleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      if (!session?.user) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setReactionPickerMessageId(null);
+      await toggleReaction(messageId, session.user.id, emoji);
+      // Re-fetch reactions
+      const rxns = await fetchReactions(matchId);
+      setReactions(rxns);
+    },
+    [session, matchId]
+  );
+
+  // ─── Date separator helper ────────────────────────────────
+  const formatDateSeparator = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    if (msgDate.getTime() === today.getTime()) return "Today";
+    if (msgDate.getTime() === yesterday.getTime()) return "Yesterday";
+    return d.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  // ─── Block handler ──────────────────────────────────────────
+  const handleBlock = useCallback(() => {
+    if (!session?.user || !otherUserId) return;
+    Alert.alert(
+      `Block ${other?.name ?? "this person"}?`,
+      "They won't be able to see your profile or contact you. Your match and messages will be removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            await blockUser(session.user.id, otherUserId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.back();
+          },
+        },
+      ]
+    );
+  }, [session, otherUserId, other]);
 
   // ─── Split emojis string into array ────────────────────────
   const splitEmojis = (content: string): string[] => {
@@ -271,7 +376,7 @@ export default function ChatScreen() {
                   <Ionicons name="person" size={18} color={COLORS.textMuted} />
                 </View>
               )}
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.headerName}>
                   {other.name}, {age} {zodiac?.emoji}
                 </Text>
@@ -281,7 +386,50 @@ export default function ChatScreen() {
               </View>
             </View>
           ) : null}
+
+          {/* Three-dots menu */}
+          {other && (
+            <Pressable
+              onPress={() => setShowMenu((v) => !v)}
+              hitSlop={12}
+              style={styles.menuButton}
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+            </Pressable>
+          )}
         </View>
+
+        {/* Dropdown menu */}
+        {showMenu && (
+          <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
+            <View style={styles.menuDropdown}>
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  setShowReportModal(true);
+                }}
+              >
+                <Ionicons name="flag-outline" size={18} color={COLORS.accent} />
+                <Text style={[styles.menuItemText, { color: COLORS.accent }]}>
+                  Report
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  handleBlock();
+                }}
+              >
+                <Ionicons name="ban-outline" size={18} color={COLORS.accent} />
+                <Text style={[styles.menuItemText, { color: COLORS.accent }]}>
+                  Block
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        )}
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -457,18 +605,30 @@ export default function ChatScreen() {
 
             {/* ─── STATE: chat_active ─────────────────────── */}
             {chatState === "chat_active" && (
-              <View style={{ flex: 1 }}>
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={() => setReactionPickerMessageId(null)}
+              >
                 <FlatList
                   ref={flatListRef}
                   data={[
                     // First item: revealed icebreaker responses
                     { type: "icebreaker_reveal" as const, id: "icebreaker" },
-                    // Then text messages
-                    ...textMessages.map((m) => ({
-                      type: "message" as const,
-                      id: m.id,
-                      message: m,
-                    })),
+                    // Profile reveals (hidden until match)
+                    ...(matchData?.otherReveals && matchData.otherReveals.length > 0
+                      ? [{ type: "profile_reveals" as const, id: "profile_reveals" }]
+                      : []),
+                    // Then text messages with date separators
+                    ...textMessages.flatMap((m, i) => {
+                      const items: { type: "date_separator" | "message"; id: string; message?: Message; date?: string }[] = [];
+                      const msgDate = new Date(m.created_at).toDateString();
+                      const prevDate = i > 0 ? new Date(textMessages[i - 1].created_at).toDateString() : null;
+                      if (i === 0 || msgDate !== prevDate) {
+                        items.push({ type: "date_separator", id: `date-${msgDate}`, date: m.created_at });
+                      }
+                      items.push({ type: "message", id: m.id, message: m });
+                      return items;
+                    }),
                   ]}
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={styles.chatList}
@@ -525,9 +685,83 @@ export default function ChatScreen() {
                       );
                     }
 
+                    if (item.type === "profile_reveals") {
+                      const reveals = matchData?.otherReveals ?? [];
+                      return (
+                        <Animated.View
+                          entering={FadeInDown.duration(400).delay(200)}
+                          style={styles.profileRevealsContainer}
+                        >
+                          <Pressable
+                            onPress={() => setRevealsExpanded((v) => !v)}
+                            style={styles.profileRevealsCard}
+                          >
+                            <View style={styles.profileRevealsHeader}>
+                              <Ionicons
+                                name="lock-open"
+                                size={16}
+                                color={COLORS.primary}
+                              />
+                              <Text style={styles.profileRevealsTitle}>
+                                {other?.name}'s Hidden Reveals
+                              </Text>
+                              <Ionicons
+                                name={revealsExpanded ? "chevron-up" : "chevron-down"}
+                                size={18}
+                                color={COLORS.textSecondary}
+                              />
+                            </View>
+                            {revealsExpanded && (
+                              <View style={styles.profileRevealsList}>
+                                {reveals.map((reveal, i) => (
+                                  <View key={i} style={styles.profileRevealItem}>
+                                    <Text style={styles.profileRevealBullet}>
+                                      {i + 1}
+                                    </Text>
+                                    <Text style={styles.profileRevealText}>
+                                      {reveal}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                          </Pressable>
+                        </Animated.View>
+                      );
+                    }
+
+                    // Date separator
+                    if (item.type === "date_separator") {
+                      return (
+                        <View style={styles.dateSeparator}>
+                          <View style={styles.dateSeparatorLine} />
+                          <Text style={styles.dateSeparatorText}>
+                            {formatDateSeparator(item.date!)}
+                          </Text>
+                          <View style={styles.dateSeparatorLine} />
+                        </View>
+                      );
+                    }
+
                     // Regular text message
                     const msg = item.message!;
                     const isMe = msg.sender_id === currentUserId;
+                    const msgReactions = reactions[msg.id] ?? [];
+
+                    // Group reactions by emoji for display
+                    const groupedReactions: { emoji: string; count: number; byMe: boolean }[] = [];
+                    const emojiMap = new Map<string, { count: number; byMe: boolean }>();
+                    for (const r of msgReactions) {
+                      const existing = emojiMap.get(r.emoji);
+                      if (existing) {
+                        existing.count++;
+                        if (r.user_id === currentUserId) existing.byMe = true;
+                      } else {
+                        emojiMap.set(r.emoji, { count: 1, byMe: r.user_id === currentUserId });
+                      }
+                    }
+                    emojiMap.forEach((val, emoji) => groupedReactions.push({ emoji, ...val }));
+
                     return (
                       <View
                         style={[
@@ -537,7 +771,14 @@ export default function ChatScreen() {
                             : styles.messageBubbleWrapOther,
                         ]}
                       >
-                        <View
+                        <Pressable
+                          onLongPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setReactionPickerMessageId(
+                              reactionPickerMessageId === msg.id ? null : msg.id
+                            );
+                          }}
+                          delayLongPress={300}
                           style={[
                             styles.messageBubble,
                             isMe
@@ -555,13 +796,75 @@ export default function ChatScreen() {
                           >
                             {msg.content}
                           </Text>
-                        </View>
+                        </Pressable>
+
+                        {/* Reaction pills below the bubble */}
+                        {groupedReactions.length > 0 && (
+                          <View style={[styles.reactionRow, isMe ? styles.reactionRowMe : styles.reactionRowOther]}>
+                            {groupedReactions.map(({ emoji, count, byMe }) => (
+                              <Pressable
+                                key={emoji}
+                                onPress={() => handleReaction(msg.id, emoji)}
+                                style={[
+                                  styles.reactionPill,
+                                  byMe && styles.reactionPillMine,
+                                ]}
+                              >
+                                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                                {count > 1 && (
+                                  <Text style={[styles.reactionCount, byMe && styles.reactionCountMine]}>
+                                    {count}
+                                  </Text>
+                                )}
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+
+                        {/* Reaction quick-picker (shown on long-press) */}
+                        {reactionPickerMessageId === msg.id && (
+                          <Animated.View
+                            entering={FadeIn.duration(150)}
+                            style={[
+                              styles.reactionPicker,
+                              isMe ? styles.reactionPickerMe : styles.reactionPickerOther,
+                            ]}
+                          >
+                            {REACTION_EMOJIS.map((emoji) => (
+                              <Pressable
+                                key={emoji}
+                                onPress={() => handleReaction(msg.id, emoji)}
+                                style={styles.reactionPickerItem}
+                              >
+                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+                              </Pressable>
+                            ))}
+                          </Animated.View>
+                        )}
+
                         <Text style={styles.messageTime}>
                           {new Date(msg.created_at).toLocaleTimeString([], {
                             hour: "numeric",
                             minute: "2-digit",
                           })}
                         </Text>
+                        {isMe && (
+                          <View style={styles.readReceipt}>
+                            <Text
+                              style={[
+                                styles.readReceiptCheck,
+                                msg.read_at
+                                  ? styles.readReceiptRead
+                                  : styles.readReceiptUnread,
+                              ]}
+                            >
+                              {msg.read_at ? "\u2713\u2713" : "\u2713"}
+                            </Text>
+                            {msg.read_at && (
+                              <Text style={styles.readReceiptLabel}>Read</Text>
+                            )}
+                          </View>
+                        )}
                       </View>
                     );
                   }}
@@ -593,12 +896,28 @@ export default function ChatScreen() {
                     )}
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             )}
           </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
+
+      {/* Report modal */}
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reporterId={currentUserId}
+        reportedId={otherUserId}
+        reportedName={other?.name ?? "User"}
+        onComplete={() => {
+          Alert.alert(
+            "Report Submitted",
+            "Thank you for helping keep 5Emojis safe.",
+            [{ text: "OK", onPress: () => router.back() }]
+          );
+        }}
+      />
     </View>
   );
 }
@@ -659,6 +978,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.body,
     color: COLORS.textSecondary,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
+  },
+  menuDropdown: {
+    position: "absolute",
+    top: 58,
+    right: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    paddingVertical: 6,
+    minWidth: 160,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    zIndex: 51,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
   },
   loadingContainer: {
     flex: 1,
@@ -939,6 +1304,59 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // ─── Profile reveals (hidden until match) ──────────────
+  profileRevealsContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  profileRevealsCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  profileRevealsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  profileRevealsTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.text,
+  },
+  profileRevealsList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  profileRevealItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  profileRevealBullet: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.primarySurface,
+    textAlign: "center",
+    lineHeight: 22,
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+    overflow: "hidden",
+  },
+  profileRevealText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+    lineHeight: 20,
+  },
+
   // ─── Chat messages ─────────────────────────────────────
   chatList: {
     paddingBottom: 8,
@@ -985,6 +1403,118 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  readReceipt: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 1,
+  },
+  readReceiptCheck: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+  },
+  readReceiptRead: {
+    color: COLORS.primary,
+  },
+  readReceiptUnread: {
+    color: COLORS.textMuted,
+  },
+  readReceiptLabel: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    color: COLORS.primary,
+  },
+
+  // ─── Date separators ──────────────────────────────────
+  dateSeparator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  dateSeparatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.textMuted,
+  },
+
+  // ─── Emoji reactions ────────────────────────────────────
+  reactionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 4,
+  },
+  reactionRowMe: {
+    justifyContent: "flex-end",
+  },
+  reactionRowOther: {
+    justifyContent: "flex-start",
+  },
+  reactionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 2,
+  },
+  reactionPillMine: {
+    borderColor: COLORS.primaryBorder,
+    backgroundColor: COLORS.primarySoft,
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  reactionCount: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.textSecondary,
+  },
+  reactionCountMine: {
+    color: COLORS.primary,
+  },
+  reactionPicker: {
+    flexDirection: "row",
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 2,
+  },
+  reactionPickerMe: {
+    alignSelf: "flex-end",
+  },
+  reactionPickerOther: {
+    alignSelf: "flex-start",
+  },
+  reactionPickerItem: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reactionPickerEmoji: {
+    fontSize: 22,
   },
 
   // ─── Text input bar ────────────────────────────────────

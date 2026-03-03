@@ -10,6 +10,9 @@ import { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { supabase } from "./supabase";
+import { deleteAccount as deleteAccountService } from "./profile-service";
+import { registerForPushNotifications } from "./push-notifications";
+import { logError } from "./error-logger";
 
 // DEV MODE: Set to true to bypass auth and explore the UI
 const DEV_BYPASS_AUTH = false;
@@ -24,6 +27,7 @@ type AuthContextType = {
   signInWithApple: () => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string | null }>;
   completeOnboarding: () => void;
 };
 
@@ -37,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   signInWithApple: async () => ({ error: null }),
   signInWithGoogle: async () => ({ error: null }),
   signOut: async () => {},
+  deleteAccount: async () => ({ error: null }),
   completeOnboarding: () => {},
 });
 
@@ -75,14 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const hasProfile = await checkProfile(s.user.id);
             setNeedsOnboarding(!hasProfile);
-          } catch {
+            if (hasProfile) {
+              registerForPushNotifications(s.user.id);
+            }
+          } catch (err: any) {
             // profiles table may not exist yet — treat as needs onboarding
+            logError(err, { screen: "AuthProvider", context: "session_profile_check" });
             setNeedsOnboarding(true);
           }
         }
       })
-      .catch(() => {
+      .catch((err: any) => {
         // Network/Supabase unreachable — proceed without session
+        logError(err, { screen: "AuthProvider", context: "get_session" });
       })
       .finally(() => {
         setLoading(false);
@@ -96,7 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const hasProfile = await checkProfile(s.user.id);
           setNeedsOnboarding(!hasProfile);
-        } catch {
+          if (hasProfile) {
+            registerForPushNotifications(s.user.id);
+          }
+        } catch (err: any) {
+          logError(err, { screen: "AuthProvider", context: "auth_state_change_profile_check" });
           setNeedsOnboarding(true);
         }
       } else {
@@ -154,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (e.code === "ERR_REQUEST_CANCELED") {
         return { error: null }; // User dismissed — not an error
       }
+      logError(e, { screen: "AuthProvider", context: "sign_in_with_apple" });
       return { error: e.message || "Apple Sign-In failed." };
     }
   }, []);
@@ -185,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (e.code === "IN_PROGRESS") {
         return { error: null };
       }
+      logError(e, { screen: "AuthProvider", context: "sign_in_with_google" });
       return { error: e.message || "Google Sign-In failed." };
     }
   }, []);
@@ -192,12 +208,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       await supabase.auth.signOut();
-    } catch {
+    } catch (err: any) {
       // Sign out locally even if Supabase call fails
+      logError(err, { screen: "AuthProvider", context: "sign_out" });
     }
     setSession(null);
     setNeedsOnboarding(false);
   }, []);
+
+  const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
+    if (!session?.user) return { error: "Not authenticated" };
+    try {
+      const { error } = await deleteAccountService(session.user.id);
+      if (error) return { error };
+      // Sign out after successful deletion
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Ignore sign-out errors — profile is already gone
+      }
+      setSession(null);
+      setNeedsOnboarding(false);
+      return { error: null };
+    } catch (err: any) {
+      logError(err, { screen: "AuthProvider", context: "delete_account" });
+      return { error: err.message || "Failed to delete account" };
+    }
+  }, [session]);
 
   const completeOnboarding = useCallback(() => {
     setNeedsOnboarding(false);
@@ -217,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signInWithApple: async () => ({ error: null }),
           signInWithGoogle: async () => ({ error: null }),
           signOut: async () => {},
+          deleteAccount: async () => ({ error: null }),
           completeOnboarding: () => {},
         }}
       >
@@ -237,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithApple,
         signInWithGoogle,
         signOut,
+        deleteAccount,
         completeOnboarding,
       }}
     >

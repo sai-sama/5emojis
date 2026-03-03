@@ -27,6 +27,7 @@ export type Database = {
           relationship_status: string | null;
           work_style: string | null;
           emoji_last_edited_at: string | null;
+          push_token: string | null;
           search_radius_miles: number;
           created_at: string;
           updated_at: string;
@@ -50,6 +51,7 @@ export type Database = {
           relationship_status?: string | null;
           work_style?: string | null;
           emoji_last_edited_at?: string | null;
+          push_token?: string | null;
           is_new_to_city?: boolean;
           city: string;
           state?: string | null;
@@ -291,6 +293,48 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["profile_dietary"]["Insert"]>;
         Relationships: [];
       };
+      message_reactions: {
+        Row: {
+          id: string;
+          message_id: string;
+          user_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          message_id: string;
+          user_id: string;
+          emoji: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["message_reactions"]["Insert"]>;
+        Relationships: [];
+      };
+      error_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          error_message: string;
+          error_stack: string | null;
+          component_stack: string | null;
+          screen: string | null;
+          platform: string | null;
+          app_version: string | null;
+          extra: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id?: string | null;
+          error_message: string;
+          error_stack?: string | null;
+          component_stack?: string | null;
+          screen?: string | null;
+          platform?: string | null;
+          app_version?: string | null;
+          extra?: Record<string, unknown> | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["error_logs"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -303,6 +347,12 @@ export type Database = {
           gender_filter?: string | null;
         };
         Returns: Database["public"]["Tables"]["profiles"]["Row"][];
+      };
+      reset_mock_data: {
+        Args: {
+          requesting_user_id: string;
+        };
+        Returns: unknown;
       };
     };
     Enums: Record<string, never>;
@@ -319,3 +369,4 @@ export type IcebreakerQuestion = Database["public"]["Tables"]["icebreaker_questi
 export type ProfileAvailability = Database["public"]["Tables"]["profile_availability"]["Row"];
 export type ProfilePet = Database["public"]["Tables"]["profile_pets"]["Row"];
 export type ProfileDietary = Database["public"]["Tables"]["profile_dietary"]["Row"];
+export type MessageReaction = Database["public"]["Tables"]["message_reactions"]["Row"];

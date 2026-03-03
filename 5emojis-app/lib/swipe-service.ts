@@ -12,6 +12,7 @@ export type MatchResult = {
   otherEmojis: ProfileEmoji[];
   otherPhoto: ProfilePhoto | null;
   icebreakerQuestion: string | null;
+  otherReveals: string[];
 };
 
 export type MatchWithProfile = {
@@ -20,6 +21,7 @@ export type MatchWithProfile = {
   otherEmojis: ProfileEmoji[];
   otherPhoto: ProfilePhoto | null;
   icebreakerQuestion: string | null;
+  otherReveals: string[];
 };
 
 export type IncomingVibe = {
@@ -79,7 +81,7 @@ export async function recordSwipe(
   // Fetch the other user's profile, emojis, primary photo, and icebreaker question
   const otherUserId = swipedId;
 
-  const [profileRes, emojisRes, photoRes, questionRes] = await Promise.all([
+  const [profileRes, emojisRes, photoRes, questionRes, revealsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", otherUserId).single(),
     supabase.from("profile_emojis").select("*").eq("user_id", otherUserId),
     supabase
@@ -95,6 +97,11 @@ export async function recordSwipe(
           .eq("id", match.icebreaker_question_id)
           .single()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("profile_reveals")
+      .select("*")
+      .eq("user_id", otherUserId)
+      .order("position"),
   ]);
 
   return {
@@ -104,6 +111,7 @@ export async function recordSwipe(
     otherEmojis: emojisRes.data ?? [],
     otherPhoto: photoRes.data,
     icebreakerQuestion: questionRes.data?.question ?? null,
+    otherReveals: (revealsRes.data ?? []).map((r: any) => r.content),
   };
 }
 
@@ -128,7 +136,7 @@ export async function fetchMatches(
       const otherUserId =
         match.user1_id === userId ? match.user2_id : match.user1_id;
 
-      const [profileRes, emojisRes, photoRes, questionRes] = await Promise.all([
+      const [profileRes, emojisRes, photoRes, questionRes, revealsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", otherUserId).single(),
         supabase
           .from("profile_emojis")
@@ -148,6 +156,11 @@ export async function fetchMatches(
               .eq("id", match.icebreaker_question_id)
               .single()
           : Promise.resolve({ data: null }),
+        supabase
+          .from("profile_reveals")
+          .select("*")
+          .eq("user_id", otherUserId)
+          .order("position"),
       ]);
 
       if (!profileRes.data) return null;
@@ -158,6 +171,7 @@ export async function fetchMatches(
         otherEmojis: emojisRes.data ?? [],
         otherPhoto: photoRes.data,
         icebreakerQuestion: questionRes.data?.question ?? null,
+        otherReveals: (revealsRes.data ?? []).map((r: any) => r.content),
       } satisfies MatchWithProfile;
     })
   );
@@ -179,19 +193,34 @@ export async function fetchIncomingVibes(
 
   if (error || !swipes?.length) return [];
 
-  // Filter out people we've already swiped on (already matched or passed)
+  // Filter out people we've already swiped on AND blocked users
   const swiperIds = swipes.map((s) => s.swiper_id);
 
-  const { data: ourSwipes } = await supabase
-    .from("swipes")
-    .select("swiped_id")
-    .eq("swiper_id", userId)
-    .in("swiped_id", swiperIds);
+  const [ourSwipesRes, blocksRes] = await Promise.all([
+    supabase
+      .from("swipes")
+      .select("swiped_id")
+      .eq("swiper_id", userId)
+      .in("swiped_id", swiperIds),
+    supabase
+      .from("blocks")
+      .select("blocker_id, blocked_id")
+      .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`),
+  ]);
 
-  const alreadySwiped = new Set((ourSwipes ?? []).map((s) => s.swiped_id));
+  const alreadySwiped = new Set((ourSwipesRes.data ?? []).map((s) => s.swiped_id));
 
-  // Only keep incoming vibes we haven't acted on yet
-  const pendingSwipes = swipes.filter((s) => !alreadySwiped.has(s.swiper_id));
+  // Build set of blocked user IDs (both directions)
+  const blockedIds = new Set<string>();
+  for (const b of blocksRes.data ?? []) {
+    if (b.blocker_id === userId) blockedIds.add(b.blocked_id);
+    else blockedIds.add(b.blocker_id);
+  }
+
+  // Only keep vibes we haven't acted on and aren't blocked
+  const pendingSwipes = swipes.filter(
+    (s) => !alreadySwiped.has(s.swiper_id) && !blockedIds.has(s.swiper_id)
+  );
   if (pendingSwipes.length === 0) return [];
 
   const pendingIds = pendingSwipes.map((s) => s.swiper_id);

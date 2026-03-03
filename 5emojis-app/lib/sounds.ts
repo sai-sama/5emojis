@@ -1,6 +1,7 @@
 import { Audio } from "expo-av";
 import { Sound } from "expo-av/build/Audio";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { logError } from "./error-logger";
 
 // ─── Sound cache ──────────────────────────────────────────────
 let matchSound: Sound | null = null;
@@ -52,8 +53,9 @@ export async function playMatchSound() {
       { shouldPlay: true, volume: 0.7 }
     );
     matchSound = sound;
-  } catch {
+  } catch (err: any) {
     // Sound file not found — silently skip
+    logError(err, { screen: "Sounds", context: "play_match_sound" });
   }
 }
 
@@ -73,8 +75,9 @@ export async function playSwipeSound() {
       { shouldPlay: true, volume: 0.4 }
     );
     swipeSound = sound;
-  } catch {
+  } catch (err: any) {
     // Sound file not found — silently skip
+    logError(err, { screen: "Sounds", context: "play_swipe_sound" });
   }
 }
 
@@ -94,8 +97,9 @@ export async function playPopSound() {
       { shouldPlay: true, volume: 0.5 }
     );
     popSound = sound;
-  } catch {
+  } catch (err: any) {
     // Sound file not found — silently skip
+    logError(err, { screen: "Sounds", context: "play_pop_sound" });
   }
 }
 

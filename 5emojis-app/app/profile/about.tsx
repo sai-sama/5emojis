@@ -15,7 +15,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
-import { updateProfileFields, updateInterests } from "../../lib/profile-service";
+import { updateProfileFields, updateInterests, updateReveals } from "../../lib/profile-service";
 import Chip from "../../components/profile/Chip";
 import {
   SITUATIONS,
@@ -40,6 +40,11 @@ export default function AboutScreen() {
     profile?.profile.friendship_style ? [profile.profile.friendship_style] : []
   );
   const [interests, setInterests] = useState<string[]>(profile?.interests ?? []);
+  const [reveals, setReveals] = useState<string[]>(() => {
+    const existing = profile?.reveals ?? [];
+    // Always maintain 4 slots, padding with empty strings
+    return [...existing, "", "", "", ""].slice(0, 4);
+  });
 
   const aiSuggestions = useMemo(
     () => getInterestSuggestions(profession, interests),
@@ -49,13 +54,15 @@ export default function AboutScreen() {
   // Dirty check
   const dirty = useMemo(() => {
     if (!profile) return false;
+    const existingReveals = [...(profile.reveals ?? []), "", "", "", ""].slice(0, 4);
     return (
       (profession.trim() || null) !== (profile.profile.profession || null) ||
       (lifeStage || null) !== (profile.profile.life_stage || null) ||
       (friendshipStyles[0] || null) !== (profile.profile.friendship_style || null) ||
-      JSON.stringify([...interests].sort()) !== JSON.stringify([...profile.interests].sort())
+      JSON.stringify([...interests].sort()) !== JSON.stringify([...profile.interests].sort()) ||
+      JSON.stringify(reveals) !== JSON.stringify(existingReveals)
     );
-  }, [profile, profession, lifeStage, friendshipStyles, interests]);
+  }, [profile, profession, lifeStage, friendshipStyles, interests, reveals]);
 
   if (!profile) return null;
 
@@ -72,6 +79,7 @@ export default function AboutScreen() {
     if (error) Alert.alert("Error", error);
 
     await updateInterests(session.user.id, interests);
+    await updateReveals(session.user.id, reveals);
     setSaving(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     refresh();
@@ -211,6 +219,40 @@ export default function AboutScreen() {
             );
           })}
         </View>
+
+        {/* Hidden Reveals */}
+        <View style={styles.revealsSection}>
+          <View style={styles.revealsHeader}>
+            <Ionicons name="lock-closed" size={14} color={COLORS.textSecondary} />
+            <Text style={styles.fieldLabel}>Hidden Reveals</Text>
+          </View>
+          <Text style={styles.revealsSubtitle}>
+            4 things people discover about you after matching
+          </Text>
+          {reveals.map((reveal, index) => (
+            <TextInput
+              key={index}
+              value={reveal}
+              onChangeText={(text) => {
+                const updated = [...reveals];
+                updated[index] = text;
+                setReveals(updated);
+              }}
+              placeholder={
+                index === 0
+                  ? "e.g. I can solve a Rubik's cube in under a minute"
+                  : index === 1
+                  ? "e.g. I've lived in 5 different countries"
+                  : index === 2
+                  ? "e.g. I'm secretly a great cook"
+                  : "e.g. I once met a celebrity at a grocery store"
+              }
+              placeholderTextColor="#B2BEC3"
+              maxLength={100}
+              style={styles.revealInput}
+            />
+          ))}
+        </View>
       </ScrollView>
 
       {/* Sticky save button */}
@@ -323,6 +365,34 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 16,
+  },
+  revealsSection: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  revealsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  revealsSubtitle: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: COLORS.textMuted,
+    marginBottom: 12,
+  },
+  revealInput: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 10,
   },
   footer: {
     paddingHorizontal: 20,

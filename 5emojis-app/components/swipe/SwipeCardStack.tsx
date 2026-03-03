@@ -51,6 +51,9 @@ import type { GenderValue } from "../../lib/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useUndo } from "../../lib/undo-context";
+import SwipeTutorial from "./SwipeTutorial";
+import { notifyNewMatch } from "../../lib/push-notifications";
+import { logError } from "../../lib/error-logger";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -286,8 +289,23 @@ export default function SwipeCardStack() {
   const [userLat, setUserLat] = useState(0);
   const [userLng, setUserLng] = useState(0);
   const [userEmojis, setUserEmojis] = useState<string[]>([]);
+  const [userName, setUserName] = useState("");
   const [genderFilters, setGenderFilters] = useState<GenderValue[]>(["male", "female", "nonbinary"]);
   const [feedLoaded, setFeedLoaded] = useState(false);
+
+  // ─── First-time swipe tutorial ─────────────────────────────
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem("swipe_tutorial_seen").then((val) => {
+      if (!val) setShowTutorial(true);
+    });
+  }, []);
+
+  const dismissTutorial = useCallback(() => {
+    setShowTutorial(false);
+    AsyncStorage.setItem("swipe_tutorial_seen", "true");
+  }, []);
 
   // ─── Read gender filters from AsyncStorage on focus ────────
   // Only update state if the values actually changed (avoids resetting currentIndex)
@@ -301,7 +319,9 @@ export default function SwipeCardStack() {
             if (Array.isArray(parsed) && parsed.length > 0) {
               newFilters = parsed;
             }
-          } catch {}
+          } catch (err: any) {
+            logError(err, { screen: "SwipeCardStack", context: "parse_gender_filters" });
+          }
         }
         setGenderFilters((prev) => {
           // Deep compare — only update if values actually changed
@@ -359,6 +379,7 @@ export default function SwipeCardStack() {
 
       setUserLat(ownProfile.latitude);
       setUserLng(ownProfile.longitude);
+      setUserName(ownProfile.name);
 
       // Fetch current user's emojis for match highlighting
       const { data: myEmojis } = await supabase
@@ -380,8 +401,9 @@ export default function SwipeCardStack() {
 
       setProfiles(feed);
       setCurrentIndex(0);
-    } catch {
+    } catch (err: any) {
       // Network error — profiles stay empty
+      logError(err, { screen: "SwipeCardStack", context: "load_discovery_feed" });
     } finally {
       setFeedLoaded(true);
     }
@@ -451,9 +473,19 @@ export default function SwipeCardStack() {
               isPerfect: result.match.is_emoji_perfect,
               icebreakerQuestion: result.icebreakerQuestion,
             });
+
+            // Notify the other user about the match
+            if (userName) {
+              notifyNewMatch(
+                result.otherUser.id,
+                userName,
+                result.match.id
+              );
+            }
           }
-        }).catch(() => {
+        }).catch((err: any) => {
           // Swipe recording failed
+          logError(err, { screen: "SwipeCardStack", context: "record_swipe" });
         });
       }
 
@@ -483,8 +515,9 @@ export default function SwipeCardStack() {
 
     // Delete swipe from Supabase (+ any match it created)
     if (session?.user) {
-      undoSwipe(session.user.id, lastSwipe.swipedId).catch(() => {
+      undoSwipe(session.user.id, lastSwipe.swipedId).catch((err: any) => {
         // DB delete failed — UI still reverts (best effort)
+        logError(err, { screen: "SwipeCardStack", context: "undo_swipe" });
       });
     }
 
@@ -555,16 +588,25 @@ export default function SwipeCardStack() {
           <View style={StyleSheet.absoluteFill}>
             <LottieEmptyState
               title="That's everyone nearby!"
-              subtitle="Check back soon — new friends are joining every day"
+              subtitle="New friends are joining every day. Try expanding your search radius to find more people."
             >
-              {!session?.user && (
+              <View style={styles.emptyActions}>
                 <Pressable
                   style={styles.refreshButton}
-                  onPress={() => setCurrentIndex(0)}
+                  onPress={() => router.push("/profile/location")}
                 >
-                  <Text style={styles.refreshText}>Start Over</Text>
+                  <Ionicons name="expand-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.refreshText}>Expand Radius</Text>
                 </Pressable>
-              )}
+                {filteredProfiles.length > 0 && (
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={() => setCurrentIndex(0)}
+                  >
+                    <Text style={styles.secondaryButtonText}>Start Over</Text>
+                  </Pressable>
+                )}
+              </View>
             </LottieEmptyState>
           </View>
         )}
@@ -618,6 +660,9 @@ export default function SwipeCardStack() {
         )}
 
       </View>
+
+      {/* First-time swipe tutorial overlay */}
+      {showTutorial && <SwipeTutorial onDismiss={dismissTutorial} />}
 
       {/* Emoji sizzle overlay — zIndex/elevation above cards */}
       {sizzle && (
@@ -693,8 +738,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
+  emptyActions: {
+    marginTop: 20,
+    alignItems: "center",
+    gap: 12,
+  },
   refreshButton: {
-    marginTop: 24,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     paddingHorizontal: 28,
     paddingVertical: 14,
@@ -703,6 +754,19 @@ const styles = StyleSheet.create({
   refreshText: {
     color: "#FFF",
     fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+  },
+  secondaryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryBorder,
+    backgroundColor: COLORS.primarySoft,
+  },
+  secondaryButtonText: {
+    color: COLORS.primary,
+    fontSize: 15,
     fontFamily: fonts.bodySemiBold,
   },
 });

@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
 import { preparePhoto } from "./image-utils";
 import { decode } from "base64-arraybuffer";
+import { logError } from "./error-logger";
 
 export type OnboardingData = {
   name: string;
@@ -201,6 +202,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       setSubmitting(false);
       return { error: null };
     } catch (err: any) {
+      logError(err, { screen: "OnboardingProvider", context: "submit_onboarding" });
       setSubmitting(false);
       return { error: err.message || "Something went wrong" };
     }

@@ -27,6 +27,7 @@ export function getProfileCompletion(profile: FullProfile): {
     { label: "Relationship Status", filled: !!profile.profile.relationship_status, route: "/profile/more" },
     { label: "Work Style", filled: !!profile.profile.work_style, route: "/profile/more" },
     { label: "Dietary Preferences", filled: profile.dietary.length > 0, route: "/profile/more" },
+    { label: "Hidden Reveals", filled: profile.reveals.length > 0, route: "/profile/about" },
   ];
 
   const filled = fields.filter((f) => f.filled).length;

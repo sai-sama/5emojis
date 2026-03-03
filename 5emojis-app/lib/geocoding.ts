@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import { logError } from "./error-logger";
 
 // ─── Types ───────────────────────────────────────────────────
 export type ResolvedLocation = {
@@ -36,7 +37,8 @@ async function geocodeWithNominatim(
       latitude: parseFloat(data[0].lat),
       longitude: parseFloat(data[0].lon),
     };
-  } catch {
+  } catch (err: any) {
+    logError(err, { screen: "Geocoding", context: "geocode_with_nominatim" });
     return null;
   }
 }
@@ -61,7 +63,8 @@ async function reverseGeocodeWithNominatim(
     const countryCode = addr.country_code || "";
 
     return city ? { city, state, countryCode } : null;
-  } catch {
+  } catch (err: any) {
+    logError(err, { screen: "Geocoding", context: "reverse_geocode_with_nominatim" });
     return null;
   }
 }
@@ -111,7 +114,8 @@ export async function searchLocations(
         } satisfies ResolvedLocation;
       })
       .filter((r): r is ResolvedLocation => r !== null);
-  } catch {
+  } catch (err: any) {
+    logError(err, { screen: "Geocoding", context: "search_locations" });
     return [];
   }
 }
@@ -136,8 +140,9 @@ export async function geocodeInput(
         latitude = results[0].latitude;
         longitude = results[0].longitude;
       }
-    } catch {
+    } catch (err: any) {
       // Platform geocoder unavailable — fall through
+      logError(err, { screen: "Geocoding", context: "platform_geocoder" });
     }
 
     // 2. Fallback to Nominatim
@@ -168,8 +173,9 @@ export async function geocodeInput(
           countryCode = (place.isoCountryCode || "").toLowerCase();
         }
       }
-    } catch {
+    } catch (err: any) {
       // Platform reverse geocoder failed — fall through
+      logError(err, { screen: "Geocoding", context: "platform_reverse_geocoder" });
     }
 
     // If city is still the raw input (platform reverse geocode didn't help),
@@ -197,7 +203,8 @@ export async function geocodeInput(
       countryCode,
       flag,
     };
-  } catch {
+  } catch (err: any) {
+    logError(err, { screen: "Geocoding", context: "geocode_input" });
     return null;
   }
 }

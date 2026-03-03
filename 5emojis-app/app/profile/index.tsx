@@ -31,7 +31,7 @@ import { getProfileCompletion } from "../../lib/profile-completion";
 import { resetMockData } from "../../lib/mock-data";
 
 export default function ProfileOverview() {
-  const { session, signOut } = useAuth();
+  const { session, signOut, deleteAccount } = useAuth();
   const { profile, loading, refresh } = useProfile();
 
   // Gender filter — multi-select (persisted via AsyncStorage, read by SwipeCardStack)
@@ -245,6 +245,47 @@ export default function ProfileOverview() {
     ]);
   };
 
+  // ─── Delete account ────────────────────────────────────────
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account?",
+      "This will permanently delete your profile, photos, matches, and messages. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete My Account",
+          style: "destructive",
+          onPress: () => {
+            // Second confirmation
+            Alert.alert(
+              "Are you absolutely sure?",
+              "All your data will be permanently removed. You'll need to create a new account to use 5Emojis again.",
+              [
+                { text: "Keep My Account", style: "cancel" },
+                {
+                  text: "Yes, Delete Everything",
+                  style: "destructive",
+                  onPress: async () => {
+                    setDeleting(true);
+                    const { error } = await deleteAccount();
+                    setDeleting(false);
+                    if (error) {
+                      Alert.alert("Error", `Failed to delete account: ${error}`);
+                    } else {
+                      router.replace("/(auth)/sign-in");
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   // ─── Loading ────────────────────────────────────────────────
   if (loading) {
     return (
@@ -406,6 +447,15 @@ export default function ProfileOverview() {
           </Pressable>
           <Pressable style={styles.signOutButton} onPress={handleSignOut}>
             <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.deleteAccountButton, deleting && { opacity: 0.5 }]}
+            onPress={handleDeleteAccount}
+            disabled={deleting}
+          >
+            <Text style={styles.deleteAccountText}>
+              {deleting ? "Deleting..." : "Delete Account"}
+            </Text>
           </Pressable>
         </View>
 
@@ -707,6 +757,17 @@ const styles = StyleSheet.create({
     color: "#DC2626",
     fontSize: 15,
     fontFamily: fonts.bodySemiBold,
+  },
+  deleteAccountButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center" as const,
+    marginTop: 10,
+  },
+  deleteAccountText: {
+    color: "#DC2626",
+    fontSize: 13,
+    fontFamily: fonts.body,
   },
 
   // Emoji modal

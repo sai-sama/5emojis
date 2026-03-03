@@ -14,6 +14,7 @@ import { useFocusEffect, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
+import { logError } from "../../lib/error-logger";
 import {
   fetchMatchesEnhanced,
   fetchIncomingVibes,
@@ -23,6 +24,8 @@ import {
   type MatchFilter,
   type IncomingVibe,
 } from "../../lib/swipe-service";
+import { blockUser } from "../../lib/block-report-service";
+import ReportModal from "../../components/ReportModal";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import { fonts } from "../../lib/fonts";
 import { COLORS, PREMIUM_GATES } from "../../lib/constants";
@@ -173,7 +176,13 @@ function VibeCard({
 }
 
 // ─── Enhanced Match Card ────────────────────────────────────
-function MatchCard({ item }: { item: EnhancedMatch }) {
+function MatchCard({
+  item,
+  onLongPress,
+}: {
+  item: EnhancedMatch;
+  onLongPress: (item: EnhancedMatch) => void;
+}) {
   const {
     otherUser,
     otherEmojis,
@@ -202,6 +211,11 @@ function MatchCard({ item }: { item: EnhancedMatch }) {
     <Pressable
       style={[styles.card, unreadCount > 0 && styles.cardUnread]}
       onPress={() => router.push(`/chat/${match.id}`)}
+      onLongPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onLongPress(item);
+      }}
+      delayLongPress={500}
     >
       {/* Photo */}
       <View style={styles.photoWrapper}>
@@ -303,6 +317,12 @@ export default function VibesScreen() {
   const [actingOnVibe, setActingOnVibe] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<MatchFilter>("all");
 
+  // Block & Report state
+  const [reportTarget, setReportTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   const loadData = useCallback(async () => {
     if (!session?.user) {
       setLoading(false);
@@ -315,8 +335,9 @@ export default function VibesScreen() {
       ]);
       setMatches(matchData);
       setVibes(vibeData);
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Failed to load matches/vibes:", err);
+      logError(err, { screen: "VibesScreen", context: "load_matches_and_vibes" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -381,6 +402,7 @@ export default function VibesScreen() {
               otherEmojis: result.otherEmojis,
               otherPhoto: result.otherPhoto,
               icebreakerQuestion: result.icebreakerQuestion,
+              otherReveals: result.otherReveals,
               chatState: "icebreaker_pending",
               lastMessage: null,
               lastMessageAt: result.match.created_at,
@@ -401,8 +423,9 @@ export default function VibesScreen() {
             ]
           );
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Vibe back failed:", err);
+        logError(err, { screen: "VibesScreen", context: "vibe_back" });
       } finally {
         setActingOnVibe(null);
       }
@@ -418,13 +441,61 @@ export default function VibesScreen() {
         await recordSwipe(session.user.id, vibe.user.id, "left");
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVibes((prev) => prev.filter((v) => v.swipeId !== vibe.swipeId));
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Pass failed:", err);
+        logError(err, { screen: "VibesScreen", context: "pass_vibe" });
       } finally {
         setActingOnVibe(null);
       }
     },
     [session, actingOnVibe]
+  );
+
+  // ─── Long press on match card ─────────────────────────────
+  const handleMatchLongPress = useCallback(
+    (item: EnhancedMatch) => {
+      if (!session?.user) return;
+      const otherUserId =
+        item.match.user1_id === session.user.id
+          ? item.match.user2_id
+          : item.match.user1_id;
+      const otherName = item.otherUser.name;
+
+      Alert.alert(otherName, "What would you like to do?", [
+        {
+          text: "Report",
+          onPress: () => setReportTarget({ id: otherUserId, name: otherName }),
+        },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              `Block ${otherName}?`,
+              "They won't be able to see your profile or contact you. Your match and messages will be removed.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Block",
+                  style: "destructive",
+                  onPress: async () => {
+                    await blockUser(session.user.id, otherUserId);
+                    Haptics.notificationAsync(
+                      Haptics.NotificationFeedbackType.Warning
+                    );
+                    setMatches((prev) =>
+                      prev.filter((m) => m.match.id !== item.match.id)
+                    );
+                  },
+                },
+              ]
+            );
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    },
+    [session]
   );
 
   // ─── List header: Vibes section + filter chips ────────────
@@ -485,12 +556,22 @@ export default function VibesScreen() {
           <LottieEmptyState
             title="No matches yet"
             subtitle="Start swiping to find friends who share your emoji energy!"
-          />
+          >
+            <Pressable
+              style={styles.emptyCtaButton}
+              onPress={() => router.push("/(tabs)/")}
+            >
+              <Ionicons name="swap-horizontal" size={18} color="#FFF" style={{ marginRight: 6 }} />
+              <Text style={styles.emptyCtaText}>Start Swiping</Text>
+            </Pressable>
+          </LottieEmptyState>
         ) : (
           <FlatList
             data={filteredMatches}
             keyExtractor={(item) => item.match.id}
-            renderItem={({ item }) => <MatchCard item={item} />}
+            renderItem={({ item }) => (
+              <MatchCard item={item} onLongPress={handleMatchLongPress} />
+            )}
             ListHeaderComponent={renderListHeader}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
@@ -503,16 +584,47 @@ export default function VibesScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyFilter}>
+                <Text style={styles.emptyFilterEmoji}>
+                  {activeFilter === "new" ? "🧊" : activeFilter === "chatting" ? "💬" : activeFilter === "perfect" ? "✨" : "🤝"}
+                </Text>
+                <Text style={styles.emptyFilterTitle}>
+                  {activeFilter === "all"
+                    ? "No matches yet"
+                    : `No ${activeFilter === "new" ? "new" : activeFilter === "chatting" ? "active" : "perfect"} matches`}
+                </Text>
                 <Text style={styles.emptyFilterText}>
                   {activeFilter === "all"
-                    ? "Vibe back to start matching!"
-                    : `No ${activeFilter === "new" ? "new" : activeFilter === "chatting" ? "active" : "perfect"} matches yet`}
+                    ? "Vibe back on someone to start matching!"
+                    : activeFilter === "new"
+                    ? "Answer your icebreakers to move friends to chatting"
+                    : activeFilter === "perfect"
+                    ? "A perfect match means all 5 emojis overlap — keep swiping!"
+                    : "Start a conversation after the icebreaker"}
                 </Text>
               </View>
             }
           />
         )}
       </View>
+
+      {/* Report modal */}
+      {reportTarget && (
+        <ReportModal
+          visible={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          reporterId={session?.user?.id ?? ""}
+          reportedId={reportTarget.id}
+          reportedName={reportTarget.name}
+          onComplete={() => {
+            setReportTarget(null);
+            Alert.alert(
+              "Report Submitted",
+              "Thank you for helping keep 5Emojis safe."
+            );
+            loadData();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -889,11 +1001,38 @@ const styles = StyleSheet.create({
   // ─── Empty states ──────────────────────────────────
   emptyFilter: {
     alignItems: "center",
-    paddingVertical: 32,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyFilterEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyFilterTitle: {
+    fontSize: 17,
+    fontFamily: fonts.headingBold,
+    color: COLORS.text,
+    marginBottom: 6,
   },
   emptyFilterText: {
     fontSize: 14,
     fontFamily: fonts.body,
     color: COLORS.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  emptyCtaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  emptyCtaText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
   },
 });

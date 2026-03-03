@@ -27,15 +27,10 @@ export default function OnboardingLayout() {
             animation: "slide_from_right",
           }}
         >
-          <Stack.Screen name="name" options={{ title: "Your Name" }} />
-          <Stack.Screen name="dob" options={{ title: "Birthday" }} />
-          <Stack.Screen name="gender" options={{ title: "Gender" }} />
+          <Stack.Screen name="basics" options={{ title: "Basics" }} />
           <Stack.Screen name="photos" options={{ title: "Photos" }} />
           <Stack.Screen name="emojis" options={{ title: "Your 5 Emojis" }} />
           <Stack.Screen name="details" options={{ title: "About You" }} />
-          <Stack.Screen name="availability" options={{ title: "Availability" }} />
-          <Stack.Screen name="personality" options={{ title: "Personality" }} />
-          <Stack.Screen name="age-pref" options={{ title: "Age Preference" }} />
           <Stack.Screen name="location" options={{ title: "Location" }} />
         </Stack>
         {/* Progress bar floating below header */}

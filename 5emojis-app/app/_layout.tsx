@@ -17,6 +17,8 @@ import { AuthProvider } from "../lib/auth-context";
 import { COLORS } from "../lib/constants";
 import { loadMuteSetting } from "../lib/sounds";
 import { initErrorLogging, logError } from "../lib/error-logger";
+import { addNotificationResponseListener } from "../lib/push-notifications";
+import { router } from "expo-router";
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -71,6 +73,12 @@ export default function RootLayout() {
   useEffect(() => {
     loadMuteSetting();
     initErrorLogging();
+
+    // Handle notification taps → navigate to chat
+    const cleanup = addNotificationResponseListener((matchId) => {
+      router.push(`/chat/${matchId}`);
+    });
+    return cleanup;
   }, []);
 
   const [fontsLoaded] = useFonts({

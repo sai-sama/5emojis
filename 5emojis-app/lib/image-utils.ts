@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
+import { logError } from "./error-logger";
 
 // ─── Constants ──────────────────────────────────────────────
 const MAX_WIDTH = 800; // 2x retina for ~400px card width
@@ -12,7 +13,8 @@ function hasImageManipulator(): boolean {
   try {
     const { requireOptionalNativeModule } = require("expo-modules-core");
     return !!requireOptionalNativeModule("ExpoImageManipulator");
-  } catch {
+  } catch (err: any) {
+    logError(err, { screen: "ImageUtils", context: "check_image_manipulator" });
     return false;
   }
 }
@@ -35,8 +37,9 @@ export async function compressPhoto(uri: string): Promise<string> {
       { compress: JPEG_QUALITY, format: SaveFormat.JPEG }
     );
     return result.uri;
-  } catch {
+  } catch (err: any) {
     console.warn("Image compression failed, using original");
+    logError(err, { screen: "ImageUtils", context: "compress_photo" });
     return uri;
   }
 }
@@ -84,9 +87,10 @@ export async function moderatePhoto(
     }
 
     return data as ModerationResult;
-  } catch {
+  } catch (err: any) {
     // Network error — fail open
     console.warn("Moderation network error, allowing upload");
+    logError(err, { screen: "ImageUtils", context: "moderate_photo" });
     return { safe: true };
   }
 }
