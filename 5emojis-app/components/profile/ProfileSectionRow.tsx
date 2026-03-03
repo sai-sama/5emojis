@@ -1,9 +1,10 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 
 type Props = {
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   summary: string;
   onPress: () => void;
@@ -12,14 +13,16 @@ type Props = {
 export default function ProfileSectionRow({ icon, title, summary, onPress }: Props) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
-      <Text style={styles.icon}>{icon}</Text>
+      <View style={styles.iconWrap}>
+        <Ionicons name={icon} size={20} color={COLORS.primary} />
+      </View>
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.summary} numberOfLines={1}>
           {summary}
         </Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 }
@@ -38,8 +41,13 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  icon: {
-    fontSize: 22,
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.primarySurface,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
   content: {

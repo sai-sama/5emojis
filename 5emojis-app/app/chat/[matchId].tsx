@@ -20,6 +20,9 @@ import Animated, {
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
+import AuroraBackground from "../../components/skia/AuroraBackground";
+import LottieCelebration from "../../components/lottie/LottieCelebration";
 import { useAuth } from "../../lib/auth-context";
 import { fetchMatches, type MatchWithProfile } from "../../lib/swipe-service";
 import {
@@ -57,6 +60,7 @@ export default function ChatScreen() {
   // Icebreaker emoji picker state
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
   const [sendingIcebreaker, setSendingIcebreaker] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Text chat state
   const [textInput, setTextInput] = useState("");
@@ -165,7 +169,12 @@ export default function ChatScreen() {
       setSelectedEmojis((prev) => {
         if (prev.includes(emoji)) return prev.filter((e) => e !== emoji);
         if (prev.length >= 5) return prev;
-        return [...prev, emoji];
+        const next = [...prev, emoji];
+        if (next.length === 5) {
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 2500);
+        }
+        return next;
       });
     },
     []
@@ -173,6 +182,10 @@ export default function ChatScreen() {
 
   const handleSetAll = useCallback((emojis: string[]) => {
     setSelectedEmojis(emojis.slice(0, 5));
+    if (emojis.length >= 5) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 2500);
+    }
   }, []);
 
   // ─── Send icebreaker response ──────────────────────────────
@@ -217,15 +230,21 @@ export default function ChatScreen() {
 
   // ─── Split emojis string into array ────────────────────────
   const splitEmojis = (content: string): string[] => {
-    return [...content].filter((c) => c.trim().length > 0);
+    // Match complete emoji grapheme clusters:
+    // handles ZWJ sequences (👨‍🍳), variation selectors (⚖️), skin tones (👋🏽)
+    const regex =
+      /\p{Extended_Pictographic}(?:[\u{1F3FB}-\u{1F3FF}]|\uFE0F?\u200D\p{Extended_Pictographic})*\uFE0F?/gu;
+    return content.match(regex) ?? [];
   };
 
   // ─── Render ─────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <AuroraBackground variant="warm" />
+      <SafeAreaView style={styles.safe} edges={["top"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         {/* ─── Header ──────────────────────────────────────── */}
@@ -235,7 +254,7 @@ export default function ChatScreen() {
             hitSlop={12}
             style={styles.backButton}
           >
-            <Text style={styles.backArrow}>←</Text>
+            <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
           </Pressable>
 
           {loading ? (
@@ -249,7 +268,7 @@ export default function ChatScreen() {
                 />
               ) : (
                 <View style={[styles.headerPhoto, styles.headerPhotoPlaceholder]}>
-                  <Text style={{ fontSize: 18 }}>👤</Text>
+                  <Ionicons name="person" size={18} color={COLORS.textMuted} />
                 </View>
               )}
               <View>
@@ -270,8 +289,8 @@ export default function ChatScreen() {
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            {/* ─── Icebreaker Question Card ───────────────── */}
-            {icebreakerQuestion && (
+            {/* ─── Icebreaker Question Card (pending/waiting only) ── */}
+            {icebreakerQuestion && chatState !== "chat_active" && (
               <Animated.View
                 entering={FadeInDown.duration(400)}
                 style={styles.icebreakerCard}
@@ -315,45 +334,58 @@ export default function ChatScreen() {
                   <Text style={styles.selectedLabel}>Your answer:</Text>
                   <View style={styles.selectedRow}>
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Pressable
+                      <Animated.View
                         key={i}
-                        onPress={() => {
-                          if (selectedEmojis[i]) {
-                            handleEmojiToggle(selectedEmojis[i]);
-                          }
-                        }}
-                        style={[
-                          styles.selectedSlot,
-                          selectedEmojis[i] && styles.selectedSlotFilled,
-                        ]}
+                        entering={FadeInDown.duration(300).delay(100 + i * 80)}
                       >
-                        <Text style={styles.selectedSlotText}>
-                          {selectedEmojis[i] || (i + 1).toString()}
-                        </Text>
-                      </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            if (selectedEmojis[i]) {
+                              handleEmojiToggle(selectedEmojis[i]);
+                            }
+                          }}
+                          style={[
+                            styles.selectedSlot,
+                            selectedEmojis[i] && styles.selectedSlotFilled,
+                          ]}
+                        >
+                          {selectedEmojis[i] ? (
+                            <Text style={styles.selectedSlotEmoji}>
+                              {selectedEmojis[i]}
+                            </Text>
+                          ) : (
+                            <Text style={styles.selectedSlotPlaceholder}>
+                              {i + 1}
+                            </Text>
+                          )}
+                        </Pressable>
+                      </Animated.View>
                     ))}
                   </View>
+                  {showCelebration && <LottieCelebration />}
                 </View>
 
                 {/* Send button */}
-                <Pressable
-                  onPress={handleSendIcebreaker}
-                  disabled={selectedEmojis.length !== 5 || sendingIcebreaker}
-                  style={[
-                    styles.sendIcebreakerButton,
-                    selectedEmojis.length !== 5 && styles.sendIcebreakerDisabled,
-                  ]}
-                >
-                  {sendingIcebreaker ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <Text style={styles.sendIcebreakerText}>
-                      {selectedEmojis.length === 5
-                        ? "Send Your 5 Emojis"
-                        : `Pick ${5 - selectedEmojis.length} more`}
-                    </Text>
-                  )}
-                </Pressable>
+                <Animated.View entering={FadeInDown.duration(400).delay(500)}>
+                  <Pressable
+                    onPress={handleSendIcebreaker}
+                    disabled={selectedEmojis.length !== 5 || sendingIcebreaker}
+                    style={[
+                      styles.sendIcebreakerButton,
+                      selectedEmojis.length !== 5 && styles.sendIcebreakerDisabled,
+                    ]}
+                  >
+                    {sendingIcebreaker ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <Text style={styles.sendIcebreakerText}>
+                        {selectedEmojis.length === 5
+                          ? "Send Your 5 Emojis ✨"
+                          : `Pick ${5 - selectedEmojis.length} more`}
+                      </Text>
+                    )}
+                  </Pressable>
+                </Animated.View>
 
                 {/* Emoji picker */}
                 <View style={styles.pickerContainer}>
@@ -362,6 +394,7 @@ export default function ChatScreen() {
                     onToggle={handleEmojiToggle}
                     onSetAll={handleSetAll}
                     maxSelection={5}
+                    hideQuickStart
                   />
                 </View>
               </View>
@@ -445,52 +478,50 @@ export default function ChatScreen() {
                   renderItem={({ item }) => {
                     if (item.type === "icebreaker_reveal") {
                       return (
-                        <Animated.View
-                          entering={FadeIn.duration(400)}
-                          style={styles.revealContainer}
-                        >
-                          {/* My icebreaker */}
-                          {myIcebreaker && (
-                            <View style={styles.revealSection}>
-                              <Text style={styles.revealLabel}>You answered</Text>
-                              <View style={styles.revealEmojiRow}>
+                        <View style={styles.revealCompact}>
+                          {/* Single card with question + both answers */}
+                          <View style={styles.revealCard}>
+                            {icebreakerQuestion && (
+                              <Text style={styles.revealQuestionLine}>
+                                ❓ 5 Emojis to describe… {icebreakerQuestion}
+                              </Text>
+                            )}
+                            {myIcebreaker && (
+                              <View style={styles.revealRow}>
+                                <Text style={styles.revealRowLabel}>You</Text>
                                 {splitEmojis(myIcebreaker.content)
                                   .slice(0, 5)
                                   .map((emoji, i) => (
-                                    <Text key={i} style={styles.revealEmoji}>
+                                    <Text key={i} style={styles.revealRowEmoji}>
                                       {emoji}
                                     </Text>
                                   ))}
                               </View>
-                            </View>
-                          )}
-
-                          {/* Other's icebreaker */}
-                          {otherIcebreaker && (
-                            <View style={styles.revealSection}>
-                              <Text style={styles.revealLabel}>
-                                {other?.name} answered
-                              </Text>
-                              <View style={styles.revealEmojiRow}>
+                            )}
+                            {otherIcebreaker && (
+                              <View style={styles.revealRow}>
+                                <Text style={styles.revealRowLabel}>
+                                  {other?.name}
+                                </Text>
                                 {splitEmojis(otherIcebreaker.content)
                                   .slice(0, 5)
                                   .map((emoji, i) => (
-                                    <Text key={i} style={styles.revealEmoji}>
+                                    <Text key={i} style={styles.revealRowEmoji}>
                                       {emoji}
                                     </Text>
                                   ))}
                               </View>
-                            </View>
-                          )}
+                            )}
+                          </View>
 
                           <View style={styles.revealDivider}>
                             <View style={styles.revealDividerLine} />
                             <Text style={styles.revealDividerText}>
-                              Chat unlocked!
+                              ✨ Chat unlocked!
                             </Text>
                             <View style={styles.revealDividerLine} />
                           </View>
-                        </Animated.View>
+                        </View>
                       );
                     }
 
@@ -568,13 +599,14 @@ export default function ChatScreen() {
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
@@ -582,20 +614,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: "rgba(0,0,0,0.05)",
     gap: 12,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primarySurface,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
     alignItems: "center",
     justifyContent: "center",
   },
-  backArrow: {
-    fontSize: 18,
+  backChevron: {
+    fontSize: 24,
     color: COLORS.primary,
+    fontWeight: "300",
+    marginLeft: -2,
+    marginTop: -1,
   },
   headerInfo: {
     flexDirection: "row",
@@ -709,47 +746,60 @@ const styles = StyleSheet.create({
   // ─── Selected emojis preview (icebreaker_pending) ────────
   selectedPreview: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    position: "relative",
   },
   selectedLabel: {
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
     color: COLORS.textSecondary,
-    marginBottom: 8,
+    marginBottom: 10,
+    textAlign: "center",
   },
   selectedRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   selectedSlot: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: COLORS.surface,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.5)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.06)",
     borderStyle: "dashed",
   },
   selectedSlotFilled: {
     borderColor: COLORS.primary,
     borderStyle: "solid",
     backgroundColor: COLORS.primarySurface,
+    borderWidth: 2,
   },
-  selectedSlotText: {
+  selectedSlotEmoji: {
     fontSize: 28,
+  },
+  selectedSlotPlaceholder: {
+    fontSize: 16,
+    fontFamily: fonts.body,
+    color: "rgba(0,0,0,0.1)",
   },
 
   // ─── Send icebreaker button ─────────────────────────────
   sendIcebreakerButton: {
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 10,
     backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: "center",
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sendIcebreakerDisabled: {
     backgroundColor: COLORS.disabled,
@@ -764,8 +814,8 @@ const styles = StyleSheet.create({
   pickerContainer: {
     flex: 1,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderTopColor: "rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(255,255,255,0.85)",
   },
 
   // ─── Waiting state ──────────────────────────────────────
@@ -835,31 +885,40 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // ─── Chat active — revealed icebreaker ──────────────────
-  revealContainer: {
-    padding: 16,
-    gap: 16,
+  // ─── Chat active — compact icebreaker reveal ───────────
+  revealCompact: {
+    padding: 12,
+    paddingBottom: 4,
+    gap: 6,
   },
-  revealSection: {
+  revealCard: {
     backgroundColor: COLORS.primarySurface,
     borderRadius: 14,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: COLORS.primaryBorder,
+    gap: 6,
   },
-  revealLabel: {
+  revealQuestionLine: {
+    fontSize: 12,
+    fontFamily: fonts.bodyMedium,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  revealRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  revealRowLabel: {
     fontSize: 12,
     fontFamily: fonts.bodySemiBold,
     color: COLORS.primary,
-    marginBottom: 8,
+    width: 48,
   },
-  revealEmojiRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-  },
-  revealEmoji: {
-    fontSize: 30,
+  revealRowEmoji: {
+    fontSize: 22,
   },
   revealDivider: {
     flexDirection: "row",
@@ -935,8 +994,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderTopColor: "rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(255,255,255,0.85)",
     gap: 8,
   },
   textInput: {

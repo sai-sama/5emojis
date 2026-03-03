@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
-import { Match, ProfileEmoji, ProfilePhoto, Profile } from "./types";
+import { Match, Message, ProfileEmoji, ProfilePhoto, Profile } from "./types";
+import { ChatState, getChatState } from "./message-service";
 
 // ─── Types ──────────────────────────────────────────────────
 export type MatchResult = {
@@ -27,6 +28,16 @@ export type IncomingVibe = {
   emojis: ProfileEmoji[];
   photo: ProfilePhoto | null;
   swipedAt: string;
+};
+
+export type MatchFilter = "all" | "new" | "chatting" | "perfect";
+
+export type EnhancedMatch = MatchWithProfile & {
+  chatState: ChatState;
+  lastMessage: Message | null;
+  lastMessageAt: string;
+  unreadCount: number;
+  friendshipDuration: string;
 };
 
 // ─── Record a swipe and check for new match ─────────────────
@@ -218,6 +229,94 @@ export async function fetchIncomingVibes(
       } satisfies IncomingVibe;
     })
     .filter((v): v is IncomingVibe => v !== null);
+}
+
+// ─── Helpers for enhanced matches ────────────────────────────
+function formatFriendshipDuration(createdAt: string): string {
+  const now = new Date();
+  const created = new Date(createdAt);
+  const diffMs = now.getTime() - created.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) return "today";
+  if (diffDays === 1) return "1d";
+  if (diffDays < 7) return `${diffDays}d`;
+  const weeks = Math.floor(diffDays / 7);
+  if (diffDays < 30) return `${weeks}w`;
+  const months = Math.floor(diffDays / 30);
+  if (diffDays < 365) return `${months}mo`;
+  const years = Math.floor(diffDays / 365);
+  return `${years}y`;
+}
+
+export function formatMessageTime(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: "short" });
+  }
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+// ─── Fetch matches with message metadata ────────────────────
+export async function fetchMatchesEnhanced(
+  userId: string
+): Promise<EnhancedMatch[]> {
+  const matches = await fetchMatches(userId);
+  if (matches.length === 0) return [];
+
+  // Batch-fetch all messages for these matches in one query
+  const matchIds = matches.map((m) => m.match.id);
+  const { data: allMessages } = await supabase
+    .from("messages")
+    .select("*")
+    .in("match_id", matchIds)
+    .order("created_at", { ascending: true });
+
+  // Group messages by match_id
+  const messagesByMatch = new Map<string, Message[]>();
+  for (const msg of (allMessages ?? []) as Message[]) {
+    const list = messagesByMatch.get(msg.match_id) ?? [];
+    list.push(msg);
+    messagesByMatch.set(msg.match_id, list);
+  }
+
+  // Enhance each match with chat state, last message, unread count
+  const enhanced: EnhancedMatch[] = matches.map((m) => {
+    const msgs = messagesByMatch.get(m.match.id) ?? [];
+    const otherUserId =
+      m.match.user1_id === userId ? m.match.user2_id : m.match.user1_id;
+
+    const chatState = getChatState(msgs, userId, otherUserId);
+    const lastMessage = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const unreadCount = msgs.filter(
+      (msg) => msg.sender_id !== userId && msg.read_at === null
+    ).length;
+
+    return {
+      ...m,
+      chatState,
+      lastMessage,
+      lastMessageAt: lastMessage?.created_at ?? m.match.created_at,
+      unreadCount,
+      friendshipDuration: formatFriendshipDuration(m.match.created_at),
+    };
+  });
+
+  // Sort by most recent activity
+  enhanced.sort(
+    (a, b) =>
+      new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+  );
+
+  return enhanced;
 }
 
 // ─── Undo the last swipe ────────────────────────────────────

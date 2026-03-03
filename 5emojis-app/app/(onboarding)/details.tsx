@@ -280,7 +280,7 @@ export default function DetailsScreen() {
               friendshipStyles: selectedFriendshipStyles,
               interests: selectedInterests,
             });
-            router.push("/(onboarding)/location");
+            router.push("/(onboarding)/availability");
           }}
         />
       </View>

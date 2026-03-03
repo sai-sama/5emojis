@@ -44,6 +44,11 @@ export const MAX_EMOJIS = 5;
 export const MAX_INTERESTS = 5;
 export const MAX_REVEALS = 4;
 export const DEFAULT_SEARCH_RADIUS_MILES = 50;
+export const MIN_FRIEND_AGE = 18;
+export const MAX_FRIEND_AGE = 99;
+export const DEFAULT_PREFERRED_AGE_MIN = 18;
+export const DEFAULT_PREFERRED_AGE_MAX = 99;
+export const EMOJI_EDIT_COOLDOWN_HOURS = 24;
 
 export const LIFE_STAGES = [
   "Student",

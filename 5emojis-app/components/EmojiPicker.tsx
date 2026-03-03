@@ -60,9 +60,10 @@ type Props = {
   onToggle: (emoji: string) => void;
   onSetAll?: (emojis: string[]) => void;
   maxSelection?: number;
+  hideQuickStart?: boolean;
 };
 
-export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection = 5 }: Props) {
+export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection = 5, hideQuickStart = false }: Props) {
   // ─── Starter packs (shuffled fresh every mount) ─────────
   const [starterPacks] = useState(() =>
     shuffle(STATIC_POOLS).map((pack) => ({
@@ -192,7 +193,7 @@ export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection
   const ListHeader = useMemo(() => (
     <View>
       {/* ═══ 1. QUICK START PACKS ═══ */}
-      {!isSearching && (
+      {!isSearching && !hideQuickStart && (
         <View style={{ paddingHorizontal: GRID_PADDING, paddingTop: 8, paddingBottom: 12 }}>
           <Text style={{
             fontSize: 13,
@@ -358,7 +359,7 @@ export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection
         </View>
       )}
     </View>
-  ), [isSearching, searchResults, starterPacks, selected, suggestions, activeCategory, onSetAll, onToggle, handleCategoryPress, renderSuggestionEmoji, search]);
+  ), [isSearching, searchResults, starterPacks, selected, suggestions, activeCategory, onSetAll, onToggle, handleCategoryPress, renderSuggestionEmoji, search, hideQuickStart]);
 
   // ─── Empty state for search ────────────────────────────────
   const ListEmpty = useMemo(() => {

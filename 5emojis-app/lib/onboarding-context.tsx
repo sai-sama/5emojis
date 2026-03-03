@@ -14,6 +14,10 @@ export type OnboardingData = {
   lifeStage: string;
   friendshipStyles: string[];
   interests: string[];
+  availability: string[];
+  personalityType: string;
+  preferredAgeMin: number;
+  preferredAgeMax: number;
   city: string;
   state: string;
   latitude: number;
@@ -31,6 +35,10 @@ const EMPTY: OnboardingData = {
   lifeStage: "",
   friendshipStyles: [],
   interests: [],
+  availability: [],
+  personalityType: "",
+  preferredAgeMin: 18,
+  preferredAgeMax: 99,
   city: "",
   state: "",
   latitude: 0,
@@ -127,6 +135,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         profession: final.profession || null,
         life_stage: final.lifeStage || null,
         friendship_style: final.friendshipStyles[0] || null,
+        personality_type: final.personalityType || null,
+        preferred_age_min: final.preferredAgeMin,
+        preferred_age_max: final.preferredAgeMax,
         is_new_to_city: final.isNewToCity,
         city: final.city,
         state: final.state || null,
@@ -172,6 +183,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           final.interests.map((tag) => ({
             user_id: userId,
             interest_tag: tag,
+          }))
+        );
+      }
+
+      // 6. Insert availability slots
+      if (final.availability.length > 0) {
+        await supabase.from("profile_availability").insert(
+          final.availability.map((slot) => ({
+            user_id: userId,
+            slot,
           }))
         );
       }

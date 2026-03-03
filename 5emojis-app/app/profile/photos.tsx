@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
 import { addPhoto, removePhoto } from "../../lib/profile-service";
@@ -86,7 +87,7 @@ export default function PhotosScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.backArrow}>‹</Text>
+          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Photos</Text>
         <View style={{ width: 32 }}>
@@ -110,14 +111,14 @@ export default function PhotosScreen() {
               style={styles.removeBtn}
               onPress={() => handleRemove(photo.id, photo.url)}
             >
-              <Text style={{ color: "#FFF", fontSize: 12, fontFamily: fonts.bodyBold }}>✕</Text>
+              <Ionicons name="close" size={14} color="#FFF" />
             </TouchableOpacity>
           </View>
         ))}
 
         {profile.photos.length < 5 && (
           <TouchableOpacity style={styles.addSlot} onPress={handleAdd}>
-            <Text style={{ fontSize: 32 }}>📸</Text>
+            <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
             <Text style={styles.addText}>Add Photo</Text>
           </TouchableOpacity>
         )}
@@ -129,7 +130,7 @@ export default function PhotosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",

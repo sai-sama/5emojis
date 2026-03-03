@@ -19,6 +19,14 @@ export type Database = {
           latitude: number;
           longitude: number;
           gender: "male" | "female" | "nonbinary";
+          personality_type: string | null;
+          preferred_age_min: number | null;
+          preferred_age_max: number | null;
+          communication_style: string | null;
+          kids: string | null;
+          relationship_status: string | null;
+          work_style: string | null;
+          emoji_last_edited_at: string | null;
           search_radius_miles: number;
           created_at: string;
           updated_at: string;
@@ -34,6 +42,14 @@ export type Database = {
           friendship_style?: string | null;
           pronouns?: string | null;
           gender?: "male" | "female" | "nonbinary";
+          personality_type?: string | null;
+          preferred_age_min?: number | null;
+          preferred_age_max?: number | null;
+          communication_style?: string | null;
+          kids?: string | null;
+          relationship_status?: string | null;
+          work_style?: string | null;
+          emoji_last_edited_at?: string | null;
           is_new_to_city?: boolean;
           city: string;
           state?: string | null;
@@ -236,6 +252,45 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["ai_content"]["Insert"]>;
         Relationships: [];
       };
+      profile_availability: {
+        Row: {
+          id: string;
+          user_id: string;
+          slot: string;
+        };
+        Insert: {
+          user_id: string;
+          slot: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_availability"]["Insert"]>;
+        Relationships: [];
+      };
+      profile_pets: {
+        Row: {
+          id: string;
+          user_id: string;
+          pet: string;
+        };
+        Insert: {
+          user_id: string;
+          pet: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_pets"]["Insert"]>;
+        Relationships: [];
+      };
+      profile_dietary: {
+        Row: {
+          id: string;
+          user_id: string;
+          preference: string;
+        };
+        Insert: {
+          user_id: string;
+          preference: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profile_dietary"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -261,3 +316,6 @@ export type ProfilePhoto = Database["public"]["Tables"]["profile_photos"]["Row"]
 export type Match = Database["public"]["Tables"]["matches"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
 export type IcebreakerQuestion = Database["public"]["Tables"]["icebreaker_questions"]["Row"];
+export type ProfileAvailability = Database["public"]["Tables"]["profile_availability"]["Row"];
+export type ProfilePet = Database["public"]["Tables"]["profile_pets"]["Row"];
+export type ProfileDietary = Database["public"]["Tables"]["profile_dietary"]["Row"];

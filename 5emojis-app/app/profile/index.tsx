@@ -7,11 +7,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Alert,
   StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
@@ -21,9 +23,12 @@ import { calculateAge } from "../../components/swipe/mockProfiles";
 import EmojiPicker from "../../components/EmojiPicker";
 import PreviewCard from "../../components/profile/PreviewCard";
 import ProfileSectionRow from "../../components/profile/ProfileSectionRow";
+import ProfileCompletionCard from "../../components/profile/ProfileCompletionCard";
 import { fonts } from "../../lib/fonts";
-import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
+import { COLORS, GENDERS, EMOJI_EDIT_COOLDOWN_HOURS, type GenderValue } from "../../lib/constants";
 import { isSoundMuted, setSoundMuted } from "../../lib/sounds";
+import { getProfileCompletion } from "../../lib/profile-completion";
+import { resetMockData } from "../../lib/mock-data";
 
 export default function ProfileOverview() {
   const { session, signOut } = useAuth();
@@ -119,6 +124,19 @@ export default function ProfileOverview() {
     return parts.join(" · ") || "Tap to add details";
   }, [profile]);
 
+  const moreSummary = useMemo(() => {
+    if (!profile) return "";
+    const completion = getProfileCompletion(profile);
+    const moreFields = completion.total - 4; // exclude core fields (photos, emojis, profession, interests)
+    const moreFilled = completion.filled - [
+      profile.photos.length > 0,
+      profile.emojis.length === 5,
+      !!profile.profile.profession,
+      profile.interests.length >= 3,
+    ].filter(Boolean).length;
+    return `${Math.max(0, moreFilled)} of ${moreFields} filled`;
+  }, [profile]);
+
   const locationSummary = useMemo(() => {
     if (!profile) return "";
     const city = profile.profile.state
@@ -126,6 +144,45 @@ export default function ProfileOverview() {
       : profile.profile.city;
     return `${city} · ${profile.profile.search_radius_miles}mi`;
   }, [profile]);
+
+  // ─── Emoji cooldown ────────────────────────────────────────
+  const getEmojiCooldownRemaining = (): { blocked: boolean; hoursLeft: number; minutesLeft: number } => {
+    const lastEdited = profile?.profile.emoji_last_edited_at;
+    if (!lastEdited) return { blocked: false, hoursLeft: 0, minutesLeft: 0 };
+    const elapsed = Date.now() - new Date(lastEdited).getTime();
+    const cooldownMs = EMOJI_EDIT_COOLDOWN_HOURS * 60 * 60 * 1000;
+    if (elapsed >= cooldownMs) return { blocked: false, hoursLeft: 0, minutesLeft: 0 };
+    const remaining = cooldownMs - elapsed;
+    const hoursLeft = Math.floor(remaining / (60 * 60 * 1000));
+    const minutesLeft = Math.ceil((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    return { blocked: true, hoursLeft, minutesLeft };
+  };
+
+  const handleEditEmojis = () => {
+    const cooldown = getEmojiCooldownRemaining();
+    if (cooldown.blocked) {
+      const timeStr = cooldown.hoursLeft > 0
+        ? `${cooldown.hoursLeft}h ${cooldown.minutesLeft}m`
+        : `${cooldown.minutesLeft}m`;
+      Alert.alert(
+        "Emoji Cooldown",
+        `You can edit your emojis again in ${timeStr}.\n\nWant to edit now?`,
+        [
+          { text: "Wait", style: "cancel" },
+          {
+            text: "Get Daily Pass — $0.99",
+            onPress: () => {
+              // TODO: integrate IAP — for now just show placeholder
+              Alert.alert("Coming Soon", "In-app purchases will be available soon!");
+            },
+          },
+        ]
+      );
+      return;
+    }
+    setEditingEmojis(sortedEmojis.map((e) => e.emoji));
+    setEmojiModalVisible(true);
+  };
 
   // ─── Emoji save ─────────────────────────────────────────────
   const saveEmojis = async () => {
@@ -143,9 +200,38 @@ export default function ProfileOverview() {
     refresh();
   };
 
+  // ─── Mock data reset ───────────────────────────────────────
+  const [resettingMock, setResettingMock] = useState(false);
+  const handleResetMockData = () => {
+    Alert.alert(
+      "Reset Mock Data",
+      "This will:\n• Delete all swipes/matches/messages with mock profiles\n• Move mock profiles to your location\n• Create 5 ready-made matches (3 icebreaker pending, 2 chat active)\n• Pre-seed swipes so remaining 20 profiles = instant match on swipe right\n\nContinue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          onPress: async () => {
+            if (!session?.user) return;
+            setResettingMock(true);
+            const { error, result } = await resetMockData(session.user.id);
+            setResettingMock(false);
+            if (error) {
+              Alert.alert("Error", error);
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(
+                "Done!",
+                `Cleared ${result.deleted_matches} matches, ${result.deleted_swipes} swipes, ${result.deleted_messages} messages.\n\nCreated ${result.created_matches} matches with icebreakers.\nPre-seeded ${result.inserted_swipes} right swipes.\n\nCheck Friends tab for ready matches, or Discover to swipe!`
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // ─── Sign out ───────────────────────────────────────────────
   const handleSignOut = () => {
-    const { Alert } = require("react-native");
     Alert.alert("Sign out?", "You'll need to sign in again.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -198,35 +284,48 @@ export default function ProfileOverview() {
             hitSlop={12}
             style={styles.closeButton}
           >
-            <Text style={styles.closeButtonText}>✕</Text>
+            <Ionicons name="close" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Preview card */}
-        <PreviewCard profile={profile} sortedEmojis={sortedEmojis} />
+        <PreviewCard
+          profile={profile}
+          sortedEmojis={sortedEmojis}
+          onEditEmojis={handleEditEmojis}
+        />
+
+        {/* Profile completion nudge */}
+        <ProfileCompletionCard profile={profile} />
 
         {/* Section rows */}
         <View style={{ marginHorizontal: 20, marginTop: 16 }}>
           <ProfileSectionRow
-            icon="🪪"
+            icon="person-outline"
             title="Personal Info"
             summary={personalSummary}
             onPress={() => router.push("/profile/personal")}
           />
           <ProfileSectionRow
-            icon="📸"
+            icon="camera-outline"
             title="Photos"
             summary={photoSummary}
             onPress={() => router.push("/profile/photos")}
           />
           <ProfileSectionRow
-            icon="👤"
+            icon="information-circle-outline"
             title="About You"
             summary={aboutSummary}
             onPress={() => router.push("/profile/about")}
           />
           <ProfileSectionRow
-            icon="📍"
+            icon="sparkles-outline"
+            title="More About You"
+            summary={moreSummary}
+            onPress={() => router.push("/profile/more")}
+          />
+          <ProfileSectionRow
+            icon="location-outline"
             title="Location"
             summary={locationSummary}
             onPress={() => router.push("/profile/location")}
@@ -236,7 +335,7 @@ export default function ProfileOverview() {
         {/* Discovery — gender filter (multi-select checkboxes) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 18, marginRight: 8 }}>🔍</Text>
+            <Ionicons name="search" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
             <Text style={styles.sectionTitle}>Discovery</Text>
           </View>
           <Text style={styles.filterLabel}>Show me</Text>
@@ -255,7 +354,7 @@ export default function ProfileOverview() {
                       isChecked && { backgroundColor: g.color, borderColor: g.color },
                     ]}
                   >
-                    {isChecked && <Text style={styles.checkmark}>✓</Text>}
+                    {isChecked && <Ionicons name="checkmark" size={14} color="#FFF" />}
                   </View>
                   <Text style={styles.filterCheckEmoji}>{g.emoji}</Text>
                   <Text style={styles.filterCheckLabel}>{g.label}</Text>
@@ -265,63 +364,31 @@ export default function ProfileOverview() {
           </View>
         </View>
 
-        {/* Emojis — inline with modal picker */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 18, marginRight: 8 }}>✨</Text>
-            <Text style={styles.sectionTitle}>Your 5 Emojis</Text>
-            <TouchableOpacity
-              hitSlop={12}
-              onPress={() => {
-                setEditingEmojis(sortedEmojis.map((e) => e.emoji));
-                setEmojiModalVisible(true);
-              }}
-            >
-              <Text style={styles.sectionAction}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-          <Pressable
-            style={styles.emojiDisplay}
-            onPress={() => {
-              setEditingEmojis(sortedEmojis.map((e) => e.emoji));
-              setEmojiModalVisible(true);
-            }}
-          >
-            {sortedEmojis.map((e) => (
-              <View key={e.id} style={styles.emojiSlot}>
-                <Text style={{ fontSize: 36 }}>{e.emoji}</Text>
-              </View>
-            ))}
-            {sortedEmojis.length === 0 && (
-              <Text style={styles.emojiPlaceholder}>Tap to pick your emojis</Text>
-            )}
-          </Pressable>
-        </View>
 
         {/* Legal */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 18, marginRight: 8 }}>📋</Text>
+            <Ionicons name="document-text-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
             <Text style={styles.sectionTitle}>Legal</Text>
           </View>
           <Pressable style={styles.legalRow} onPress={() => router.push("/terms")}>
             <Text style={styles.legalRowText}>Terms of Service</Text>
-            <Text style={styles.legalChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </Pressable>
           <Pressable style={styles.legalRow} onPress={() => router.push("/privacy")}>
             <Text style={styles.legalRowText}>Privacy Policy</Text>
-            <Text style={styles.legalChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </Pressable>
         </View>
 
         {/* Settings */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 18, marginRight: 8 }}>⚙️</Text>
+            <Ionicons name="settings-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
             <Text style={styles.sectionTitle}>Settings</Text>
           </View>
           <Pressable style={styles.settingsRow} onPress={handleSoundToggle}>
-            <Text style={styles.settingsRowIcon}>{soundMuted ? "🔇" : "🔊"}</Text>
+            <Ionicons name={soundMuted ? "volume-mute" : "volume-high"} size={18} color={COLORS.textSecondary} style={{ marginRight: 2 }} />
             <Text style={styles.settingsRowLabel}>Sound Effects</Text>
             <View
               style={[
@@ -339,6 +406,29 @@ export default function ProfileOverview() {
           </Pressable>
           <Pressable style={styles.signOutButton} onPress={handleSignOut}>
             <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+        </View>
+
+        {/* Dev Tools */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={{ fontSize: 18, marginRight: 8 }}>🛠️</Text>
+            <Text style={styles.sectionTitle}>Dev Tools</Text>
+          </View>
+          <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textMuted, marginBottom: 12 }}>
+            Testing helpers — remove before release
+          </Text>
+          <Pressable
+            style={[styles.devButton, resettingMock && { opacity: 0.5 }]}
+            onPress={handleResetMockData}
+            disabled={resettingMock}
+          >
+            <Text style={styles.devButtonText}>
+              {resettingMock ? "Resetting..." : "Reset Mock Data"}
+            </Text>
+            <Text style={styles.devButtonSubtext}>
+              Clears interactions, moves 25 mock profiles to you
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -420,7 +510,7 @@ export default function ProfileOverview() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: "transparent",
   },
   centered: {
     flex: 1,
@@ -531,28 +621,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
 
-  // Emojis
-  emojiDisplay: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 8,
-  },
-  emojiSlot: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: COLORS.primarySurface,
-    borderWidth: 1.5,
-    borderColor: COLORS.primaryBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emojiPlaceholder: {
-    fontSize: 14,
-    fontFamily: fonts.body,
-    color: COLORS.textSecondary,
-  },
 
   // Legal
   legalRow: {
@@ -690,5 +758,27 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: "dashed",
     borderColor: COLORS.border,
+  },
+
+  // Dev tools
+  devButton: {
+    backgroundColor: "#FFF7ED",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: "#FED7AA",
+    alignItems: "center",
+  },
+  devButtonText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+    color: "#EA580C",
+  },
+  devButtonSubtext: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 });

@@ -2,7 +2,7 @@ import { View, StyleSheet } from "react-native";
 import { usePathname } from "expo-router";
 import { COLORS } from "../lib/constants";
 
-const STEPS = ["name", "dob", "gender", "photos", "emojis", "details", "location"];
+const STEPS = ["name", "dob", "gender", "photos", "emojis", "details", "availability", "personality", "age-pref", "location"];
 
 export default function OnboardingProgress() {
   const pathname = usePathname();
@@ -36,11 +36,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   active: {
-    width: 24,
+    width: 18,
     backgroundColor: COLORS.primary,
   },
   inactive: {
-    width: 8,
+    width: 6,
     backgroundColor: "rgba(124, 58, 237, 0.2)",
   },
 });

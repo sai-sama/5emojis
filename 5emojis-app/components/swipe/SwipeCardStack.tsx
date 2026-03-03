@@ -15,7 +15,6 @@ import {
   Dimensions,
   Image,
   Alert,
-  Animated as RNAnimated,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -45,23 +44,18 @@ import {
 } from "../../lib/discovery-service";
 import { supabase } from "../../lib/supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "../../lib/types";
-import {
-  MOCK_PROFILES,
-  MOCK_USER_LAT,
-  MOCK_USER_LNG,
-  MOCK_USER_EMOJIS,
-  MOCK_PRE_SWIPED_IDS,
-  type SwipeProfile,
-} from "./mockProfiles";
+import { type SwipeProfile } from "./mockProfiles";
 import LottieEmptyState from "../lottie/LottieEmptyState";
-import { playSwipeSound } from "../../lib/sounds";
+import { playSwipeSound, isSoundMuted } from "../../lib/sounds";
 import type { GenderValue } from "../../lib/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useUndo } from "../../lib/undo-context";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // ─── Geometry ───────────────────────────────────────────────
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.72;
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.80;
 
 // ─── Thresholds ─────────────────────────────────────────────
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
@@ -89,53 +83,6 @@ const SPRING_BACK = {
 // ─── Emoji sets for swipe feedback ──────────────────────────
 const VIBE_EMOJIS = ["🎉", "✨", "💛", "🤝", "🔥"];
 const PASS_EMOJIS = ["💨", "👋", "😅", "🫠", "💭"];
-
-// ─── Themed emoji pairs for action buttons ──────────────────
-// Each theme has a [vibe, pass] pair — rotates per card
-// ─── Mock icebreaker questions for local testing ─────────
-const MOCK_ICEBREAKERS = [
-  "my perfect weekend",
-  "my morning routine",
-  "my cooking skills",
-  "what my fridge contains right now",
-  "my relationship with my alarm clock",
-  "my dream vacation",
-  "my go-to comfort food",
-  "what I'm like at a party",
-  "my hidden talent",
-  "my Netflix queue",
-  "my ideal road trip",
-  "my coffee addiction level",
-  "my relationship with exercise",
-  "what my phone wallpaper says about me",
-  "my guilty pleasure playlist",
-  "what happens when I'm hungry",
-  "my pet peeve",
-  "my dream dinner guest list",
-  "my superpower if I had one",
-  "what I'm like before my first coffee",
-];
-let _mockIcebreakerIdx = 0;
-function getNextMockIcebreaker(): string {
-  const q = MOCK_ICEBREAKERS[_mockIcebreakerIdx % MOCK_ICEBREAKERS.length];
-  _mockIcebreakerIdx++;
-  return q;
-}
-
-const EMOJI_THEMES: [string, string][] = [
-  ["🤝", "👋"], // handshake vs wave
-  ["🔥", "💨"], // fire vs wind
-  ["🎉", "😴"], // party vs sleepy
-  ["💜", "👻"], // love vs ghost
-  ["🚀", "🐌"], // rocket vs snail
-  ["🌟", "🌧️"], // star vs rain
-  ["🍕", "🥦"], // pizza vs broccoli
-  ["🎵", "🔇"], // music vs mute
-  ["☀️", "🌙"], // sun vs moon
-  ["🦋", "🪨"], // butterfly vs rock
-  ["💃", "🧊"], // dance vs ice
-  ["🎯", "🎪"], // bullseye vs circus
-];
 
 // ═════════════════════════════════════════════════════════════
 // Per-card top card component
@@ -167,23 +114,31 @@ const SwipeableTopCard = forwardRef<
 
 
   // ─── Haptic helpers (called via runOnJS from worklets) ──────
-  const hapticThreshold = () =>
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  const hapticUncross = () => Haptics.selectionAsync();
-  const hapticSwipeRight = () =>
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  const hapticSwipeLeft = () =>
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  const hapticSnapBack = () =>
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const hapticThreshold = () => {
+    if (!isSoundMuted()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+  const hapticUncross = () => {
+    if (!isSoundMuted()) Haptics.selectionAsync();
+  };
+  const hapticSwipeRight = () => {
+    if (!isSoundMuted()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+  const hapticSwipeLeft = () => {
+    if (!isSoundMuted()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  };
+  const hapticSnapBack = () => {
+    if (!isSoundMuted()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   // ─── Expose triggerSwipe for button presses (JS thread) ────
   useImperativeHandle(ref, () => ({
     triggerSwipe(direction: "left" | "right") {
-      if (direction === "right") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      if (!isSoundMuted()) {
+        if (direction === "right") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        }
       }
 
       const targetX = direction === "right" ? EXIT_X : -EXIT_X;
@@ -313,6 +268,7 @@ const SwipeableTopCard = forwardRef<
           userLat={userLat}
           userLng={userLng}
           userEmojis={userEmojis}
+          showEmojis={true}
         />
       </Animated.View>
     </GestureDetector>
@@ -320,93 +276,40 @@ const SwipeableTopCard = forwardRef<
 });
 
 // ═════════════════════════════════════════════════════════════
-// Animated Action Button
-// ═════════════════════════════════════════════════════════════
-
-function ActionButton({
-  emoji,
-  label,
-  labelColor,
-  borderColor,
-  onPress,
-}: {
-  emoji: string;
-  label: string;
-  labelColor: string;
-  borderColor: string;
-  onPress: () => void;
-}) {
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const handlePressIn = () => {
-    RNAnimated.spring(scale, {
-      toValue: 0.85,
-      friction: 5,
-      tension: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    RNAnimated.spring(scale, {
-      toValue: 1,
-      friction: 3,
-      tension: 200,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Pressable
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-    >
-      <RNAnimated.View
-        style={[
-          styles.actionButton,
-          {
-            backgroundColor: "#FFF",
-            borderWidth: 2.5,
-            borderColor,
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        <Text style={{ fontSize: 26 }}>{emoji}</Text>
-        <Text style={[styles.actionLabel, { color: labelColor }]}>{label}</Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════
 // Main Stack
 // ═════════════════════════════════════════════════════════════
 
 export default function SwipeCardStack() {
   const { session, devMode } = useAuth();
-  const [profiles, setProfiles] = useState<SwipeProfile[]>(MOCK_PROFILES);
-  const [userLat, setUserLat] = useState(MOCK_USER_LAT);
-  const [userLng, setUserLng] = useState(MOCK_USER_LNG);
-  const [userEmojis, setUserEmojis] = useState<string[]>(MOCK_USER_EMOJIS);
+  const { setUndo } = useUndo();
+  const [profiles, setProfiles] = useState<SwipeProfile[]>([]);
+  const [userLat, setUserLat] = useState(0);
+  const [userLng, setUserLng] = useState(0);
+  const [userEmojis, setUserEmojis] = useState<string[]>([]);
   const [genderFilters, setGenderFilters] = useState<GenderValue[]>(["male", "female", "nonbinary"]);
   const [feedLoaded, setFeedLoaded] = useState(false);
 
   // ─── Read gender filters from AsyncStorage on focus ────────
+  // Only update state if the values actually changed (avoids resetting currentIndex)
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem("gender_filters").then((val) => {
+        let newFilters: GenderValue[] = ["male", "female", "nonbinary"];
         if (val) {
           try {
             const parsed = JSON.parse(val) as GenderValue[];
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setGenderFilters(parsed);
-              return;
+              newFilters = parsed;
             }
           } catch {}
         }
-        setGenderFilters(["male", "female", "nonbinary"]);
+        setGenderFilters((prev) => {
+          // Deep compare — only update if values actually changed
+          if (prev.length === newFilters.length && prev.every((g, i) => g === newFilters[i])) {
+            return prev; // Same reference → no re-render, no currentIndex reset
+          }
+          return newFilters;
+        });
       });
     }, [])
   );
@@ -437,82 +340,61 @@ export default function SwipeCardStack() {
   // Shared drag progress for behind-card breathing
   const dragProgress = useSharedValue(0);
 
-  // Rotating themed emojis for action buttons
-  const [vibeEmoji, passEmoji] = useMemo(
-    () => EMOJI_THEMES[currentIndex % EMOJI_THEMES.length],
-    [currentIndex]
-  );
-
-  // Ref for programmatic swipes via buttons
+  // Ref for programmatic swipes (e.g. shake-to-undo)
   const topCardRef = useRef<SwipeableTopCardHandle>(null);
 
-  // ─── Load real discovery feed when authenticated ──────────
-  useEffect(() => {
+  // ─── Load discovery feed (re-fetches on tab focus to exclude swiped profiles) ──
+  const loadFeed = useCallback(async () => {
     if (!session?.user || devMode) {
       setFeedLoaded(true);
       return;
     }
 
-    (async () => {
-      try {
-        const ownProfile = await fetchOwnProfile(session.user.id);
-        if (!ownProfile || (ownProfile.latitude === 0 && ownProfile.longitude === 0)) {
-          // No profile or no valid location — fall back to mock data
-          setFeedLoaded(true);
-          return;
-        }
-
-        setUserLat(ownProfile.latitude);
-        setUserLng(ownProfile.longitude);
-
-        // Fetch current user's emojis for match highlighting
-        const { data: myEmojis } = await supabase
-          .from("profile_emojis")
-          .select("emoji")
-          .eq("user_id", session.user.id)
-          .order("position");
-        if (myEmojis && myEmojis.length > 0) {
-          setUserEmojis(myEmojis.map((e) => e.emoji));
-        }
-
-        const feed = await fetchDiscoveryFeed(
-          session.user.id,
-          ownProfile.latitude,
-          ownProfile.longitude,
-          ownProfile.search_radius_miles,
-          null // fetch all genders, filter client-side via genderFilters
-        );
-
-        // Always append mock profiles after real results for testing
-        const combined = [...feed, ...MOCK_PROFILES];
-        setProfiles(combined);
-        setCurrentIndex(0);
-      } catch {
-        // Network error — keep mock profiles
-      } finally {
+    try {
+      const ownProfile = await fetchOwnProfile(session.user.id);
+      if (!ownProfile || (ownProfile.latitude === 0 && ownProfile.longitude === 0)) {
         setFeedLoaded(true);
+        return;
       }
-    })();
+
+      setUserLat(ownProfile.latitude);
+      setUserLng(ownProfile.longitude);
+
+      // Fetch current user's emojis for match highlighting
+      const { data: myEmojis } = await supabase
+        .from("profile_emojis")
+        .select("emoji")
+        .eq("user_id", session.user.id)
+        .order("position");
+      if (myEmojis && myEmojis.length > 0) {
+        setUserEmojis(myEmojis.map((e) => e.emoji));
+      }
+
+      const feed = await fetchDiscoveryFeed(
+        session.user.id,
+        ownProfile.latitude,
+        ownProfile.longitude,
+        ownProfile.search_radius_miles,
+        null // fetch all genders, filter client-side via genderFilters
+      );
+
+      setProfiles(feed);
+      setCurrentIndex(0);
+    } catch {
+      // Network error — profiles stay empty
+    } finally {
+      setFeedLoaded(true);
+    }
   }, [session, devMode]);
 
-  // ─── Re-fetch user emojis when tab gains focus ─────────
-  // (e.g. after editing emojis on the profile screen)
+  // Re-fetch on tab focus — ensures swiped profiles are excluded from the DB query
   useFocusEffect(
     useCallback(() => {
-      if (!session?.user || devMode) return;
-
-      (async () => {
-        const { data: myEmojis } = await supabase
-          .from("profile_emojis")
-          .select("emoji")
-          .eq("user_id", session.user.id)
-          .order("position");
-        if (myEmojis && myEmojis.length > 0) {
-          setUserEmojis(myEmojis.map((e) => e.emoji));
-        }
-      })();
-    }, [session, devMode])
+      loadFeed();
+    }, [loadFeed])
   );
+
+  // User emojis are now refreshed inside loadFeed() on every tab focus
 
   // ─── Prefetch images for upcoming cards ──────────────────
   useEffect(() => {
@@ -541,36 +423,17 @@ export default function SwipeCardStack() {
       setSizzle({ emojis, direction, key: Date.now() });
       playSwipeSound();
 
-      // Save last swipe for undo (before advancing index)
+      // Save last swipe for undo — only for left swipes (accidental passes).
+      // Right swipes are intentional vibes; no need to undo those.
       const swipedProfile = filteredProfiles[currentIndex];
-      if (swipedProfile) {
+      if (swipedProfile && direction === "left") {
         setLastSwipe({ swipedId: swipedProfile.profile.id, direction });
+      } else {
+        setLastSwipe(null);
       }
 
-      // Check for mock pre-swiped match (local simulation)
-      const isMock = swipedProfile?.profile.id.startsWith("mock-");
-      if (
-        direction === "right" &&
-        swipedProfile &&
-        isMock &&
-        MOCK_PRE_SWIPED_IDS.has(swipedProfile.profile.id)
-      ) {
-        // Simulate instant match locally — no DB needed
-        const emojiMatchCount = swipedProfile.emojis.filter((e) =>
-          userEmojis.includes(e.emoji)
-        ).length;
-        setLastSwipe(null);
-        setMatchData({
-          matchId: `mock-match-${swipedProfile.profile.id}`,
-          otherUser: swipedProfile.profile,
-          otherEmojis: swipedProfile.emojis,
-          otherPhoto: swipedProfile.photo,
-          emojiMatchCount,
-          isPerfect: emojiMatchCount === 5,
-          icebreakerQuestion: getNextMockIcebreaker(),
-        });
-      } else if (session?.user && swipedProfile && !isMock) {
-        // Record real swipe to Supabase
+      // Record swipe to Supabase
+      if (session?.user && swipedProfile) {
         recordSwipe(
           session.user.id,
           swipedProfile.profile.id,
@@ -629,6 +492,20 @@ export default function SwipeCardStack() {
     setCurrentIndex((prev) => prev - 1);
     setLastSwipe(null);
   }, [lastSwipe, currentIndex, session]);
+
+  // ─── Expose undo to tab bar via context ────────────────────
+  useEffect(() => {
+    if (lastSwipe && !matchData) {
+      setUndo(handleUndo);
+    } else {
+      setUndo(null);
+    }
+  }, [lastSwipe, matchData, handleUndo, setUndo]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => setUndo(null);
+  }, [setUndo]);
 
   // dragProgress is NOT reset here — it stays at ~1 after a swipe so
   // the behind card matches the top card position during the mount transition.
@@ -719,6 +596,7 @@ export default function SwipeCardStack() {
                     userLat={userLat}
                     userLng={userLng}
                     userEmojis={userEmojis}
+                    showEmojis={true}
                   />
                 </Animated.View>
               </View>
@@ -738,6 +616,7 @@ export default function SwipeCardStack() {
             userEmojis={userEmojis}
           />
         )}
+
       </View>
 
       {/* Emoji sizzle overlay — zIndex/elevation above cards */}
@@ -748,35 +627,6 @@ export default function SwipeCardStack() {
             emojis={sizzle.emojis}
             direction={sizzle.direction}
             onComplete={() => setSizzle(null)}
-          />
-        </View>
-      )}
-
-      {/* Action buttons */}
-      {!allSwiped && (
-        <View style={styles.actions}>
-          <ActionButton
-            emoji={passEmoji}
-            label="Pass"
-            labelColor={COLORS.passButton}
-            borderColor="#FFD6D6"
-            onPress={() => topCardRef.current?.triggerSwipe("left")}
-          />
-          {lastSwipe && !matchData && (
-            <Pressable
-              onPress={handleUndo}
-              style={styles.undoButton}
-            >
-              <Text style={{ fontSize: 18 }}>↩️</Text>
-              <Text style={styles.undoLabel}>Undo</Text>
-            </Pressable>
-          )}
-          <ActionButton
-            emoji={vibeEmoji}
-            label="Vibe"
-            labelColor={COLORS.vibeDark}
-            borderColor="#C6F6D5"
-            onPress={() => topCardRef.current?.triggerSwipe("right")}
           />
         </View>
       )}
@@ -815,60 +665,13 @@ const styles = StyleSheet.create({
   },
   cardArea: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingTop: 4,
+    paddingHorizontal: 8,
   },
   cardWrapper: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    top: 4,
-  },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 44,
-    paddingVertical: 10,
-    paddingBottom: 4,
-  },
-  actionButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  actionLabel: {
-    fontSize: 11,
-    fontFamily: fonts.bodySemiBold,
-    marginTop: -1,
-  },
-  undoButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    alignSelf: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  undoLabel: {
-    fontSize: 8,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.textSecondary,
-    marginTop: -1,
+    left: 8,
+    right: 8,
+    top: 0,
   },
   emptyContainer: {
     flex: 1,

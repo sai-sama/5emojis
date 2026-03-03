@@ -170,6 +170,7 @@ Move the daily Claude batch call (starter packs, emoji traits, icebreaker templa
 - [ ] Loading states and error handling throughout
 - [ ] Empty states (no more profiles nearby, no matches yet)
 - [ ] App icon and splash screen
+- [ ] New user swipe tutorial — on first login, show a brief overlay/walkthrough teaching users to swipe left (Pass) and right (Vibe), with animated hand gesture demo
 
 ---
 

@@ -1,6 +1,7 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
@@ -28,7 +29,12 @@ export default function TabHeader() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 4 }]}>
-      <BrandLogo size="compact" />
+      <TouchableOpacity
+        onPress={() => router.navigate("/(tabs)")}
+        activeOpacity={0.7}
+      >
+        <BrandLogo size="compact" />
+      </TouchableOpacity>
       <TouchableOpacity
         style={styles.avatarButton}
         onPress={() => router.push("/profile")}
@@ -38,7 +44,7 @@ export default function TabHeader() {
           <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <Text style={{ fontSize: 16 }}>👤</Text>
+            <Ionicons name="person" size={18} color={COLORS.textMuted} />
           </View>
         )}
       </TouchableOpacity>

@@ -33,6 +33,9 @@ export default function OnboardingLayout() {
           <Stack.Screen name="photos" options={{ title: "Photos" }} />
           <Stack.Screen name="emojis" options={{ title: "Your 5 Emojis" }} />
           <Stack.Screen name="details" options={{ title: "About You" }} />
+          <Stack.Screen name="availability" options={{ title: "Availability" }} />
+          <Stack.Screen name="personality" options={{ title: "Personality" }} />
+          <Stack.Screen name="age-pref" options={{ title: "Age Preference" }} />
           <Stack.Screen name="location" options={{ title: "Location" }} />
         </Stack>
         {/* Progress bar floating below header */}

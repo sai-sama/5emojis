@@ -9,15 +9,21 @@ export type FullProfile = {
   emojis: ProfileEmoji[];
   photos: ProfilePhoto[];
   interests: string[];
+  availability: string[];
+  pets: string[];
+  dietary: string[];
 };
 
 // ─── Fetch full profile ─────────────────────────────────────
 export async function fetchFullProfile(userId: string): Promise<FullProfile | null> {
-  const [profileRes, emojisRes, photosRes, interestsRes] = await Promise.all([
+  const [profileRes, emojisRes, photosRes, interestsRes, availRes, petsRes, dietaryRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase.from("profile_emojis").select("*").eq("user_id", userId).order("position"),
     supabase.from("profile_photos").select("*").eq("user_id", userId).order("position"),
     supabase.from("profile_interests").select("*").eq("user_id", userId),
+    supabase.from("profile_availability").select("*").eq("user_id", userId),
+    supabase.from("profile_pets").select("*").eq("user_id", userId),
+    supabase.from("profile_dietary").select("*").eq("user_id", userId),
   ]);
 
   if (!profileRes.data) return null;
@@ -27,6 +33,9 @@ export async function fetchFullProfile(userId: string): Promise<FullProfile | nu
     emojis: emojisRes.data ?? [],
     photos: photosRes.data ?? [],
     interests: (interestsRes.data ?? []).map((i) => i.interest_tag),
+    availability: (availRes.data ?? []).map((a: any) => a.slot),
+    pets: (petsRes.data ?? []).map((p: any) => p.pet),
+    dietary: (dietaryRes.data ?? []).map((d: any) => d.preference),
   };
 }
 
@@ -41,6 +50,13 @@ export async function updateProfileFields(
     friendship_style?: string | null;
     is_new_to_city?: boolean;
     gender?: "male" | "female" | "nonbinary";
+    personality_type?: string | null;
+    preferred_age_min?: number | null;
+    preferred_age_max?: number | null;
+    communication_style?: string | null;
+    kids?: string | null;
+    relationship_status?: string | null;
+    work_style?: string | null;
   }
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
@@ -109,6 +125,12 @@ export async function updateEmojis(
     if (insertError) return { error: insertError.message };
   }
 
+  // Update cooldown timestamp
+  await supabase
+    .from("profiles")
+    .update({ emoji_last_edited_at: new Date().toISOString() })
+    .eq("id", userId);
+
   return { error: null };
 }
 
@@ -131,6 +153,75 @@ export async function updateInterests(
         user_id: userId,
         interest_tag: tag,
       })));
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  return { error: null };
+}
+
+// ─── Replace availability (delete all + re-insert) ──────────
+export async function updateAvailability(
+  userId: string,
+  slots: string[]
+): Promise<{ error: string | null }> {
+  const { error: deleteError } = await supabase
+    .from("profile_availability")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  if (slots.length > 0) {
+    const { error: insertError } = await supabase
+      .from("profile_availability")
+      .insert(slots.map((slot) => ({ user_id: userId, slot })));
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  return { error: null };
+}
+
+// ─── Replace pets (delete all + re-insert) ──────────────────
+export async function updatePets(
+  userId: string,
+  pets: string[]
+): Promise<{ error: string | null }> {
+  const { error: deleteError } = await supabase
+    .from("profile_pets")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  if (pets.length > 0) {
+    const { error: insertError } = await supabase
+      .from("profile_pets")
+      .insert(pets.map((pet) => ({ user_id: userId, pet })));
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  return { error: null };
+}
+
+// ─── Replace dietary preferences (delete all + re-insert) ───
+export async function updateDietary(
+  userId: string,
+  preferences: string[]
+): Promise<{ error: string | null }> {
+  const { error: deleteError } = await supabase
+    .from("profile_dietary")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  if (preferences.length > 0) {
+    const { error: insertError } = await supabase
+      .from("profile_dietary")
+      .insert(preferences.map((preference) => ({ user_id: userId, preference })));
 
     if (insertError) return { error: insertError.message };
   }

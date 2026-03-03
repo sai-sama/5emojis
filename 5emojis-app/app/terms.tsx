@@ -1,6 +1,7 @@
 import { ScrollView, Text, View, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { fonts } from "../lib/fonts";
 import { COLORS } from "../lib/constants";
 
@@ -48,7 +49,7 @@ export default function TermsOfService() {
         }}
       >
         <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16 }}>
-          <Text style={{ fontSize: 28, color: COLORS.primary }}>‹</Text>
+          <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text
           style={{

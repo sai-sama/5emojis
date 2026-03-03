@@ -6,6 +6,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
@@ -125,7 +126,7 @@ export default function PhotosScreen() {
                         justifyContent: "center",
                       }}
                     >
-                      <Text style={{ color: "#FFF", fontSize: 12, fontFamily: fonts.bodyBold }}>✕</Text>
+                      <Ionicons name="close" size={14} color="#FFF" />
                     </TouchableOpacity>
                   </View>
                 ) : (

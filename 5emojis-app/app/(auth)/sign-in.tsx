@@ -20,13 +20,14 @@ import AuroraBackground from "../../components/skia/AuroraBackground";
 import BrandLogo from "../../components/BrandLogo";
 
 export default function SignIn() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<"apple" | "google" | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
   const handleSubmit = async () => {
@@ -72,6 +73,36 @@ export default function SignIn() {
       }
     }
   };
+
+  const handleAppleSignIn = async () => {
+    setSocialLoading("apple");
+    setError("");
+    const { error: err } = await signInWithApple();
+    setSocialLoading(null);
+    if (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(err);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setSocialLoading("google");
+    setError("");
+    const { error: err } = await signInWithGoogle();
+    setSocialLoading(null);
+    if (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(err);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/");
+    }
+  };
+
+  const isBusy = loading || socialLoading !== null;
 
   if (confirmationSent) {
     return (
@@ -132,21 +163,7 @@ export default function SignIn() {
           </Text>
 
           {/* Social auth — prominent, Tinder/Bumble style */}
-          <TouchableOpacity
-            style={{
-              backgroundColor: "#000",
-              borderRadius: 14,
-              paddingVertical: 16,
-              alignItems: "center",
-              marginBottom: 12,
-              opacity: 0.35,
-            }}
-            disabled
-          >
-            <Text style={{ color: "#FFF", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
-               Continue with Apple
-            </Text>
-          </TouchableOpacity>
+          {/* TODO: Re-enable Apple Sign-In once Apple Developer account is active */}
 
           <TouchableOpacity
             style={{
@@ -157,13 +174,18 @@ export default function SignIn() {
               borderWidth: 1.5,
               borderColor: COLORS.border,
               marginBottom: 4,
-              opacity: 0.35,
+              opacity: socialLoading === "google" ? 0.7 : 1,
             }}
-            disabled
+            onPress={handleGoogleSignIn}
+            disabled={isBusy}
           >
-            <Text style={{ color: COLORS.text, fontSize: 17, fontFamily: fonts.bodySemiBold }}>
-              Continue with Google
-            </Text>
+            {socialLoading === "google" ? (
+              <ActivityIndicator color={COLORS.text} />
+            ) : (
+              <Text style={{ color: COLORS.text, fontSize: 17, fontFamily: fonts.bodySemiBold }}>
+                Continue with Google
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Divider */}
@@ -256,14 +278,14 @@ export default function SignIn() {
           {/* Submit */}
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={isBusy}
             style={{
               backgroundColor: COLORS.primary,
               borderRadius: 14,
               paddingVertical: 16,
               alignItems: "center",
               marginBottom: 16,
-              opacity: loading ? 0.7 : 1,
+              opacity: isBusy ? 0.7 : 1,
             }}
           >
             {loading ? (

@@ -68,6 +68,74 @@ export const ALL_INTERESTS = [
 
 export const RADIUS_STEPS = [5, 10, 15, 25, 50, 75, 100] as const;
 
+// ─── Availability slots ──────────────────────────────────────
+export const AVAILABILITY_SLOTS = [
+  { label: "Weekday Mornings", value: "weekday_mornings", icon: "🌅" },
+  { label: "Weekday Afternoons", value: "weekday_afternoons", icon: "☀️" },
+  { label: "Weekday Evenings", value: "weekday_evenings", icon: "🌆" },
+  { label: "Weekend Mornings", value: "weekend_mornings", icon: "🥐" },
+  { label: "Weekend Afternoons", value: "weekend_afternoons", icon: "🏖️" },
+  { label: "Weekend Evenings", value: "weekend_evenings", icon: "🎉" },
+  { label: "Anytime!", value: "anytime", icon: "🌟" },
+] as const;
+
+export const MAX_AVAILABILITY = 3;
+
+// ─── Personality types ───────────────────────────────────────
+export const PERSONALITY_TYPES = [
+  { label: "Introvert", value: "introvert", icon: "📖", description: "I recharge alone", color: "#6366F1", surface: "#EEF2FF" },
+  { label: "Extrovert", value: "extrovert", icon: "🎤", description: "I recharge with people", color: "#F59E0B", surface: "#FFFBEB" },
+  { label: "Ambivert", value: "ambivert", icon: "🔄", description: "A little of both", color: "#10B981", surface: "#ECFDF5" },
+] as const;
+
+// ─── Communication style ────────────────────────────────────
+export const COMMUNICATION_STYLES = [
+  { label: "Texter", value: "texter", icon: "💬" },
+  { label: "Caller", value: "caller", icon: "📞" },
+  { label: "In-Person Hangouts", value: "in_person", icon: "🤗" },
+  { label: "All of the Above", value: "all_of_the_above", icon: "🌟" },
+] as const;
+
+// ─── Kids ────────────────────────────────────────────────────
+export const KIDS_OPTIONS = [
+  { label: "Has Kids", value: "has_kids", icon: "👶" },
+  { label: "No Kids", value: "no_kids", icon: "🚫" },
+  { label: "Expecting", value: "expecting", icon: "🤰" },
+] as const;
+
+// ─── Pets ────────────────────────────────────────────────────
+export const PETS_OPTIONS = [
+  { label: "Dog", value: "dog", icon: "🐕" },
+  { label: "Cat", value: "cat", icon: "🐱" },
+  { label: "Other", value: "other", icon: "🐾" },
+  { label: "None", value: "none", icon: "❌" },
+] as const;
+
+// ─── Relationship Status ────────────────────────────────────
+export const RELATIONSHIP_STATUS_OPTIONS = [
+  { label: "Single", value: "single", icon: "💫" },
+  { label: "In a Relationship", value: "in_a_relationship", icon: "💕" },
+  { label: "Married", value: "married", icon: "💍" },
+  { label: "It's Complicated", value: "its_complicated", icon: "🤷" },
+] as const;
+
+// ─── Work Style ─────────────────────────────────────────────
+export const WORK_STYLE_OPTIONS = [
+  { label: "Remote", value: "remote", icon: "🏠" },
+  { label: "Hybrid", value: "hybrid", icon: "🔀" },
+  { label: "In-Office", value: "in_office", icon: "🏢" },
+] as const;
+
+// ─── Dietary Preferences ────────────────────────────────────
+export const DIETARY_OPTIONS = [
+  { label: "Vegan", value: "vegan", icon: "🌱" },
+  { label: "Vegetarian", value: "vegetarian", icon: "🥗" },
+  { label: "Gluten-Free", value: "gluten_free", icon: "🌾" },
+  { label: "Halal", value: "halal", icon: "🍖" },
+  { label: "Kosher", value: "kosher", icon: "✡️" },
+  { label: "No Restrictions", value: "no_restrictions", icon: "🍽️" },
+] as const;
+
 export const MAX_INTERESTS = 5;
 export const MAX_FRIENDSHIP_STYLES = 3;
 

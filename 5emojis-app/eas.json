@@ -8,16 +8,41 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tuwzmzemlbupikicpunl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1d3ptemVtbGJ1cGlraWNwdW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMDQxMjUsImV4cCI6MjA4Nzc4MDEyNX0.Pmri8Sn50s3cR5NNoSD2uKyPg2ObQyErSQAE2o2fU-Q",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "363269149056-150m0bprmber739rjcqvk4hh4g0bgm8n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "363269149056-dafqaq9sus71ojq9vhrdvjuh50krfom1.apps.googleusercontent.com"
       }
     },
     "development-device": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tuwzmzemlbupikicpunl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1d3ptemVtbGJ1cGlraWNwdW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMDQxMjUsImV4cCI6MjA4Nzc4MDEyNX0.Pmri8Sn50s3cR5NNoSD2uKyPg2ObQyErSQAE2o2fU-Q",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "363269149056-150m0bprmber739rjcqvk4hh4g0bgm8n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "363269149056-dafqaq9sus71ojq9vhrdvjuh50krfom1.apps.googleusercontent.com"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tuwzmzemlbupikicpunl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1d3ptemVtbGJ1cGlraWNwdW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMDQxMjUsImV4cCI6MjA4Nzc4MDEyNX0.Pmri8Sn50s3cR5NNoSD2uKyPg2ObQyErSQAE2o2fU-Q",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "363269149056-150m0bprmber739rjcqvk4hh4g0bgm8n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "363269149056-dafqaq9sus71ojq9vhrdvjuh50krfom1.apps.googleusercontent.com"
+      }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tuwzmzemlbupikicpunl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1d3ptemVtbGJ1cGlraWNwdW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMDQxMjUsImV4cCI6MjA4Nzc4MDEyNX0.Pmri8Sn50s3cR5NNoSD2uKyPg2ObQyErSQAE2o2fU-Q",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "363269149056-150m0bprmber739rjcqvk4hh4g0bgm8n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "363269149056-dafqaq9sus71ojq9vhrdvjuh50krfom1.apps.googleusercontent.com"
+      }
+    }
   },
   "submit": {
     "production": {}

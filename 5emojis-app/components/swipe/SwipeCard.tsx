@@ -4,7 +4,6 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
   interpolate,
-  interpolateColor,
   Extrapolation,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +22,7 @@ type SwipeCardProps = {
   userLat: number;
   userLng: number;
   userEmojis: string[];
+  showEmojis?: boolean;
 };
 
 function SwipeCardInner({
@@ -32,6 +32,7 @@ function SwipeCardInner({
   userLat,
   userLng,
   userEmojis,
+  showEmojis = false,
 }: SwipeCardProps) {
   const { profile: p, emojis, photo } = profile;
   const age = calculateAge(p.dob);
@@ -126,51 +127,40 @@ function SwipeCardInner({
 
   return (
     <View style={styles.card}>
-      {/* Photo — takes most of the card */}
       <View style={styles.photoContainer}>
         <Image source={{ uri: photo.url }} style={styles.photo} />
 
-        {/* Multi-stop gradient for premium depth */}
+        {/* Stronger multi-stop gradient for overlay readability */}
         <LinearGradient
           colors={[
             "rgba(0,0,0,0.08)",
             "transparent",
             "transparent",
-            "rgba(0,0,0,0.5)",
-            "rgba(0,0,0,0.75)",
+            "rgba(0,0,0,0.45)",
+            "rgba(0,0,0,0.7)",
+            "rgba(0,0,0,0.85)",
           ]}
-          locations={[0, 0.15, 0.4, 0.75, 1]}
+          locations={[0, 0.12, 0.35, 0.65, 0.8, 1]}
           style={styles.photoGradient}
         />
 
-        {/* Vibe glow (green edge) */}
+        {/* Edge glows */}
         <Animated.View style={[styles.edgeGlow, styles.vibeGlow, vibeGlowStyle]} />
-
-        {/* Pass glow (red edge) */}
         <Animated.View style={[styles.edgeGlow, styles.passGlow, passGlowStyle]} />
 
-        {/* Name overlay on photo */}
-        <View style={styles.nameOverlay}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>
-              {p.name}, {age} {zodiac.emoji}
+        {/* Perfect match banner — at top of photo */}
+        {isPerfectMatch && (
+          <LinearGradient
+            colors={[COLORS.highlight, COLORS.highlightDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.perfectBanner}
+          >
+            <Text style={styles.perfectBannerText}>
+              PERFECT EMOJI MATCH
             </Text>
-            {p.is_new_to_city && (
-              <View style={styles.newBadge}>
-                <Text style={styles.newBadgeIcon}>🆕</Text>
-                <Text style={styles.newBadgeText}>New Here</Text>
-              </View>
-            )}
-          </View>
-          <View style={[styles.genderBadge, { backgroundColor: genderInfo.color }]}>
-            <Text style={styles.genderEmoji}>{genderInfo.emoji}</Text>
-            <Text style={styles.genderLabel}>{genderInfo.label}</Text>
-          </View>
-          {p.profession && (
-            <Text style={styles.profession}>💼 {p.profession}</Text>
-          )}
-          <Text style={styles.distance}>📍 {distance}</Text>
-        </View>
+          </LinearGradient>
+        )}
 
         {/* VIBE stamp */}
         <Animated.View style={[styles.stampContainer, styles.likeStamp, likeStyle]}>
@@ -187,46 +177,50 @@ function SwipeCardInner({
             <Text style={[styles.stampLabel, { color: COLORS.pass }]}>PASS</Text>
           </View>
         </Animated.View>
-      </View>
 
-      {/* ═══ Emoji match banner (perfect 5/5 only) ═══ */}
-      {isPerfectMatch && (
-        <LinearGradient
-          colors={[COLORS.highlight, COLORS.highlightDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.perfectBanner}
-        >
-          <Text style={styles.perfectBannerText}>
-            PERFECT EMOJI MATCH
+        {/* Emoji overlay row — on-card, above name */}
+        {showEmojis && (
+          <View style={styles.emojiOverlay}>
+            {emojis
+              .slice()
+              .sort((a, b) => a.position - b.position)
+              .map((e) => {
+                const isMatch = userEmojiSet.has(e.emoji);
+                return (
+                  <View
+                    key={e.id}
+                    style={[
+                      styles.emojiChip,
+                      isMatch && styles.emojiChipMatch,
+                    ]}
+                  >
+                    <Text style={styles.emojiChipText}>{e.emoji}</Text>
+                  </View>
+                );
+              })}
+          </View>
+        )}
+
+        {/* Name / bio overlay */}
+        <View style={styles.nameOverlay}>
+          <Text style={styles.name}>
+            {p.name}, {age} {zodiac.emoji}
           </Text>
-        </LinearGradient>
-      )}
-
-      {/* ═══ Emoji strip — the 5Emojis signature ═══ */}
-      <View style={styles.emojiStrip}>
-        <View style={styles.emojiStripInner}>
-          {emojis
-            .sort((a, b) => a.position - b.position)
-            .map((e, i) => {
-              const isMatch = userEmojiSet.has(e.emoji);
-              const bubbleSize = 56 - i * 4; // 56, 52, 48, 44, 40
-              const emojiSize = 28 - i * 2;  // 28, 26, 24, 22, 20
-              return (
-                <View
-                  key={e.id}
-                  style={[
-                    styles.emojiBubble,
-                    { width: bubbleSize, height: bubbleSize },
-                    isMatch && styles.matchEmojiBubble,
-                  ]}
-                >
-                  <Text style={{ fontSize: emojiSize }}>
-                    {e.emoji}
-                  </Text>
-                </View>
-              );
-            })}
+          <View style={[styles.genderBadge, { backgroundColor: genderInfo.color }]}>
+            <Text style={styles.genderEmoji}>{genderInfo.emoji}</Text>
+            <Text style={styles.genderLabel}>{genderInfo.label}</Text>
+          </View>
+          {p.profession && (
+            <Text style={styles.profession}>{p.profession}</Text>
+          )}
+          <View style={styles.distanceRow}>
+            <Text style={styles.distance}>{distance}</Text>
+            {p.is_new_to_city && (
+              <View style={styles.newBadge}>
+                <Text style={styles.newBadgeText}>New Here</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </View>
@@ -238,18 +232,16 @@ export const SwipeCard = memo(SwipeCardInner);
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 24,
-    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    backgroundColor: "#000",
     overflow: "hidden",
-    // Premium layered shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 32,
     elevation: 16,
-    // Subtle border for definition
     borderWidth: Platform.OS === "ios" ? 0.5 : 0,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   photoContainer: {
     flex: 1,
@@ -260,7 +252,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     resizeMode: "cover",
-    backgroundColor: "#F0EDE8",
+    backgroundColor: "#1a1a1a",
   },
   photoGradient: {
     position: "absolute",
@@ -274,7 +266,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: "100%",
-    borderRadius: 24,
+    borderRadius: 20,
   },
   vibeGlow: {
     borderWidth: 4,
@@ -292,16 +284,46 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 20,
   },
+  // ─── Emoji overlay (on card, above name) ──────
+  emojiOverlay: {
+    position: "absolute",
+    bottom: 156,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    zIndex: 4,
+  },
+  emojiChip: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  emojiChipMatch: {
+    backgroundColor: "rgba(251,191,36,0.28)",
+    borderColor: COLORS.highlight,
+    borderWidth: 2,
+    shadowColor: COLORS.highlight,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  emojiChipText: {
+    fontSize: 24,
+  },
+  // ─── Name / bio overlay ───────────────────────
   nameOverlay: {
     position: "absolute",
-    bottom: 16,
+    bottom: 28,
     left: 20,
     right: 20,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
   },
   name: {
     fontSize: 28,
@@ -311,43 +333,43 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
   },
-  newBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 3,
-  },
-  newBadgeIcon: {
-    fontSize: 11,
-  },
-  newBadgeText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontFamily: fonts.bodyBold,
-  },
   genderBadge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    gap: 5,
-    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    marginTop: 5,
   },
   genderEmoji: {
-    fontSize: 13,
+    fontSize: 12,
   },
   genderLabel: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.bodySemiBold,
     textShadowColor: "rgba(0,0,0,0.2)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  distanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  newBadge: {
+    backgroundColor: COLORS.secondary,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  newBadgeText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
   },
   profession: {
     fontSize: 15,
@@ -362,7 +384,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.body,
     color: "rgba(255,255,255,0.8)",
-    marginTop: 2,
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -403,10 +424,15 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginTop: -2,
   },
-  // ─── Match banner / indicator ──────────────────
+  // ─── Perfect match banner (top of photo) ──────
   perfectBanner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     paddingVertical: 8,
     alignItems: "center",
+    zIndex: 5,
     shadowColor: COLORS.highlight,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -421,43 +447,5 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.15)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-  // ─── Emoji strip ────────────────────────────────
-  emojiStrip: {
-    backgroundColor: COLORS.surface,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    // Top inner shadow for depth
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.04)",
-  },
-  emojiStripInner: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-    alignItems: "center",
-  },
-  emojiBubble: {
-    borderRadius: 16,
-    backgroundColor: COLORS.primarySurface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: COLORS.primaryBorder,
-    // Subtle shadow on each bubble
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  // ─── Matching emoji highlight ─────────────────
-  matchEmojiBubble: {
-    backgroundColor: COLORS.highlightSurface,
-    borderColor: COLORS.highlight,
-    borderWidth: 2,
-    shadowColor: COLORS.highlight,
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
   },
 });

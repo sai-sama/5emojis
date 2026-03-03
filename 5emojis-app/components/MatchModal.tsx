@@ -25,7 +25,7 @@ import { fonts } from "../lib/fonts";
 import { Profile, ProfileEmoji, ProfilePhoto } from "../lib/types";
 import Confetti from "./animations/Confetti";
 import LottieCelebration from "./lottie/LottieCelebration";
-import { playMatchSound } from "../lib/sounds";
+import { playMatchSound, isSoundMuted } from "../lib/sounds";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -110,19 +110,22 @@ export default function MatchModal({
   useEffect(() => {
     if (visible && !hasTriggeredHaptics.current) {
       hasTriggeredHaptics.current = true;
+      const muted = isSoundMuted();
       // Burst of haptics + sound for match celebration
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      playMatchSound();
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }, 200);
-      if (isPerfect) {
-        setTimeout(() => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }, 400);
+      if (!muted) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playMatchSound();
         setTimeout(() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        }, 700);
+        }, 200);
+        if (isPerfect) {
+          setTimeout(() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }, 400);
+          setTimeout(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          }, 700);
+        }
       }
     }
     if (!visible) {
