@@ -60,10 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Configure Google Sign-In once on mount
+  // NOTE: Do NOT pass iosClientId — the native iOS flow embeds a nonce in the
+  // ID token that we can't extract, causing a mismatch with Supabase.
+  // Using only webClientId triggers a web-based flow that works correctly.
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     });
   }, []);
 

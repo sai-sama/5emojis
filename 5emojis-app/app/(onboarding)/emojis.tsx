@@ -9,7 +9,6 @@ import DraggableEmojiSlots from "../../components/DraggableEmojiSlots";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
-import EmojiBackground from "../../components/EmojiBackground";
 import OnboardingButton from "../../components/OnboardingButton";
 
 export default function EmojisScreen() {
@@ -32,7 +31,6 @@ export default function EmojisScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
-      <EmojiBackground opacity={0.06} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 110, paddingBottom: 12 }}>

@@ -1,6 +1,7 @@
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { OnboardingProvider } from "../../lib/onboarding-context";
 import { useAuth } from "../../lib/auth-context";
 import { COLORS } from "../../lib/constants";
@@ -24,7 +25,10 @@ export default function OnboardingLayout() {
             headerTransparent: true,
             headerStyle: { backgroundColor: "transparent" },
             headerTintColor: COLORS.primary,
-            headerTitle: () => <BrandLogo size="compact" onPress={signOut} />,
+            headerTitle: () => <BrandLogo size="compact" onPress={async () => {
+              await signOut();
+              router.replace("/(auth)/sign-in");
+            }} />,
             contentStyle: { backgroundColor: "transparent" },
             animation: "slide_from_right",
           }}

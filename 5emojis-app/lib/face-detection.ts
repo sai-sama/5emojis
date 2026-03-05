@@ -1,3 +1,4 @@
+import { Alert } from "react-native";
 import { logError } from "./error-logger";
 
 /**
@@ -5,14 +6,16 @@ import { logError } from "./error-logger";
  * Uses Google ML Kit via @infinitered/react-native-mlkit-face-detection.
  * Runs entirely on-device — no API calls, no cost.
  *
- * Gracefully degrades: if the native module isn't available (Expo Go),
- * or if detection crashes, we fail open (allow the photo).
+ * If the native module isn't available or detection fails, we reject the photo
+ * and ask the user to try again — we never silently allow unverified photos.
  */
 export async function detectFaceInPhoto(
   uri: string
 ): Promise<{ hasFace: boolean; error?: string }> {
   try {
-    const { RNMLKitFaceDetector } = require("@infinitered/react-native-mlkit-face-detection");
+    const {
+      RNMLKitFaceDetector,
+    } = require("@infinitered/react-native-mlkit-face-detection");
 
     const detector = new RNMLKitFaceDetector({
       performanceMode: "accurate",
@@ -24,12 +27,25 @@ export async function detectFaceInPhoto(
 
     await detector.initialize();
 
-    const result = await detector.detectFaces(uri);
+    // Normalize URI — ML Kit expects file:// prefix on iOS
+    const normalizedUri = uri.startsWith("file://") ? uri : `file://${uri}`;
+    const result = await detector.detectFaces(normalizedUri);
 
-    if (!result || !result.success) {
-      // Detection failed — fail open
-      console.warn("Face detection returned no result, allowing photo");
-      return { hasFace: true };
+    if (!result) {
+      return {
+        hasFace: false,
+        error:
+          "Couldn't verify your photo. Please try a different photo with your face clearly visible.",
+      };
+    }
+
+    if (!result.success) {
+      return {
+        hasFace: false,
+        error:
+          result.error ||
+          "Face detection failed. Please try a different, well-lit photo showing your face.",
+      };
     }
 
     if (result.faces.length === 0) {
@@ -42,9 +58,16 @@ export async function detectFaceInPhoto(
 
     return { hasFace: true };
   } catch (err: any) {
-    // Native module not available (Expo Go) or crash — fail open
-    console.warn("Face detection unavailable, skipping check:", err?.message);
-    logError(err, { screen: "FaceDetection", context: "detect_face_in_photo" });
-    return { hasFace: true };
+    // Native module not available or crash — do NOT fail open
+    logError(err, {
+      screen: "FaceDetection",
+      context: "detect_face_in_photo",
+    });
+    console.warn("Face detection error:", err?.message);
+    return {
+      hasFace: false,
+      error:
+        "Face verification isn't available right now. Please try again or use a clear selfie as your main photo.",
+    };
   }
 }

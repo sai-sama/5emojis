@@ -46,15 +46,6 @@ CREATE POLICY "Admins can update report status"
     )
   );
 
--- ─── RLS: let admins read all profiles (for report context) ──
-CREATE POLICY "Admins can read all profiles"
-  ON public.profiles
-  FOR SELECT
-  USING (
-    id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.profiles AS p
-      WHERE p.id = auth.uid()
-        AND p.is_admin = true
-    )
-  );
+-- NOTE: No admin-specific SELECT policy needed on profiles because
+-- 001_initial_schema.sql already has "Profiles are viewable by authenticated users"
+-- with USING (true). A self-referencing policy here would cause infinite recursion.

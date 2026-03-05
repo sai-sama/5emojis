@@ -18,7 +18,6 @@ import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
-import EmojiBackground from "../../components/EmojiBackground";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import BrandLogo from "../../components/BrandLogo";
 
@@ -147,7 +146,6 @@ export default function SignIn() {
     return (
       <View style={{ flex: 1 }}>
         <AuroraBackground variant="aurora" />
-        <EmojiBackground />
         <SafeAreaView style={{ flex: 1 }}>
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
             <Text style={{ fontSize: 56 }}>📬</Text>
@@ -187,7 +185,6 @@ export default function SignIn() {
   return (
     <View style={{ flex: 1 }}>
       <AuroraBackground variant="aurora" />
-      <EmojiBackground />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
         behavior="padding"

@@ -78,6 +78,14 @@ export default function LocationScreen() {
   const handleSubmit = async () => {
     let location = selected;
 
+    // Auto-select the first suggestion if user didn't tap one
+    if (!location && suggestions.length > 0) {
+      location = suggestions[0];
+      setSelected(location);
+      setSuggestions([]);
+      setInput(location.displayName);
+    }
+
     if (!location) {
       // Try a direct geocode as fallback
       setSearching(true);

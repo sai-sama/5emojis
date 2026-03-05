@@ -12,7 +12,6 @@ import { logError } from "../../lib/error-logger";
 import { detectFaceInPhoto } from "../../lib/face-detection";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
-import EmojiBackground, { PHOTO_EMOJIS } from "../../components/EmojiBackground";
 import OnboardingButton from "../../components/OnboardingButton";
 
 export default function PhotosScreen() {
@@ -85,7 +84,6 @@ export default function PhotosScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
-      <EmojiBackground emojis={PHOTO_EMOJIS} opacity={0.06} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 110, paddingBottom: 100 }}

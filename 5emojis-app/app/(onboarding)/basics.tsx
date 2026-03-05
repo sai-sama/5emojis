@@ -319,7 +319,10 @@ export default function BasicsScreen() {
           }}
         />
         <TouchableOpacity
-          onPress={signOut}
+          onPress={async () => {
+            await signOut();
+            router.replace("/(auth)/sign-in");
+          }}
           activeOpacity={0.6}
           style={{ alignSelf: "center", paddingVertical: 14 }}
         >
