@@ -143,29 +143,61 @@ export default function PersonalScreen() {
         {/* Pronouns — editable */}
         <Text style={[styles.fieldLabel, { marginTop: 24 }]}>Pronouns</Text>
         <View style={styles.chipGrid}>
-          {PRONOUNS_OPTIONS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setPronouns(pronouns === p ? "" : p);
-              }}
-              style={[
-                styles.chip,
-                pronouns === p && styles.chipSelected,
-              ]}
-            >
-              <Text
+          {PRONOUNS_OPTIONS.map((p) => {
+            const isCustom = p === "Other";
+            const isSelected = isCustom
+              ? !!pronouns && !["He/Him", "She/Her", "They/Them"].includes(pronouns)
+              : pronouns === p;
+            return (
+              <TouchableOpacity
+                key={p}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (isCustom) {
+                    setPronouns(isSelected ? "" : "Other");
+                  } else {
+                    setPronouns(pronouns === p ? "" : p);
+                  }
+                }}
                 style={[
-                  styles.chipText,
-                  pronouns === p && styles.chipTextSelected,
+                  styles.chip,
+                  isSelected && styles.chipSelected,
                 ]}
               >
-                {p}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.chipText,
+                    isSelected && styles.chipTextSelected,
+                  ]}
+                >
+                  {p}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+        {/* Custom pronouns input */}
+        {!!pronouns && !["He/Him", "She/Her", "They/Them", ""].includes(pronouns) && (
+          <TextInput
+            value={pronouns === "Other" ? "" : pronouns}
+            onChangeText={setPronouns}
+            placeholder="Enter your pronouns"
+            placeholderTextColor={COLORS.textMuted}
+            maxLength={30}
+            style={{
+              backgroundColor: COLORS.surface,
+              borderRadius: 12,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              fontSize: 15,
+              fontFamily: fonts.body,
+              color: COLORS.text,
+              borderWidth: 1,
+              borderColor: COLORS.primaryBorder,
+              marginTop: 8,
+            }}
+          />
+        )}
       </ScrollView>
 
       {/* Sticky save */}

@@ -21,6 +21,9 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   needsOnboarding: boolean;
+  isSuspended: boolean;
+  suspendedUntil: string | null;
+  isAdmin: boolean;
   devMode: boolean;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -35,6 +38,9 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   needsOnboarding: false,
+  isSuspended: false,
+  suspendedUntil: null,
+  isAdmin: false,
   devMode: DEV_BYPASS_AUTH,
   signUp: async () => ({ error: null, needsConfirmation: false }),
   signIn: async () => ({ error: null }),
@@ -49,6 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(!DEV_BYPASS_AUTH);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [suspendedUntil, setSuspendedUntil] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Configure Google Sign-In once on mount
   useEffect(() => {
@@ -58,14 +67,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Check if the user has a profile in the DB
-  const checkProfile = useCallback(async (userId: string) => {
+  // Check if the user has a profile in the DB (and suspension status)
+  const checkProfile = useCallback(async (userId: string): Promise<{
+    exists: boolean;
+    suspended: boolean;
+    suspendedUntil: string | null;
+    admin: boolean;
+  }> => {
     const { data } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, is_suspended, suspended_until, is_admin")
       .eq("id", userId)
       .single();
-    return !!data;
+    if (!data) return { exists: false, suspended: false, suspendedUntil: null, admin: false };
+    return {
+      exists: true,
+      suspended: !!data.is_suspended,
+      suspendedUntil: data.suspended_until ?? null,
+      admin: !!data.is_admin,
+    };
   }, []);
 
   // Listen for auth state changes
@@ -78,9 +98,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(s);
         if (s?.user) {
           try {
-            const hasProfile = await checkProfile(s.user.id);
-            setNeedsOnboarding(!hasProfile);
-            if (hasProfile) {
+            // Verify the auth user still exists server-side (may have been deleted)
+            const { data: authUser, error: authError } = await supabase.auth.getUser();
+            if (authError || !authUser?.user) {
+              // Auth user was deleted — clear the stale session
+              await supabase.auth.signOut().catch(() => {});
+              setSession(null);
+              setNeedsOnboarding(false);
+              return;
+            }
+
+            const result = await checkProfile(s.user.id);
+            setNeedsOnboarding(!result.exists);
+            setIsSuspended(result.suspended);
+            setSuspendedUntil(result.suspendedUntil);
+            setIsAdmin(result.admin);
+            if (result.exists && !result.suspended) {
               registerForPushNotifications(s.user.id);
             }
           } catch (err: any) {
@@ -104,9 +137,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(s);
       if (s?.user) {
         try {
-          const hasProfile = await checkProfile(s.user.id);
-          setNeedsOnboarding(!hasProfile);
-          if (hasProfile) {
+          const result = await checkProfile(s.user.id);
+          setNeedsOnboarding(!result.exists);
+          setIsSuspended(result.suspended);
+          setSuspendedUntil(result.suspendedUntil);
+          setIsAdmin(result.admin);
+          if (result.exists && !result.suspended) {
             registerForPushNotifications(s.user.id);
           }
         } catch (err: any) {
@@ -115,6 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setNeedsOnboarding(false);
+        setIsSuspended(false);
+        setSuspendedUntil(null);
+        setIsAdmin(false);
       }
     });
 
@@ -134,14 +173,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<{ error: string | null }> => {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) return { error: error.message };
+      // Check profile before returning so needsOnboarding is set correctly
+      if (data.session?.user) {
+        const result = await checkProfile(data.session.user.id);
+        setNeedsOnboarding(!result.exists);
+        setIsSuspended(result.suspended);
+        setSuspendedUntil(result.suspendedUntil);
+        setIsAdmin(result.admin);
+      }
       return { error: null };
     },
-    []
+    [checkProfile]
   );
 
   const signInWithApple = useCallback(async (): Promise<{ error: string | null }> => {
@@ -157,12 +204,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: "No identity token returned from Apple." };
       }
 
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "apple",
         token: credential.identityToken,
       });
 
       if (error) return { error: error.message };
+      // Check profile before returning so needsOnboarding is set correctly
+      if (data.session?.user) {
+        const result = await checkProfile(data.session.user.id);
+        setNeedsOnboarding(!result.exists);
+        setIsSuspended(result.suspended);
+        setSuspendedUntil(result.suspendedUntil);
+        setIsAdmin(result.admin);
+      }
       return { error: null };
     } catch (e: any) {
       if (e.code === "ERR_REQUEST_CANCELED") {
@@ -171,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logError(e, { screen: "AuthProvider", context: "sign_in_with_apple" });
       return { error: e.message || "Apple Sign-In failed." };
     }
-  }, []);
+  }, [checkProfile]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     try {
@@ -182,12 +237,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: "No ID token returned from Google." };
       }
 
-      const { error } = await supabase.auth.signInWithIdToken({
+      const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "google",
         token: response.data.idToken,
       });
 
       if (error) return { error: error.message };
+      // Check profile before returning so needsOnboarding is set correctly
+      if (data.session?.user) {
+        const result = await checkProfile(data.session.user.id);
+        setNeedsOnboarding(!result.exists);
+        setIsSuspended(result.suspended);
+        setSuspendedUntil(result.suspendedUntil);
+        setIsAdmin(result.admin);
+      }
       return { error: null };
     } catch (e: any) {
       if (
@@ -203,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logError(e, { screen: "AuthProvider", context: "sign_in_with_google" });
       return { error: e.message || "Google Sign-In failed." };
     }
-  }, []);
+  }, [checkProfile]);
 
   const signOut = useCallback(async () => {
     try {
@@ -212,8 +275,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign out locally even if Supabase call fails
       logError(err, { screen: "AuthProvider", context: "sign_out" });
     }
+    // Clear cached Google account so the picker shows on next sign-in
+    try { await GoogleSignin.signOut(); } catch {}
     setSession(null);
     setNeedsOnboarding(false);
+    setIsSuspended(false);
+    setSuspendedUntil(null);
+    setIsAdmin(false);
   }, []);
 
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
@@ -221,14 +289,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await deleteAccountService(session.user.id);
       if (error) return { error };
-      // Sign out after successful deletion
+      // Sign out of Supabase
       try {
         await supabase.auth.signOut();
       } catch {
-        // Ignore sign-out errors — profile is already gone
+        // Ignore sign-out errors — account is already gone
       }
+      // Clear cached Google/Apple credentials so they can't auto-sign back in
+      try { await GoogleSignin.signOut(); } catch {}
       setSession(null);
       setNeedsOnboarding(false);
+      setIsSuspended(false);
+      setSuspendedUntil(null);
+      setIsAdmin(false);
       return { error: null };
     } catch (err: any) {
       logError(err, { screen: "AuthProvider", context: "delete_account" });
@@ -248,6 +321,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           session: { user: { id: "dev-user" } } as any,
           loading: false,
           needsOnboarding: true,
+          isSuspended: false,
+          suspendedUntil: null,
+          isAdmin: false,
           devMode: true,
           signUp: async () => ({ error: null, needsConfirmation: false }),
           signIn: async () => ({ error: null }),
@@ -269,6 +345,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         loading,
         needsOnboarding,
+        isSuspended,
+        suspendedUntil,
+        isAdmin,
         devMode: DEV_BYPASS_AUTH,
         signUp,
         signIn,

@@ -74,6 +74,10 @@ export default function ReportModal({
       onRequestClose={resetAndClose}
     >
       <View style={styles.container}>
+        {/* Grab handle */}
+        <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 4 }}>
+          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.disabled }} />
+        </View>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={resetAndClose} hitSlop={12}>

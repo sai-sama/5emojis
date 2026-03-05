@@ -1,5 +1,6 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import type { FullProfile } from "../../lib/profile-service";
@@ -20,20 +21,32 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis }: Pro
 
   return (
     <View style={styles.card}>
-      <View style={styles.photoContainer}>
+      <Pressable
+        style={styles.photoContainer}
+        onPress={() => router.push(`/user/${profile.profile.id}`)}
+      >
         {primaryPhoto ? (
           <Image source={{ uri: primaryPhoto.url }} style={styles.photo} />
         ) : (
-          <View style={[styles.photo, styles.placeholder]}>
-            <Ionicons name="person" size={40} color={COLORS.textMuted} />
-          </View>
+          <Pressable
+            style={[styles.photo, styles.placeholder]}
+            onPress={() => router.push("/profile/photos")}
+          >
+            <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
+            <Text style={{ fontSize: 10, fontFamily: fonts.bodySemiBold, color: COLORS.primary, marginTop: 2 }}>
+              Add photo
+            </Text>
+          </Pressable>
         )}
         {profile.profile.is_new_to_city && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>🆕 New</Text>
           </View>
         )}
-      </View>
+        <View style={styles.previewBadge}>
+          <Ionicons name="eye-outline" size={12} color="#FFF" />
+        </View>
+      </Pressable>
       <Text style={styles.name}>{profile.profile.name}</Text>
       {profile.profile.profession ? (
         <Text style={styles.profession}>{profile.profile.profession}</Text>
@@ -98,6 +111,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0EDE8",
   },
   placeholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewBadge: {
+    position: "absolute",
+    bottom: 2,
+    left: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
   },

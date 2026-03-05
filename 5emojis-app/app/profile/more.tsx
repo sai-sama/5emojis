@@ -13,7 +13,7 @@ import {
   updateDietary,
 } from "../../lib/profile-service";
 import { fonts } from "../../lib/fonts";
-import { COLORS, MIN_FRIEND_AGE, MAX_FRIEND_AGE } from "../../lib/constants";
+import { COLORS } from "../../lib/constants";
 import {
   AVAILABILITY_SLOTS,
   MAX_AVAILABILITY,
@@ -34,8 +34,6 @@ export default function MoreAboutYou() {
   // ─── Local state from profile ──────────────────────────────
   const [availability, setAvailability] = useState<string[]>(profile?.availability ?? []);
   const [personalityType, setPersonalityType] = useState(profile?.profile.personality_type ?? "");
-  const [preferredAgeMin, setPreferredAgeMin] = useState(profile?.profile.preferred_age_min ?? 18);
-  const [preferredAgeMax, setPreferredAgeMax] = useState(profile?.profile.preferred_age_max ?? 99);
   const [communicationStyle, setCommunicationStyle] = useState(profile?.profile.communication_style ?? "");
   const [kids, setKids] = useState(profile?.profile.kids ?? "");
   const [pets, setPets] = useState<string[]>(profile?.pets ?? []);
@@ -50,8 +48,6 @@ export default function MoreAboutYou() {
     return (
       JSON.stringify(availability) !== JSON.stringify(profile.availability) ||
       personalityType !== (p.personality_type ?? "") ||
-      preferredAgeMin !== (p.preferred_age_min ?? 18) ||
-      preferredAgeMax !== (p.preferred_age_max ?? 99) ||
       communicationStyle !== (p.communication_style ?? "") ||
       kids !== (p.kids ?? "") ||
       JSON.stringify(pets) !== JSON.stringify(profile.pets) ||
@@ -59,7 +55,7 @@ export default function MoreAboutYou() {
       workStyle !== (p.work_style ?? "") ||
       JSON.stringify(dietary) !== JSON.stringify(profile.dietary)
     );
-  }, [profile, availability, personalityType, preferredAgeMin, preferredAgeMax, communicationStyle, kids, pets, relationshipStatus, workStyle, dietary]);
+  }, [profile, availability, personalityType, communicationStyle, kids, pets, relationshipStatus, workStyle, dietary]);
 
   // ─── Toggle helpers ───────────────────────────────────────
   const toggleAvailability = (value: string) => {
@@ -99,28 +95,6 @@ export default function MoreAboutYou() {
     }
   };
 
-  // Age range — raw text state for free typing, clamp on blur
-  const [minText, setMinText] = useState(String(profile?.profile.preferred_age_min ?? 18));
-  const [maxText, setMaxText] = useState(String(profile?.profile.preferred_age_max ?? 99));
-
-  const adjustMin = (delta: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPreferredAgeMin((prev) => {
-      const next = Math.max(MIN_FRIEND_AGE, Math.min(preferredAgeMax, prev + delta));
-      setMinText(String(next));
-      return next;
-    });
-  };
-
-  const adjustMax = (delta: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPreferredAgeMax((prev) => {
-      const next = Math.max(preferredAgeMin, Math.min(MAX_FRIEND_AGE, prev + delta));
-      setMaxText(String(next));
-      return next;
-    });
-  };
-
   // ─── Save ─────────────────────────────────────────────────
   const handleSave = async () => {
     if (!session?.user || !isDirty) return;
@@ -130,8 +104,6 @@ export default function MoreAboutYou() {
     await Promise.all([
       updateProfileFields(session.user.id, {
         personality_type: personalityType || null,
-        preferred_age_min: preferredAgeMin,
-        preferred_age_max: preferredAgeMax,
         communication_style: communicationStyle || null,
         kids: kids || null,
         relationship_status: relationshipStatus || null,
@@ -206,52 +178,6 @@ export default function MoreAboutYou() {
               }}
             />
           ))}
-        </View>
-
-        {/* Age Range */}
-        <SectionLabel icon="🎂" title="AGE RANGE PREFERENCE" />
-        <View style={styles.ageRow}>
-          <Text style={styles.ageLabel}>Min</Text>
-          <View style={styles.stepperControls}>
-            <StepperButton label="−" onPress={() => adjustMin(-1)} disabled={preferredAgeMin <= MIN_FRIEND_AGE} />
-            <TextInput
-              style={styles.ageInput}
-              value={minText}
-              onChangeText={(t) => setMinText(t.replace(/[^0-9]/g, ""))}
-              onBlur={() => {
-                const num = parseInt(minText, 10);
-                if (isNaN(num) || minText === "") { setMinText(String(preferredAgeMin)); return; }
-                const clamped = Math.max(MIN_FRIEND_AGE, Math.min(preferredAgeMax, num));
-                setPreferredAgeMin(clamped);
-                setMinText(String(clamped));
-              }}
-              keyboardType="number-pad"
-              maxLength={2}
-              selectTextOnFocus
-            />
-            <StepperButton label="+" onPress={() => adjustMin(1)} disabled={preferredAgeMin >= preferredAgeMax} />
-          </View>
-          <Text style={styles.ageSep}>—</Text>
-          <Text style={styles.ageLabel}>Max</Text>
-          <View style={styles.stepperControls}>
-            <StepperButton label="−" onPress={() => adjustMax(-1)} disabled={preferredAgeMax <= preferredAgeMin} />
-            <TextInput
-              style={styles.ageInput}
-              value={maxText}
-              onChangeText={(t) => setMaxText(t.replace(/[^0-9]/g, ""))}
-              onBlur={() => {
-                const num = parseInt(maxText, 10);
-                if (isNaN(num) || maxText === "") { setMaxText(String(preferredAgeMax)); return; }
-                const clamped = Math.max(preferredAgeMin, Math.min(MAX_FRIEND_AGE, num));
-                setPreferredAgeMax(clamped);
-                setMaxText(String(clamped));
-              }}
-              keyboardType="number-pad"
-              maxLength={2}
-              selectTextOnFocus
-            />
-            <StepperButton label="+" onPress={() => adjustMax(1)} disabled={preferredAgeMax >= MAX_FRIEND_AGE} />
-          </View>
         </View>
 
         {/* Communication Style */}
@@ -423,18 +349,6 @@ function Chip({
   );
 }
 
-function StepperButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled: boolean }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.stepperBtn, disabled && styles.stepperBtnDisabled]}
-    >
-      <Text style={[styles.stepperBtnText, disabled && { color: COLORS.disabled }]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -480,68 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.bodyMedium,
     color: "#B2BEC3",
-  },
-  ageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    gap: 8,
-  },
-  ageLabel: {
-    fontSize: 14,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.textSecondary,
-  },
-  ageSep: {
-    fontSize: 18,
-    color: COLORS.textMuted,
-    marginHorizontal: 4,
-  },
-  stepperControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primarySurface,
-    borderWidth: 1.5,
-    borderColor: COLORS.primaryBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperBtnDisabled: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.border,
-  },
-  stepperBtnText: {
-    fontSize: 18,
-    fontFamily: fonts.bodyBold,
-    color: COLORS.primary,
-    marginTop: -1,
-  },
-  stepperValue: {
-    fontSize: 17,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.text,
-    minWidth: 28,
-    textAlign: "center",
-  },
-  ageInput: {
-    fontSize: 17,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.text,
-    minWidth: 36,
-    textAlign: "center",
-    paddingVertical: 2,
   },
   footer: {
     position: "absolute",

@@ -17,13 +17,14 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
-import { updateEmojis } from "../../lib/profile-service";
+import { updateEmojis, updateSearchRadius, updateProfileFields } from "../../lib/profile-service";
 import { getZodiacSign } from "../../lib/zodiac";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import EmojiPicker from "../../components/EmojiPicker";
 import PreviewCard from "../../components/profile/PreviewCard";
 import ProfileSectionRow from "../../components/profile/ProfileSectionRow";
 import ProfileCompletionCard from "../../components/profile/ProfileCompletionCard";
+import DiscoveryFiltersRibbon from "../../components/profile/DiscoveryFiltersRibbon";
 import { fonts } from "../../lib/fonts";
 import { COLORS, GENDERS, EMOJI_EDIT_COOLDOWN_HOURS, type GenderValue } from "../../lib/constants";
 import { isSoundMuted, setSoundMuted } from "../../lib/sounds";
@@ -31,7 +32,7 @@ import { getProfileCompletion } from "../../lib/profile-completion";
 import { resetMockData } from "../../lib/mock-data";
 
 export default function ProfileOverview() {
-  const { session, signOut, deleteAccount } = useAuth();
+  const { session, signOut, deleteAccount, isAdmin } = useAuth();
   const { profile, loading, refresh } = useProfile();
 
   // Gender filter — multi-select (persisted via AsyncStorage, read by SwipeCardStack)
@@ -67,6 +68,50 @@ export default function ProfileOverview() {
       AsyncStorage.setItem("gender_filters", JSON.stringify(next));
       return next;
     });
+  };
+
+  // Search radius (init from profile, persisted to DB)
+  const [searchRadius, setSearchRadius] = useState(
+    profile?.profile.search_radius_miles ?? 50
+  );
+  useEffect(() => {
+    if (profile) setSearchRadius(profile.profile.search_radius_miles);
+  }, [profile?.profile.search_radius_miles]);
+
+  const handleRadiusChange = async (r: number) => {
+    setSearchRadius(r);
+    if (session?.user) {
+      await updateSearchRadius(session.user.id, r);
+      refresh();
+    }
+  };
+
+  // Age range filter (persisted to AsyncStorage for SwipeCardStack + DB)
+  const [preferredAgeMin, setPreferredAgeMin] = useState(
+    profile?.profile.preferred_age_min ?? 18
+  );
+  const [preferredAgeMax, setPreferredAgeMax] = useState(
+    profile?.profile.preferred_age_max ?? 99
+  );
+  useEffect(() => {
+    if (profile) {
+      setPreferredAgeMin(profile.profile.preferred_age_min ?? 18);
+      setPreferredAgeMax(profile.profile.preferred_age_max ?? 99);
+    }
+  }, [profile?.profile.preferred_age_min, profile?.profile.preferred_age_max]);
+
+  const handleAgeChange = async (min: number, max: number) => {
+    setPreferredAgeMin(min);
+    setPreferredAgeMax(max);
+    AsyncStorage.setItem("age_filter_min", String(min));
+    AsyncStorage.setItem("age_filter_max", String(max));
+    if (session?.user) {
+      await updateProfileFields(session.user.id, {
+        preferred_age_min: min,
+        preferred_age_max: max,
+      });
+      refresh();
+    }
   };
 
   // Sound mute toggle
@@ -142,7 +187,7 @@ export default function ProfileOverview() {
     const city = profile.profile.state
       ? `${profile.profile.city}, ${profile.profile.state}`
       : profile.profile.city;
-    return `${city} · ${profile.profile.search_radius_miles}mi`;
+    return city;
   }, [profile]);
 
   // ─── Emoji cooldown ────────────────────────────────────────
@@ -373,37 +418,16 @@ export default function ProfileOverview() {
           />
         </View>
 
-        {/* Discovery — gender filter (multi-select checkboxes) */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="search" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
-            <Text style={styles.sectionTitle}>Discovery</Text>
-          </View>
-          <Text style={styles.filterLabel}>Show me</Text>
-          <View style={styles.filterColumn}>
-            {GENDERS.map((g) => {
-              const isChecked = genderFilters.includes(g.value);
-              return (
-                <Pressable
-                  key={g.value}
-                  onPress={() => handleGenderToggle(g.value)}
-                  style={styles.filterCheckRow}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      isChecked && { backgroundColor: g.color, borderColor: g.color },
-                    ]}
-                  >
-                    {isChecked && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                  </View>
-                  <Text style={styles.filterCheckEmoji}>{g.emoji}</Text>
-                  <Text style={styles.filterCheckLabel}>{g.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        {/* Discovery Filters — collapsible ribbon */}
+        <DiscoveryFiltersRibbon
+          genderFilters={genderFilters}
+          onGenderToggle={handleGenderToggle}
+          searchRadius={searchRadius}
+          onRadiusChange={handleRadiusChange}
+          preferredAgeMin={preferredAgeMin}
+          preferredAgeMax={preferredAgeMax}
+          onAgeChange={handleAgeChange}
+        />
 
 
         {/* Legal */}
@@ -421,6 +445,36 @@ export default function ProfileOverview() {
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </Pressable>
         </View>
+
+        {/* Admin Panel — only visible to admins */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Pressable
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: COLORS.surface,
+                borderRadius: 12,
+                padding: 14,
+                borderWidth: 1.5,
+                borderColor: COLORS.primary,
+                gap: 10,
+              }}
+              onPress={() => router.push("/admin")}
+            >
+              <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontFamily: fonts.bodyBold, color: COLORS.primary }}>
+                  Admin Panel
+                </Text>
+                <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textSecondary }}>
+                  Error logs, reports, analytics
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+            </Pressable>
+          </View>
+        )}
 
         {/* Settings */}
         <View style={styles.section}>
@@ -459,28 +513,30 @@ export default function ProfileOverview() {
           </Pressable>
         </View>
 
-        {/* Dev Tools */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 18, marginRight: 8 }}>🛠️</Text>
-            <Text style={styles.sectionTitle}>Dev Tools</Text>
+        {/* Dev Tools — admin only */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={{ fontSize: 18, marginRight: 8 }}>🛠️</Text>
+              <Text style={styles.sectionTitle}>Dev Tools</Text>
+            </View>
+            <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textMuted, marginBottom: 12 }}>
+              Admin-only testing helpers
+            </Text>
+            <Pressable
+              style={[styles.devButton, resettingMock && { opacity: 0.5 }]}
+              onPress={handleResetMockData}
+              disabled={resettingMock}
+            >
+              <Text style={styles.devButtonText}>
+                {resettingMock ? "Resetting..." : "Reset Mock Data"}
+              </Text>
+              <Text style={styles.devButtonSubtext}>
+                Clears interactions, moves 25 mock profiles to you
+              </Text>
+            </Pressable>
           </View>
-          <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textMuted, marginBottom: 12 }}>
-            Testing helpers — remove before release
-          </Text>
-          <Pressable
-            style={[styles.devButton, resettingMock && { opacity: 0.5 }]}
-            onPress={handleResetMockData}
-            disabled={resettingMock}
-          >
-            <Text style={styles.devButtonText}>
-              {resettingMock ? "Resetting..." : "Reset Mock Data"}
-            </Text>
-            <Text style={styles.devButtonSubtext}>
-              Clears interactions, moves 25 mock profiles to you
-            </Text>
-          </Pressable>
-        </View>
+        )}
       </ScrollView>
 
       {/* Emoji Edit Modal */}
@@ -490,6 +546,10 @@ export default function ProfileOverview() {
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+          {/* Grab handle */}
+          <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 4 }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.disabled }} />
+          </View>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setEmojiModalVisible(false)}>
               <Text style={styles.modalCancel}>Cancel</Text>
@@ -630,47 +690,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: COLORS.primary,
   },
-
-  // Discovery filter
-  filterLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.textSecondary,
-    marginBottom: 10,
-  },
-  filterColumn: {
-    gap: 10,
-  },
-  filterCheckRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.background,
-  },
-  checkmark: {
-    fontSize: 13,
-    color: "#FFF",
-    fontWeight: "700",
-    marginTop: -1,
-  },
-  filterCheckEmoji: {
-    fontSize: 16,
-  },
-  filterCheckLabel: {
-    fontSize: 15,
-    fontFamily: fonts.body,
-    color: COLORS.text,
-  },
-
 
   // Legal
   legalRow: {

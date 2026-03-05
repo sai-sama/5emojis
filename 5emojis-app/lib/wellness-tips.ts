@@ -9,6 +9,7 @@ export interface WellnessTip {
 
 const DISMISS_KEY_PREFIX = "tip_dismissed_";
 const CACHE_KEY = "wellness_tip_cache";
+const FIRST_OPEN_KEY = "app_first_open_date";
 
 // ─── Static fallbacks (used when Edge Function hasn't run yet) ──────
 const STATIC_TIPS: WellnessTip[] = [
@@ -63,6 +64,26 @@ export async function dismissTodaysTip(): Promise<void> {
 
 /** Fetch today's tip: cache → Supabase → static fallback */
 export async function getTodaysTip(): Promise<WellnessTip | null> {
+  // Don't show tips on day 1 — let users enjoy the app first
+  try {
+    let firstOpen = await AsyncStorage.getItem(FIRST_OPEN_KEY);
+    if (!firstOpen) {
+      await AsyncStorage.setItem(FIRST_OPEN_KEY, getTodayKey());
+      return null; // First day, skip tips
+    }
+    if (firstOpen === getTodayKey()) return null; // Still day 1
+  } catch (err: any) {
+    logError(err, { screen: "WellnessTips", context: "check_first_open" });
+  }
+
+  // Don't show tips if tutorial hasn't been completed
+  try {
+    const tutorialSeen = await AsyncStorage.getItem("swipe_tutorial_seen");
+    if (!tutorialSeen) return null;
+  } catch (err: any) {
+    logError(err, { screen: "WellnessTips", context: "check_tutorial_seen" });
+  }
+
   // Already dismissed?
   try {
     if (await isTipDismissedToday()) return null;

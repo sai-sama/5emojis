@@ -124,7 +124,7 @@ export function subscribeToMessages(
 }
 
 // ─── Reaction quick-pick emojis ──────────────────────────────
-export const REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
+export const REACTION_EMOJIS = ["👍", "😂", "🔥", "🤔", "💀"];
 
 // ─── Toggle a reaction on a message ─────────────────────────
 export async function toggleReaction(

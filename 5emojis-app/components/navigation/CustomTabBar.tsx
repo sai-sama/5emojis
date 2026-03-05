@@ -21,6 +21,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import { useUndo } from "../../lib/undo-context";
+import { useUnread } from "../../lib/unread-context";
 
 const TAB_CONFIG: Record<
   string,
@@ -36,10 +37,12 @@ function AnimatedTab({
   routeName,
   focused,
   onPress,
+  badge,
 }: {
   routeName: string;
   focused: boolean;
   onPress: () => void;
+  badge?: number;
 }) {
   const config = TAB_CONFIG[routeName] ?? { icon: "help-outline" as const, iconFocused: "help" as const, label: routeName };
 
@@ -93,7 +96,7 @@ function AnimatedTab({
     color: interpolateColor(
       colorProgress.value,
       [0, 1],
-      [COLORS.textSecondary, COLORS.primary]
+      ["rgba(255,255,255,0.55)", "#FFFFFF"]
     ),
   }));
 
@@ -102,16 +105,24 @@ function AnimatedTab({
       style={styles.tab}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="tab"
+      accessibilityLabel={`${config.label}${badge ? `, ${badge} unread` : ""}`}
+      accessibilityState={{ selected: focused }}
     >
       {/* Active pill background */}
       <Animated.View style={[styles.activePill, pillStyle]} />
 
-      <Animated.View style={iconStyle}>
+      <Animated.View style={[iconStyle, { position: "relative" }]}>
         <Ionicons
           name={focused ? config.iconFocused : config.icon}
           size={22}
-          color={focused ? COLORS.primary : COLORS.textSecondary}
+          color={focused ? "#FFF" : "rgba(255,255,255,0.55)"}
         />
+        {!!badge && badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+          </View>
+        )}
       </Animated.View>
       <Animated.Text
         style={[
@@ -133,6 +144,7 @@ export default function CustomTabBar({
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { canUndo, onUndo } = useUndo();
+  const { unreadCount } = useUnread();
 
   // Only show undo when on Discover tab AND there's something to undo
   const discoverIndex = state.routes.findIndex((r) => r.name === "index");
@@ -175,7 +187,7 @@ export default function CustomTabBar({
           <Ionicons
             name="arrow-undo"
             size={20}
-            color={COLORS.primary}
+            color="#FFF"
           />
           <Text style={[styles.undoLabel, styles.undoLabelActive]}>
             Undo
@@ -183,7 +195,7 @@ export default function CustomTabBar({
         </TouchableOpacity>
       )}
 
-      <AnimatedTab {...makeTabProps("vibes")} />
+      <AnimatedTab {...makeTabProps("vibes")} badge={unreadCount} />
     </View>
   );
 }
@@ -193,14 +205,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-evenly",
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#7C3AED",
     paddingTop: 8,
     borderTopWidth: 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: "#5B21B6",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
   },
   tab: {
     flex: 1,
@@ -215,14 +227,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.primarySurface,
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
+    borderColor: "rgba(255,255,255,0.3)",
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: fonts.body,
-    color: COLORS.textSecondary,
+    color: "rgba(255,255,255,0.55)",
     marginTop: 2,
   },
   tabLabelFocused: {
@@ -238,11 +250,31 @@ const styles = StyleSheet.create({
   undoLabel: {
     fontSize: 10,
     fontFamily: fonts.body,
-    color: COLORS.textMuted,
+    color: "rgba(255,255,255,0.55)",
     marginTop: 2,
   },
   undoLabelActive: {
-    color: COLORS.primary,
+    color: "#FFF",
     fontFamily: fonts.bodySemiBold,
+  },
+  // ─── Unread badge ──────────────────────────────
+  badge: {
+    position: "absolute" as const,
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FF6B6B",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#7C3AED",
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodyBold,
+    color: "#FFF",
   },
 });

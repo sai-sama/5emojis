@@ -122,6 +122,13 @@ export default function RootLayout() {
                 animation: "slide_from_right",
               }}
             />
+            <Stack.Screen
+              name="suspended"
+              options={{
+                headerShown: false,
+                gestureEnabled: false,
+              }}
+            />
           </Stack>
         </AuthProvider>
         </ErrorBoundary>

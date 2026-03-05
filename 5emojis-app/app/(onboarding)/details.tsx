@@ -58,7 +58,7 @@ export default function DetailsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 80, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 110, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

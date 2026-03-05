@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
 import { logError } from "./error-logger";
+import { detectFaceInPhoto } from "./face-detection";
 
 // ─── Constants ──────────────────────────────────────────────
 const MAX_WIDTH = 800; // 2x retina for ~400px card width
@@ -105,7 +106,8 @@ export async function moderatePhoto(
  * unreliable fetch(localUri).blob() pattern in React Native.
  */
 export async function preparePhoto(
-  uri: string
+  uri: string,
+  isPrimary: boolean = false
 ): Promise<{ uri: string; base64: string }> {
   // 1. Compress (gracefully degrades if native module missing)
   const compressedUri = await compressPhoto(uri);
@@ -113,12 +115,23 @@ export async function preparePhoto(
   // 2. Validate file size
   await validatePhotoSize(compressedUri);
 
-  // 3. Read as base64 (reused for both moderation AND upload)
+  // 3. Face detection (primary photo only — must show a clear face)
+  if (isPrimary) {
+    const faceResult = await detectFaceInPhoto(compressedUri);
+    if (!faceResult.hasFace) {
+      throw new Error(
+        faceResult.error ||
+          "Your main photo needs to clearly show your face. Try a different photo!"
+      );
+    }
+  }
+
+  // 4. Read as base64 (reused for both moderation AND upload)
   const base64 = await FileSystem.readAsStringAsync(compressedUri, {
     encoding: "base64",
   });
 
-  // 4. Content moderation
+  // 5. Content moderation
   const modResult = await moderatePhoto(base64);
   if (!modResult.safe) {
     throw new Error(

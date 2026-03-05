@@ -44,7 +44,7 @@ import {
 } from "../../lib/discovery-service";
 import { supabase } from "../../lib/supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "../../lib/types";
-import { type SwipeProfile } from "./mockProfiles";
+import { type SwipeProfile, calculateAge } from "./mockProfiles";
 import LottieEmptyState from "../lottie/LottieEmptyState";
 import { playSwipeSound, isSoundMuted } from "../../lib/sounds";
 import type { GenderValue } from "../../lib/constants";
@@ -107,8 +107,9 @@ const SwipeableTopCard = forwardRef<
     userLat: number;
     userLng: number;
     userEmojis: string[];
+    onTap?: () => void;
   }
->(function SwipeableTopCard({ profile, dragProgress, onSwipeComplete, userLat, userLng, userEmojis }, ref) {
+>(function SwipeableTopCard({ profile, dragProgress, onSwipeComplete, userLat, userLng, userEmojis, onTap }, ref) {
   // ─── Per-card shared values (never shared, never reset) ───
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -239,6 +240,13 @@ const SwipeableTopCard = forwardRef<
     })
     .activeOffsetX([-10, 10]);
 
+  // ─── Tap gesture — navigate to profile ──────────────────
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    if (onTap) runOnJS(onTap)();
+  });
+
+  const composedGesture = Gesture.Race(panGesture, tapGesture);
+
   // ─── Top card animated style ──────────────────────────────
   const topCardStyle = useAnimatedStyle(() => {
     const rotation = interpolate(
@@ -260,7 +268,7 @@ const SwipeableTopCard = forwardRef<
   });
 
   return (
-    <GestureDetector gesture={panGesture}>
+    <GestureDetector gesture={composedGesture}>
       <Animated.View
         style={[styles.cardWrapper, { height: CARD_HEIGHT }, topCardStyle]}
       >
@@ -307,10 +315,15 @@ export default function SwipeCardStack() {
     AsyncStorage.setItem("swipe_tutorial_seen", "true");
   }, []);
 
-  // ─── Read gender filters from AsyncStorage on focus ────────
+  // ─── Age filter state ──────────────────────────────────────
+  const [ageFilterMin, setAgeFilterMin] = useState(18);
+  const [ageFilterMax, setAgeFilterMax] = useState(99);
+
+  // ─── Read filters from AsyncStorage on focus ──────────────
   // Only update state if the values actually changed (avoids resetting currentIndex)
   useFocusEffect(
     useCallback(() => {
+      // Gender filters
       AsyncStorage.getItem("gender_filters").then((val) => {
         let newFilters: GenderValue[] = ["male", "female", "nonbinary"];
         if (val) {
@@ -324,12 +337,21 @@ export default function SwipeCardStack() {
           }
         }
         setGenderFilters((prev) => {
-          // Deep compare — only update if values actually changed
           if (prev.length === newFilters.length && prev.every((g, i) => g === newFilters[i])) {
-            return prev; // Same reference → no re-render, no currentIndex reset
+            return prev;
           }
           return newFilters;
         });
+      });
+      // Age filters
+      Promise.all([
+        AsyncStorage.getItem("age_filter_min"),
+        AsyncStorage.getItem("age_filter_max"),
+      ]).then(([minVal, maxVal]) => {
+        const newMin = minVal ? parseInt(minVal, 10) : 18;
+        const newMax = maxVal ? parseInt(maxVal, 10) : 99;
+        setAgeFilterMin((prev) => (prev === newMin ? prev : newMin));
+        setAgeFilterMax((prev) => (prev === newMax ? prev : newMax));
       });
     }, [])
   );
@@ -430,12 +452,22 @@ export default function SwipeCardStack() {
     }
   }, [currentIndex, profiles]);
 
-  // ─── Filter profiles locally by gender preferences ──────
+  // ─── Filter profiles locally by gender + age preferences ──
   const filteredProfiles = useMemo(() => {
-    // All 3 selected = show everyone
-    if (genderFilters.length === 3) return profiles;
-    return profiles.filter((p) => genderFilters.includes(p.profile.gender as GenderValue));
-  }, [profiles, genderFilters]);
+    const allGenders = genderFilters.length === 3;
+    const defaultAge = ageFilterMin <= 18 && ageFilterMax >= 99;
+
+    if (allGenders && defaultAge) return profiles;
+
+    return profiles.filter((p) => {
+      if (!allGenders && !genderFilters.includes(p.profile.gender as GenderValue)) return false;
+      if (!defaultAge && p.profile.dob) {
+        const age = calculateAge(p.profile.dob);
+        if (age < ageFilterMin || age > ageFilterMax) return false;
+      }
+      return true;
+    });
+  }, [profiles, genderFilters, ageFilterMin, ageFilterMax]);
 
   // ─── Swipe complete handler ─────────────────────────────
   const onSwipeComplete = useCallback(
@@ -598,6 +630,13 @@ export default function SwipeCardStack() {
                   <Ionicons name="expand-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
                   <Text style={styles.refreshText}>Expand Radius</Text>
                 </Pressable>
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={() => router.push("/(tabs)/")}
+                >
+                  <Ionicons name="options-outline" size={16} color={COLORS.primary} style={{ marginRight: 4 }} />
+                  <Text style={styles.secondaryButtonText}>Adjust Filters</Text>
+                </Pressable>
                 {filteredProfiles.length > 0 && (
                   <Pressable
                     style={styles.secondaryButton}
@@ -656,6 +695,7 @@ export default function SwipeCardStack() {
             userLat={userLat}
             userLng={userLng}
             userEmojis={userEmojis}
+            onTap={() => router.push(`/user/${visibleProfiles[0].profile.id}`)}
           />
         )}
 
@@ -757,6 +797,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
   },
   secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 14,

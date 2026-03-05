@@ -376,3 +376,31 @@ export async function undoSwipe(
 
   return { error: null };
 }
+
+// ─── Unmatch (remove match + messages, no block) ─────────────
+export async function unmatchUser(matchId: string): Promise<{ error: string | null }> {
+  // Delete messages first (FK constraint)
+  const { error: msgErr } = await supabase
+    .from("messages")
+    .delete()
+    .eq("match_id", matchId);
+  if (msgErr) return { error: msgErr.message };
+
+  // Delete message reactions for this match's messages
+  await supabase
+    .from("message_reactions")
+    .delete()
+    .in(
+      "message_id",
+      (await supabase.from("messages").select("id").eq("match_id", matchId)).data?.map((m) => m.id) ?? []
+    );
+
+  // Delete the match
+  const { error: matchErr } = await supabase
+    .from("matches")
+    .delete()
+    .eq("id", matchId);
+  if (matchErr) return { error: matchErr.message };
+
+  return { error: null };
+}

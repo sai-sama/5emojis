@@ -2,6 +2,7 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OnboardingProvider } from "../../lib/onboarding-context";
+import { useAuth } from "../../lib/auth-context";
 import { COLORS } from "../../lib/constants";
 import BrandLogo from "../../components/BrandLogo";
 import AuroraBackground from "../../components/skia/AuroraBackground";
@@ -9,6 +10,7 @@ import OnboardingProgress from "../../components/OnboardingProgress";
 
 export default function OnboardingLayout() {
   const insets = useSafeAreaInsets();
+  const { signOut } = useAuth();
 
   return (
     <OnboardingProvider>
@@ -22,7 +24,7 @@ export default function OnboardingLayout() {
             headerTransparent: true,
             headerStyle: { backgroundColor: "transparent" },
             headerTintColor: COLORS.primary,
-            headerTitle: () => <BrandLogo size="compact" />,
+            headerTitle: () => <BrandLogo size="compact" onPress={signOut} />,
             contentStyle: { backgroundColor: "transparent" },
             animation: "slide_from_right",
           }}

@@ -121,7 +121,7 @@ export default function LocationScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={{ flex: 1, paddingHorizontal: 32, paddingTop: 80 }}>
+      <View style={{ flex: 1, paddingHorizontal: 32, paddingTop: 110 }}>
         <Animated.Text
           entering={FadeInDown.duration(500).delay(100)}
           style={{ fontSize: 28, fontFamily: fonts.heading, color: COLORS.text }}

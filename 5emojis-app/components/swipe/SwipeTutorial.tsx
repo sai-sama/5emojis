@@ -24,12 +24,6 @@ const STEPS = [
     title: "Swipe right to vibe",
     subtitle: "Want to be friends? Swipe right to send a vibe!",
   },
-  {
-    icon: "hand-left-outline" as const,
-    iconColor: COLORS.highlight,
-    title: "Tap the card to see more",
-    subtitle: "Tap anywhere on the card to view their full profile.",
-  },
 ];
 
 export default function SwipeTutorial({ onDismiss }: Props) {

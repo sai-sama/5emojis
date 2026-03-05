@@ -30,7 +30,7 @@ export const COLORS = {
   surface: "#FFFFFF",            // card / sheet background
   text: "#2D3436",               // primary text
   textSecondary: "#636E72",      // secondary text
-  textMuted: "#9CA3AF",          // muted labels, placeholders
+  textMuted: "#6B7280",          // muted labels, placeholders
   border: "#E8E4DE",             // standard border
   borderLight: "#E2E8F0",        // lighter border / divider
   disabled: "#D1D5DB",           // disabled state gray

@@ -29,6 +29,11 @@ export type Database = {
           emoji_last_edited_at: string | null;
           push_token: string | null;
           search_radius_miles: number;
+          is_suspended: boolean;
+          suspended_at: string | null;
+          suspended_until: string | null;
+          suspension_reason: string | null;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -52,6 +57,11 @@ export type Database = {
           work_style?: string | null;
           emoji_last_edited_at?: string | null;
           push_token?: string | null;
+          is_suspended?: boolean;
+          suspended_at?: string | null;
+          suspended_until?: string | null;
+          suspension_reason?: string | null;
+          is_admin?: boolean;
           is_new_to_city?: boolean;
           city: string;
           state?: string | null;

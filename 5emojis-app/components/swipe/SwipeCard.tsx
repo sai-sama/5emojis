@@ -126,9 +126,9 @@ function SwipeCardInner({
   });
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
       <View style={styles.photoContainer}>
-        <Image source={{ uri: photo.url }} style={styles.photo} />
+        <Image source={{ uri: photo.url }} style={styles.photo} accessibilityLabel={`Photo of ${p.name}`} />
 
         {/* Stronger multi-stop gradient for overlay readability */}
         <LinearGradient
@@ -214,7 +214,7 @@ function SwipeCardInner({
             <Text style={styles.profession}>{p.profession}</Text>
           )}
           <View style={styles.distanceRow}>
-            <Text style={styles.distance}>{distance}</Text>
+            <Text style={styles.distance}>📍 {distance}</Text>
             {p.is_new_to_city && (
               <View style={styles.newBadge}>
                 <Text style={styles.newBadgeText}>New Here</Text>

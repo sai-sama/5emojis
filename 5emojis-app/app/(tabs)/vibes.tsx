@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import {
   type MatchFilter,
   type IncomingVibe,
 } from "../../lib/swipe-service";
+import { supabase } from "../../lib/supabase";
 import { blockUser } from "../../lib/block-report-service";
 import ReportModal from "../../components/ReportModal";
 import { calculateAge } from "../../components/swipe/mockProfiles";
@@ -349,6 +350,30 @@ export default function VibesScreen() {
       loadData();
     }, [loadData])
   );
+
+  // Realtime: refresh when new matches or messages arrive
+  useEffect(() => {
+    if (!session?.user) return;
+    const channel = supabase
+      .channel("vibes-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "matches" },
+        () => loadData()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        () => loadData()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "swipes" },
+        () => loadData()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session, loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

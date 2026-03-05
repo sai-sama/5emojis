@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -33,56 +33,58 @@ export default function EmojisScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "transparent" }} edges={["bottom"]}>
       <EmojiBackground opacity={0.06} />
-      {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 80, paddingBottom: 12 }}>
-        <Animated.Text
-          entering={FadeInDown.duration(500).delay(100)}
-          style={{ fontSize: 26, fontFamily: fonts.heading, color: COLORS.text }}
-        >
-          Pick your 5 emojis
-        </Animated.Text>
-        <Animated.Text
-          entering={FadeInDown.duration(500).delay(200)}
-          style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 2 }}
-        >
-          Express yourself — pick 5 that capture your vibe
-        </Animated.Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        {/* Header */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 110, paddingBottom: 12 }}>
+          <Animated.Text
+            entering={FadeInDown.duration(500).delay(100)}
+            style={{ fontSize: 26, fontFamily: fonts.heading, color: COLORS.text }}
+          >
+            Pick your 5 emojis
+          </Animated.Text>
+          <Animated.Text
+            entering={FadeInDown.duration(500).delay(200)}
+            style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 2 }}
+          >
+            Express yourself — pick 5 that capture your vibe
+          </Animated.Text>
 
-        {/* Selected slots — drag to reorder */}
-        <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginTop: 16 }}>
-          <DraggableEmojiSlots
-            emojis={selectedEmojis}
-            onReorder={setSelectedEmojis}
-            onRemove={(index) => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setSelectedEmojis(selectedEmojis.filter((_, idx) => idx !== index));
+          {/* Selected slots — drag to reorder */}
+          <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginTop: 16 }}>
+            <DraggableEmojiSlots
+              emojis={selectedEmojis}
+              onReorder={setSelectedEmojis}
+              onRemove={(index) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setSelectedEmojis(selectedEmojis.filter((_, idx) => idx !== index));
+              }}
+            />
+          </Animated.View>
+        </View>
+
+        {/* Emoji picker */}
+        <View style={{ flex: 1 }}>
+          <EmojiPicker
+            selected={selectedEmojis}
+            onToggle={toggleEmoji}
+            onSetAll={setSelectedEmojis}
+            maxSelection={5}
+          />
+        </View>
+
+        {/* Continue button */}
+        <View style={{ paddingHorizontal: 20, paddingBottom: 0, paddingTop: 8 }}>
+          <OnboardingButton
+            disabled={!isFull}
+            label={isFull ? "Continue" : `Pick ${5 - selectedEmojis.length} more`}
+            onPress={() => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              update({ emojis: selectedEmojis });
+              router.push("/(onboarding)/details");
             }}
           />
-        </Animated.View>
-      </View>
-
-      {/* Emoji picker */}
-      <View style={{ flex: 1 }}>
-        <EmojiPicker
-          selected={selectedEmojis}
-          onToggle={toggleEmoji}
-          onSetAll={setSelectedEmojis}
-          maxSelection={5}
-        />
-      </View>
-
-      {/* Continue button */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 0, paddingTop: 8 }}>
-        <OnboardingButton
-          disabled={!isFull}
-          label={isFull ? "Continue" : `Pick ${5 - selectedEmojis.length} more`}
-          onPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            update({ emojis: selectedEmojis });
-            router.push("/(onboarding)/details");
-          }}
-        />
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

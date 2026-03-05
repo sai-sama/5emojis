@@ -26,7 +26,8 @@ import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieCelebration from "../../components/lottie/LottieCelebration";
 import ReportModal from "../../components/ReportModal";
 import { useAuth } from "../../lib/auth-context";
-import { fetchMatches, type MatchWithProfile } from "../../lib/swipe-service";
+import { supabase } from "../../lib/supabase";
+import { fetchMatches, unmatchUser, type MatchWithProfile } from "../../lib/swipe-service";
 import {
   fetchMessages,
   fetchIcebreakerQuestion,
@@ -82,6 +83,11 @@ export default function ChatScreen() {
   // Reactions state
   const [reactions, setReactions] = useState<Record<string, MessageReaction[]>>({});
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+
+  // Typing indicator state
+  const [otherIsTyping, setOtherIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Block & Report state
   const [showMenu, setShowMenu] = useState(false);
@@ -184,6 +190,39 @@ export default function ChatScreen() {
       unsubReactions();
     };
   }, [matchId, session, matchData]);
+
+  // ─── Typing indicator via broadcast ──────────────────────────
+  useEffect(() => {
+    if (!matchId || !session?.user) return;
+    const channel = supabase.channel(`typing:${matchId}`);
+    typingChannelRef.current = channel;
+
+    channel
+      .on("broadcast", { event: "typing" }, (payload) => {
+        if (payload.payload?.userId !== session.user.id) {
+          setOtherIsTyping(true);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setOtherIsTyping(false), 3000);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      typingChannelRef.current = null;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [matchId, session]);
+
+  // Broadcast typing when user types
+  const broadcastTyping = useCallback(() => {
+    if (!session?.user || !typingChannelRef.current) return;
+    typingChannelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId: session.user.id },
+    });
+  }, [session]);
 
   // ─── Derived data ──────────────────────────────────────────
   const other = matchData?.otherUser;
@@ -333,6 +372,31 @@ export default function ChatScreen() {
     );
   }, [session, otherUserId, other]);
 
+  // ─── Unmatch handler ───────────────────────────────────────
+  const handleUnmatch = useCallback(() => {
+    if (!matchId) return;
+    Alert.alert(
+      `Unmatch ${other?.name ?? "this person"}?`,
+      "This will remove your match and messages. They won't be notified.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unmatch",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await unmatchUser(matchId);
+            if (error) {
+              Alert.alert("Error", error);
+              return;
+            }
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.back();
+          },
+        },
+      ]
+    );
+  }, [matchId, other]);
+
   // ─── Split emojis string into array ────────────────────────
   const splitEmojis = (content: string): string[] => {
     // Match complete emoji grapheme clusters:
@@ -365,7 +429,10 @@ export default function ChatScreen() {
           {loading ? (
             <ActivityIndicator size="small" color={COLORS.primary} />
           ) : other ? (
-            <View style={styles.headerInfo}>
+            <Pressable
+              style={styles.headerInfo}
+              onPress={() => router.push(`/user/${otherUserId}`)}
+            >
               {matchData?.otherPhoto ? (
                 <Image
                   source={{ uri: matchData.otherPhoto.url }}
@@ -384,7 +451,7 @@ export default function ChatScreen() {
                   <Text style={styles.headerProfession}>{other.profession}</Text>
                 ) : null}
               </View>
-            </View>
+            </Pressable>
           ) : null}
 
           {/* Three-dots menu */}
@@ -403,6 +470,32 @@ export default function ChatScreen() {
         {showMenu && (
           <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
             <View style={styles.menuDropdown}>
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  router.push(`/user/${otherUserId}`);
+                }}
+              >
+                <Ionicons name="person-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={[styles.menuItemText, { color: COLORS.primary }]}>
+                  View Profile
+                </Text>
+              </Pressable>
+              <View style={{ height: 1, backgroundColor: COLORS.borderLight, marginVertical: 2 }} />
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  handleUnmatch();
+                }}
+              >
+                <Ionicons name="heart-dislike-outline" size={18} color={COLORS.textSecondary} />
+                <Text style={[styles.menuItemText, { color: COLORS.textSecondary }]}>
+                  Unmatch
+                </Text>
+              </Pressable>
+              <View style={{ height: 1, backgroundColor: COLORS.borderLight, marginVertical: 2 }} />
               <Pressable
                 style={styles.menuItem}
                 onPress={() => {
@@ -769,8 +862,30 @@ export default function ChatScreen() {
                           isMe
                             ? styles.messageBubbleWrapMe
                             : styles.messageBubbleWrapOther,
+                          groupedReactions.length > 0 && { marginBottom: 14 },
                         ]}
                       >
+                        {/* Reaction quick-picker (shown on long-press) — above bubble */}
+                        {reactionPickerMessageId === msg.id && (
+                          <Animated.View
+                            entering={FadeIn.duration(150)}
+                            style={[
+                              styles.reactionPicker,
+                              isMe ? styles.reactionPickerMe : styles.reactionPickerOther,
+                            ]}
+                          >
+                            {REACTION_EMOJIS.map((emoji) => (
+                              <Pressable
+                                key={emoji}
+                                onPress={() => handleReaction(msg.id, emoji)}
+                                style={styles.reactionPickerItem}
+                              >
+                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+                              </Pressable>
+                            ))}
+                          </Animated.View>
+                        )}
+
                         <Pressable
                           onLongPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -796,9 +911,29 @@ export default function ChatScreen() {
                           >
                             {msg.content}
                           </Text>
+                          <View style={styles.messageMetaRow}>
+                            <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>
+                              {new Date(msg.created_at).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </Text>
+                            {isMe && (
+                              <Text
+                                style={[
+                                  styles.readReceiptCheck,
+                                  msg.read_at
+                                    ? styles.readReceiptRead
+                                    : styles.readReceiptUnread,
+                                ]}
+                              >
+                                {msg.read_at ? "\u2713\u2713" : "\u2713"}
+                              </Text>
+                            )}
+                          </View>
                         </Pressable>
 
-                        {/* Reaction pills below the bubble */}
+                        {/* Reaction pills — tucked under the bubble, overlapping */}
                         {groupedReactions.length > 0 && (
                           <View style={[styles.reactionRow, isMe ? styles.reactionRowMe : styles.reactionRowOther]}>
                             {groupedReactions.map(({ emoji, count, byMe }) => (
@@ -820,61 +955,29 @@ export default function ChatScreen() {
                             ))}
                           </View>
                         )}
-
-                        {/* Reaction quick-picker (shown on long-press) */}
-                        {reactionPickerMessageId === msg.id && (
-                          <Animated.View
-                            entering={FadeIn.duration(150)}
-                            style={[
-                              styles.reactionPicker,
-                              isMe ? styles.reactionPickerMe : styles.reactionPickerOther,
-                            ]}
-                          >
-                            {REACTION_EMOJIS.map((emoji) => (
-                              <Pressable
-                                key={emoji}
-                                onPress={() => handleReaction(msg.id, emoji)}
-                                style={styles.reactionPickerItem}
-                              >
-                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
-                              </Pressable>
-                            ))}
-                          </Animated.View>
-                        )}
-
-                        <Text style={styles.messageTime}>
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </Text>
-                        {isMe && (
-                          <View style={styles.readReceipt}>
-                            <Text
-                              style={[
-                                styles.readReceiptCheck,
-                                msg.read_at
-                                  ? styles.readReceiptRead
-                                  : styles.readReceiptUnread,
-                              ]}
-                            >
-                              {msg.read_at ? "\u2713\u2713" : "\u2713"}
-                            </Text>
-                            {msg.read_at && (
-                              <Text style={styles.readReceiptLabel}>Read</Text>
-                            )}
-                          </View>
-                        )}
                       </View>
                     );
                   }}
                 />
 
+                {/* Typing indicator */}
+                {otherIsTyping && (
+                  <View style={styles.typingRow}>
+                    <Text style={styles.typingText}>
+                      {other?.name ?? "They"} is typing
+                    </Text>
+                    <Text style={styles.typingDots}>...</Text>
+                  </View>
+                )}
+
                 {/* Text input bar */}
                 <View style={styles.inputBar}>
                   <TextInput
                     value={textInput}
-                    onChangeText={setTextInput}
+                    onChangeText={(text) => {
+                      setTextInput(text);
+                      broadcastTyping();
+                    }}
                     placeholder="Send a message..."
                     placeholderTextColor={COLORS.textMuted}
                     style={styles.textInput}
@@ -1363,7 +1466,7 @@ const styles = StyleSheet.create({
   },
   messageBubbleWrap: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   messageBubbleWrapMe: {
     alignItems: "flex-end",
@@ -1374,7 +1477,8 @@ const styles = StyleSheet.create({
   messageBubble: {
     maxWidth: SCREEN_WIDTH * 0.72,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
     borderRadius: 18,
   },
   messageBubbleMe: {
@@ -1398,32 +1502,30 @@ const styles = StyleSheet.create({
   messageTextOther: {
     color: COLORS.text,
   },
-  messageTime: {
-    fontSize: 11,
-    fontFamily: fonts.body,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  readReceipt: {
+  messageMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    marginTop: 1,
+    justifyContent: "flex-end",
+    gap: 4,
+    marginTop: 2,
+  },
+  messageTime: {
+    fontSize: 10,
+    fontFamily: fonts.body,
+    color: "rgba(0,0,0,0.35)",
+  },
+  messageTimeMe: {
+    color: "rgba(255,255,255,0.6)",
   },
   readReceiptCheck: {
     fontSize: 10,
     fontFamily: fonts.bodySemiBold,
   },
   readReceiptRead: {
-    color: COLORS.primary,
+    color: "rgba(255,255,255,0.7)",
   },
   readReceiptUnread: {
-    color: COLORS.textMuted,
-  },
-  readReceiptLabel: {
-    fontSize: 10,
-    fontFamily: fonts.body,
-    color: COLORS.primary,
+    color: "rgba(255,255,255,0.45)",
   },
 
   // ─── Date separators ──────────────────────────────────
@@ -1450,7 +1552,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 4,
-    marginTop: 4,
+    marginTop: -8,
+    paddingHorizontal: 8,
   },
   reactionRowMe: {
     justifyContent: "flex-end",
@@ -1461,23 +1564,28 @@ const styles = StyleSheet.create({
   reactionPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: 6,
+    backgroundColor: "#FFF",
+    borderRadius: 10,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.08)",
     gap: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   reactionPillMine: {
     borderColor: COLORS.primaryBorder,
     backgroundColor: COLORS.primarySoft,
   },
   reactionEmoji: {
-    fontSize: 14,
+    fontSize: 13,
   },
   reactionCount: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.bodySemiBold,
     color: COLORS.textSecondary,
   },
@@ -1486,18 +1594,18 @@ const styles = StyleSheet.create({
   },
   reactionPicker: {
     flexDirection: "row",
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginTop: 4,
+    backgroundColor: "#FFF",
+    borderRadius: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginBottom: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "rgba(0,0,0,0.06)",
     gap: 2,
   },
   reactionPickerMe: {
@@ -1507,14 +1615,33 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   reactionPickerItem: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
   reactionPickerEmoji: {
-    fontSize: 22,
+    fontSize: 24,
+  },
+
+  // ─── Typing indicator ──────────────────────────────────
+  typingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  typingText: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: COLORS.textMuted,
+  },
+  typingDots: {
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: COLORS.primary,
+    marginLeft: 2,
   },
 
   // ─── Text input bar ────────────────────────────────────

@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "../lib/constants";
 import { fonts } from "../lib/fonts";
 
 type BrandLogoProps = {
   size?: "compact" | "large";
+  onPress?: () => void;
 };
 
 const SIZES = {
@@ -26,11 +27,13 @@ const SIZES = {
   },
 };
 
-export default function BrandLogo({ size = "compact" }: BrandLogoProps) {
+export default function BrandLogo({ size = "compact", onPress }: BrandLogoProps) {
   const s = SIZES[size];
+  const Wrapper = onPress ? TouchableOpacity : View;
+  const wrapperProps = onPress ? { onPress, activeOpacity: 0.7 } : {};
 
   return (
-    <View style={styles.container}>
+    <Wrapper {...wrapperProps} style={styles.container}>
       <LinearGradient
         colors={[COLORS.primary, COLORS.primaryLight]}
         start={{ x: 0, y: 0 }}
@@ -71,7 +74,7 @@ export default function BrandLogo({ size = "compact" }: BrandLogoProps) {
       >
         ✦
       </Text>
-    </View>
+    </Wrapper>
   );
 }
 

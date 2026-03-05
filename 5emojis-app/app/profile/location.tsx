@@ -18,14 +18,12 @@ import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
 import {
   updateLocation,
-  updateSearchRadius,
   updateProfileFields,
 } from "../../lib/profile-service";
 import {
   searchLocations,
   type ResolvedLocation,
 } from "../../lib/geocoding";
-import { RADIUS_STEPS } from "../../lib/profile-constants";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 
@@ -42,9 +40,6 @@ export default function LocationScreen() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Local state
-  const [searchRadius, setSearchRadius] = useState(
-    profile?.profile.search_radius_miles ?? 50
-  );
   const [isNewToCity, setIsNewToCity] = useState(
     profile?.profile.is_new_to_city ?? false
   );
@@ -97,14 +92,6 @@ export default function LocationScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refresh();
     }
-  };
-
-  // ─── Radius change ─────────────────────────────────────────
-  const handleRadiusChange = async (r: number) => {
-    if (!session?.user) return;
-    setSearchRadius(r);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await updateSearchRadius(session.user.id, r);
   };
 
   // ─── New to city toggle ────────────────────────────────────
@@ -196,30 +183,6 @@ export default function LocationScreen() {
               )}
             </View>
           )}
-        </View>
-
-        {/* Search radius */}
-        <Text style={[styles.fieldLabel, { marginTop: 24 }]}>Search radius</Text>
-        <View style={styles.radiusRow}>
-          {RADIUS_STEPS.map((r) => (
-            <TouchableOpacity
-              key={r}
-              onPress={() => handleRadiusChange(r)}
-              style={[
-                styles.radiusChip,
-                searchRadius === r && styles.radiusChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.radiusChipText,
-                  searchRadius === r && styles.radiusChipTextActive,
-                ]}
-              >
-                {r}mi
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
 
         {/* New to city */}
@@ -343,42 +306,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.body,
     color: COLORS.textSecondary,
-  },
-
-  // Radius
-  fieldLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bodyBold,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.3,
-    marginBottom: 10,
-    textTransform: "uppercase",
-  },
-  radiusRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 20,
-    flexWrap: "wrap",
-  },
-  radiusChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
-  radiusChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  radiusChipText: {
-    fontSize: 13,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.textSecondary,
-  },
-  radiusChipTextActive: {
-    color: "#FFF",
   },
 
   // Toggle

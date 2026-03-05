@@ -14,6 +14,7 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useOnboarding } from "../../lib/onboarding-context";
+import { useAuth } from "../../lib/auth-context";
 import { getZodiacSign } from "../../lib/zodiac";
 import { fonts } from "../../lib/fonts";
 import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
@@ -29,6 +30,7 @@ function calculateAge(date: Date): number {
 
 export default function BasicsScreen() {
   const { data, update } = useOnboarding();
+  const { signOut } = useAuth();
 
   // Name
   const [name, setName] = useState(data.name);
@@ -63,7 +65,7 @@ export default function BasicsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 80, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 110, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -316,6 +318,15 @@ export default function BasicsScreen() {
             router.push("/(onboarding)/photos");
           }}
         />
+        <TouchableOpacity
+          onPress={signOut}
+          activeOpacity={0.6}
+          style={{ alignSelf: "center", paddingVertical: 14 }}
+        >
+          <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: COLORS.textMuted }}>
+            Sign in as someone else
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

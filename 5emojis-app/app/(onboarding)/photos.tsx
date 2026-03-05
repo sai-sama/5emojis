@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/onboarding-context";
 import { logError } from "../../lib/error-logger";
+import { detectFaceInPhoto } from "../../lib/face-detection";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import EmojiBackground, { PHOTO_EMOJIS } from "../../components/EmojiBackground";
@@ -17,6 +18,7 @@ import OnboardingButton from "../../components/OnboardingButton";
 export default function PhotosScreen() {
   const { data, update } = useOnboarding();
   const [photos, setPhotos] = useState<string[]>(data.photos);
+  const [checkingFace, setCheckingFace] = useState(false);
 
   const pickPhoto = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -50,6 +52,20 @@ export default function PhotosScreen() {
         logError(e, { screen: "PhotosScreen", context: "persist_photo_to_documents" });
       }
 
+      // Face detection for primary photo (index 0) — give immediate feedback
+      if (index === 0) {
+        setCheckingFace(true);
+        const faceResult = await detectFaceInPhoto(persistentUri);
+        setCheckingFace(false);
+        if (!faceResult.hasFace) {
+          Alert.alert(
+            "No face detected",
+            faceResult.error || "Your main photo needs to clearly show your face. Try a different photo!"
+          );
+          return;
+        }
+      }
+
       const newPhotos = [...photos];
       if (index < photos.length) {
         newPhotos[index] = persistentUri;
@@ -72,7 +88,7 @@ export default function PhotosScreen() {
       <EmojiBackground emojis={PHOTO_EMOJIS} opacity={0.06} />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 80, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 110, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
         <Animated.Text
@@ -194,6 +210,31 @@ export default function PhotosScreen() {
           }}
         />
       </View>
+
+      {/* Face detection loading overlay */}
+      {checkingFace && (
+        <View style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.4)",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100,
+        }}>
+          <View style={{
+            backgroundColor: "#FFF",
+            borderRadius: 20,
+            padding: 24,
+            alignItems: "center",
+            gap: 12,
+          }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={{ fontSize: 15, fontFamily: fonts.bodySemiBold, color: COLORS.text }}>
+              Checking for face...
+            </Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

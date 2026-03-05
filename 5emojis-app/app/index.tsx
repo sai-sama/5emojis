@@ -4,7 +4,7 @@ import { View, ActivityIndicator } from "react-native";
 import { COLORS } from "../lib/constants";
 
 export default function Index() {
-  const { session, loading, needsOnboarding } = useAuth();
+  const { session, loading, needsOnboarding, isSuspended } = useAuth();
 
   if (loading) {
     return (
@@ -16,6 +16,10 @@ export default function Index() {
 
   if (!session) {
     return <Redirect href="/(auth)/sign-in" />;
+  }
+
+  if (isSuspended) {
+    return <Redirect href="/suspended" />;
   }
 
   if (needsOnboarding) {

@@ -96,7 +96,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         // Compress + validate size + content moderation
         let prepared: { uri: string; base64: string };
         try {
-          prepared = await preparePhoto(final.photos[i]);
+          prepared = await preparePhoto(final.photos[i], i === 0);
         } catch (err: any) {
           // Moderation or size rejection — skip this photo
           console.warn(`Photo ${i + 1} rejected:`, err.message);
@@ -127,8 +127,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         return { error: "Photo upload failed. Please check your connection and try again." };
       }
 
-      // 2. Insert profile
-      const { error: profileError } = await supabase.from("profiles").insert({
+      // 2. Upsert profile (handles re-onboarding after reinstall with cached session)
+      const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
         name: final.name,
         dob: final.dob.toISOString().split("T")[0],
@@ -145,14 +145,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         latitude,
         longitude,
         search_radius_miles: 25,
-      });
+      }, { onConflict: "id" });
 
       if (profileError) {
         setSubmitting(false);
         return { error: profileError.message };
       }
 
-      // 3. Insert emojis
+      // 3. Replace emojis (delete old, insert new)
+      await supabase.from("profile_emojis").delete().eq("user_id", userId);
       if (final.emojis.length > 0) {
         await supabase.from("profile_emojis").insert(
           final.emojis.map((emoji, i) => ({
@@ -163,7 +164,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         );
       }
 
-      // 4. Insert photos
+      // 4. Replace photos (delete old, insert new)
+      await supabase.from("profile_photos").delete().eq("user_id", userId);
       if (photoUrls.length > 0) {
         const { error: photosError } = await supabase.from("profile_photos").insert(
           photoUrls.map((url, i) => ({
@@ -178,7 +180,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         }
       }
 
-      // 5. Insert interests
+      // 5. Replace interests (delete old, insert new)
+      await supabase.from("profile_interests").delete().eq("user_id", userId);
       if (final.interests.length > 0) {
         await supabase.from("profile_interests").insert(
           final.interests.map((tag) => ({
@@ -188,7 +191,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         );
       }
 
-      // 6. Insert availability slots
+      // 6. Replace availability slots (delete old, insert new)
+      await supabase.from("profile_availability").delete().eq("user_id", userId);
       if (final.availability.length > 0) {
         await supabase.from("profile_availability").insert(
           final.availability.map((slot) => ({

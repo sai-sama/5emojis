@@ -1,275 +1,263 @@
 /**
- * Generate 5Emojis app icons from SVG → PNG
+ * Generate 5Emojis app icon — "5" made of emoji mosaic
+ *
+ * Downloads Twemoji PNGs and composites them into the shape of "5"
+ * on a rich purple gradient background.
  *
  * Outputs:
  *   assets/icon.png                    — 1024x1024 (iOS App Store)
  *   assets/favicon.png                 — 48x48 (web)
  *   assets/splash-icon.png             — 200x200 (splash)
- *   assets/android-icon-foreground.png — 432x432 (Android adaptive, with padding)
- *   assets/android-icon-background.png — 432x432 (solid color bg)
+ *   assets/android-icon-foreground.png — 1024x1024 (Android adaptive)
+ *   assets/android-icon-background.png — 1024x1024 (solid gradient bg)
+ *   assets/android-icon-monochrome.png — 1024x1024 (monochrome silhouette)
  *
  * Run: node scripts/generate-icon.mjs
  */
 import sharp from "sharp";
-import { writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { existsSync, mkdirSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(__dirname, "..", "assets");
+const CACHE = join(__dirname, "..", ".emoji-cache");
+const SIZE = 1024;
 
-// ─── Design tokens ────────────────────────────────────────
-const PRIMARY = "#7C3AED";
-const PRIMARY_LIGHT = "#A78BFA";
-const PRIMARY_DARK = "#5B21B6";
-const BG_WARM = "#F7EFE3";
-const GOLD = "#FBBF24";
+// Social/friendship emoji set — diverse, colorful, fun
+const EMOJIS = [
+  "1f604", // 😄 smile
+  "1f389", // 🎉 party
+  "2728",  // ✨ sparkles
+  "1f91d", // 🤝 handshake
+  "1f49c", // 💜 purple heart
+  "1f3b5", // 🎵 music
+  "2615",  // ☕ coffee
+  "1f3a8", // 🎨 art
+  "1f525", // 🔥 fire
+  "1f31f", // 🌟 star
+  "1f60e", // 😎 cool
+  "1f64c", // 🙌 raised hands
+  "1f308", // 🌈 rainbow
+  "1f680", // 🚀 rocket
+  "1f381", // 🎁 gift
+  "1f60d", // 😍 heart eyes
+  "1f44b", // 👋 wave
+  "1f388", // 🎈 balloon
+  "1f382", // 🎂 cake
+  "1f3b6", // 🎶 notes
+  "1f917", // 🤗 hugging
+  "1f48e", // 💎 gem
+  "1f596", // 🖖 vulcan
+  "270c",  // ✌️ peace
+  "1f44d", // 👍 thumbs up
+  "1f37f", // 🍿 popcorn
+  "1f3ae", // 🎮 gaming
+  "1f4f8", // 📸 camera
+  "1f30e", // 🌎 earth
+  "1f9e1", // 🧡 orange heart
+];
 
-// ─── Main icon SVG (1024x1024) ────────────────────────────
-function createIconSVG(size = 1024) {
-  const s = size;
-  const cx = s / 2;
-  const cy = s / 2;
+// ─── Define the "5" shape as grid points ───────────────────
+// On a 16x20 grid, which cells form the number "5"
+function getFiveShape() {
+  const points = [];
 
-  // 5 emoji circles arranged in a friendly pentagon/arc pattern
-  // Positioned above and around the "5"
-  const emojis = ["👋", "🎉", "🌟", "💜", "🤝"];
-  const emojiSize = s * 0.09;
-  const emojiRadius = s * 0.32;
-  const emojiY = cy - s * 0.05;
+  // Top horizontal bar (rows 1-2, cols 3-13)
+  for (let r = 1; r <= 2; r++)
+    for (let c = 3; c <= 13; c++) points.push([r, c]);
 
-  // Arc arrangement — 5 emojis in a gentle smile curve above center
-  const emojiPositions = emojis.map((emoji, i) => {
-    const angle = Math.PI + (Math.PI * (i + 0.5)) / 5; // spread across top arc
-    const x = cx + emojiRadius * Math.cos(angle);
-    const y = emojiY + emojiRadius * Math.sin(angle) * 0.6;
-    return { emoji, x, y };
+  // Left vertical stem (rows 3-8, cols 3-5)
+  for (let r = 3; r <= 8; r++)
+    for (let c = 3; c <= 5; c++) points.push([r, c]);
+
+  // Middle bar + right curve top (rows 8-10)
+  for (let r = 8; r <= 10; r++)
+    for (let c = 3; c <= 13; c++) points.push([r, c]);
+
+  // Right side descender (rows 11-14, cols 11-13)
+  for (let r = 11; r <= 14; r++)
+    for (let c = 11; c <= 13; c++) points.push([r, c]);
+
+  // Bottom curve right (row 15, cols 9-13)
+  for (let c = 9; c <= 13; c++) points.push([15, c]);
+
+  // Bottom horizontal bar (rows 16-17, cols 4-11)
+  for (let r = 16; r <= 17; r++)
+    for (let c = 4; c <= 11; c++) points.push([r, c]);
+
+  // Bottom curve left (row 15, cols 3-5)
+  for (let c = 3; c <= 5; c++) points.push([15, c]);
+
+  // Left bottom hook (rows 13-14, cols 3-5)
+  for (let r = 13; r <= 14; r++)
+    for (let c = 3; c <= 5; c++) points.push([r, c]);
+
+  // Deduplicate
+  const seen = new Set();
+  return points.filter(([r, c]) => {
+    const key = `${r},${c}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
+}
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+// ─── Download & cache Twemoji PNGs ─────────────────────────
+async function fetchEmoji(code) {
+  if (!existsSync(CACHE)) mkdirSync(CACHE, { recursive: true });
+
+  const cached = join(CACHE, `${code}.png`);
+  if (existsSync(cached)) {
+    return sharp(cached).toBuffer();
+  }
+
+  const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${code}.png`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch emoji ${code}: ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  // Cache it
+  await sharp(buf).toFile(cached);
+  return buf;
+}
+
+// ─── Background SVG ────────────────────────────────────────
+function createBackgroundSVG(size = SIZE) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
-    <!-- Background gradient -->
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="${PRIMARY}"/>
-      <stop offset="100%" stop-color="${PRIMARY_DARK}"/>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="35%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#4338CA" />
     </linearGradient>
-
-    <!-- Subtle radial glow -->
-    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
-      <stop offset="0%" stop-color="${PRIMARY_LIGHT}" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="${PRIMARY_DARK}" stop-opacity="0"/>
+    <radialGradient id="ambient" cx="25%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#A78BFA" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0" />
     </radialGradient>
-
-    <!-- Gold accent for the 5 -->
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FDE68A"/>
-      <stop offset="100%" stop-color="${GOLD}"/>
-    </linearGradient>
-
-    <!-- Shadow filter -->
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.2"/>
-    </filter>
-
-    <filter id="emoji-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.15"/>
-    </filter>
   </defs>
-
-  <!-- Background with rounded corners -->
-  <rect width="${s}" height="${s}" rx="${s * 0.22}" fill="url(#bg)"/>
-
-  <!-- Radial glow -->
-  <rect width="${s}" height="${s}" rx="${s * 0.22}" fill="url(#glow)"/>
-
-  <!-- Subtle pattern — tiny dots -->
-  ${Array.from({ length: 30 }, (_, i) => {
-    const x = 80 + (i % 6) * (s * 0.16);
-    const y = 80 + Math.floor(i / 6) * (s * 0.18);
-    return `<circle cx="${x}" cy="${y}" r="${s * 0.008}" fill="white" opacity="0.06"/>`;
-  }).join("\n  ")}
-
-  <!-- The big "5" — centered, bold, white -->
-  <text
-    x="${cx}"
-    y="${cy + s * 0.12}"
-    text-anchor="middle"
-    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
-    font-weight="900"
-    font-size="${s * 0.52}"
-    fill="white"
-    filter="url(#shadow)"
-    opacity="0.95"
-  >5</text>
-
-  <!-- Gold underline accent -->
-  <rect
-    x="${cx - s * 0.14}"
-    y="${cy + s * 0.2}"
-    width="${s * 0.28}"
-    height="${s * 0.035}"
-    rx="${s * 0.018}"
-    fill="url(#gold)"
-    filter="url(#shadow)"
-  />
-
-  <!-- Emoji circles -->
-  ${emojiPositions
-    .map(
-      ({ emoji, x, y }) => `
-  <g filter="url(#emoji-shadow)">
-    <circle cx="${x}" cy="${y}" r="${emojiSize}" fill="white" opacity="0.15"/>
-    <text x="${x}" y="${y + emojiSize * 0.35}" text-anchor="middle" font-size="${emojiSize * 1.2}">${emoji}</text>
-  </g>`
-    )
-    .join("")}
+  <rect width="${size}" height="${size}" fill="url(#bgGrad)" />
+  <rect width="${size}" height="${size}" fill="url(#ambient)" />
 </svg>`;
 }
 
-// ─── Android foreground SVG (centered with adaptive icon padding) ─
-function createAndroidForegroundSVG() {
-  // Android adaptive icons: 108dp with 72dp safe zone (inner 66.7%)
-  // We render at 432px (108dp × 4) with content in the center 288px
-  const s = 432;
-  const cx = s / 2;
-  const cy = s / 2;
-  const content = s * 0.55; // content area
+// ─── Monochrome "5" for Android ────────────────────────────
+function createMonochromeSVG() {
+  // Simple thick "5" shape
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <text
+    x="512" y="640"
+    text-anchor="middle"
+    font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+    font-weight="800" font-size="420"
+    fill="white"
+  >5</text>
+</svg>`;
+}
 
-  const emojis = ["👋", "🎉", "🌟", "💜", "🤝"];
-  const emojiSize = content * 0.09;
-  const emojiRadius = content * 0.35;
-  const emojiY = cy - content * 0.02;
+// ─── Main generation ───────────────────────────────────────
+async function generate() {
+  console.log("Generating 5Emojis emoji-mosaic icon...\n");
 
-  const emojiPositions = emojis.map((emoji, i) => {
-    const angle = Math.PI + (Math.PI * (i + 0.5)) / 5;
-    const x = cx + emojiRadius * Math.cos(angle);
-    const y = emojiY + emojiRadius * Math.sin(angle) * 0.6;
-    return { emoji, x, y };
+  // 1. Get the "5" shape grid points
+  const shape = getFiveShape();
+  console.log(`  Shape has ${shape.length} emoji positions`);
+
+  // 2. Download all emoji PNGs we'll need (cycle through the set)
+  console.log("  Downloading Twemoji PNGs...");
+  const emojiBuffers = [];
+  for (let i = 0; i < EMOJIS.length; i++) {
+    const buf = await fetchEmoji(EMOJIS[i]);
+    emojiBuffers.push(buf);
+  }
+  console.log(`  Downloaded ${emojiBuffers.length} emojis`);
+
+  // 3. Calculate positioning
+  const gridRows = 20;
+  const gridCols = 17;
+  const padding = 100; // padding around the "5"
+  const cellW = (SIZE - padding * 2) / gridCols;
+  const cellH = (SIZE - padding * 2) / gridRows;
+  const emojiSize = Math.floor(Math.min(cellW, cellH) * 0.92);
+
+  // 4. Create background
+  const bgBuf = Buffer.from(createBackgroundSVG());
+  const background = await sharp(bgBuf).resize(SIZE, SIZE).png().toBuffer();
+
+  // 5. Resize all emoji to target size
+  const resizedEmojis = await Promise.all(
+    emojiBuffers.map((buf) =>
+      sharp(buf).resize(emojiSize, emojiSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+    )
+  );
+
+  // 6. Build composite operations — place emojis at each grid position
+  const composites = shape.map(([row, col], i) => {
+    const emojiIdx = i % resizedEmojis.length;
+    const x = Math.round(padding + col * cellW + (cellW - emojiSize) / 2);
+    const y = Math.round(padding + row * cellH + (cellH - emojiSize) / 2);
+    return {
+      input: resizedEmojis[emojiIdx],
+      left: x,
+      top: y,
+    };
   });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <defs>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000" flood-opacity="0.2"/>
-    </filter>
-    <filter id="emoji-shadow">
-      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
-    </filter>
-    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FDE68A"/>
-      <stop offset="100%" stop-color="${GOLD}"/>
-    </linearGradient>
-  </defs>
+  // 7. Composite onto background
+  const iconBuf = await sharp(background)
+    .composite(composites)
+    .png()
+    .toBuffer();
 
-  <!-- The big "5" -->
-  <text
-    x="${cx}"
-    y="${cy + content * 0.12}"
-    text-anchor="middle"
-    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
-    font-weight="900"
-    font-size="${content * 0.52}"
-    fill="white"
-    filter="url(#shadow)"
-  >5</text>
-
-  <!-- Gold underline -->
-  <rect
-    x="${cx - content * 0.14}"
-    y="${cy + content * 0.2}"
-    width="${content * 0.28}"
-    height="${content * 0.035}"
-    rx="${content * 0.018}"
-    fill="url(#gold)"
-    filter="url(#shadow)"
-  />
-
-  <!-- Emojis -->
-  ${emojiPositions
-    .map(
-      ({ emoji, x, y }) => `
-  <g filter="url(#emoji-shadow)">
-    <circle cx="${x}" cy="${y}" r="${emojiSize}" fill="white" opacity="0.15"/>
-    <text x="${x}" y="${y + emojiSize * 0.35}" text-anchor="middle" font-size="${emojiSize * 1.2}">${emoji}</text>
-  </g>`
-    )
-    .join("")}
-</svg>`;
-}
-
-// ─── Android background SVG ──────────────────────────────
-function createAndroidBackgroundSVG() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="432" height="432" viewBox="0 0 432 432">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="${PRIMARY}"/>
-      <stop offset="100%" stop-color="${PRIMARY_DARK}"/>
-    </linearGradient>
-  </defs>
-  <rect width="432" height="432" fill="url(#bg)"/>
-</svg>`;
-}
-
-// ─── Monochrome icon (just the "5" silhouette) ────────────
-function createMonochromeSVG() {
-  const s = 432;
-  const cx = s / 2;
-  const cy = s / 2;
-  const content = s * 0.55;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
-  <text
-    x="${cx}"
-    y="${cy + content * 0.12}"
-    text-anchor="middle"
-    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
-    font-weight="900"
-    font-size="${content * 0.52}"
-    fill="white"
-  >5</text>
-  <rect
-    x="${cx - content * 0.14}"
-    y="${cy + content * 0.2}"
-    width="${content * 0.28}"
-    height="${content * 0.035}"
-    rx="${content * 0.018}"
-    fill="white"
-  />
-</svg>`;
-}
-
-// ─── Generate all icons ──────────────────────────────────
-async function generate() {
-  console.log("Generating 5Emojis app icons...\n");
-
-  const iconSVG = Buffer.from(createIconSVG(1024));
-  const fgSVG = Buffer.from(createAndroidForegroundSVG());
-  const bgSVG = Buffer.from(createAndroidBackgroundSVG());
-  const monoSVG = Buffer.from(createMonochromeSVG());
-
-  // iOS icon (1024x1024)
-  await sharp(iconSVG).resize(1024, 1024).png().toFile(join(ASSETS, "icon.png"));
+  // 8. Write all outputs
+  await sharp(iconBuf).resize(1024, 1024).png().toFile(join(ASSETS, "icon.png"));
   console.log("  icon.png (1024x1024)");
 
-  // Favicon (48x48)
-  await sharp(iconSVG).resize(48, 48).png().toFile(join(ASSETS, "favicon.png"));
-  console.log("  favicon.png (48x48)");
-
-  // Splash icon (200x200)
-  await sharp(iconSVG).resize(200, 200).png().toFile(join(ASSETS, "splash-icon.png"));
+  await sharp(iconBuf).resize(200, 200).png().toFile(join(ASSETS, "splash-icon.png"));
   console.log("  splash-icon.png (200x200)");
 
-  // Android adaptive foreground (432x432)
-  await sharp(fgSVG).resize(432, 432).png().toFile(join(ASSETS, "android-icon-foreground.png"));
-  console.log("  android-icon-foreground.png (432x432)");
+  await sharp(iconBuf).resize(48, 48).png().toFile(join(ASSETS, "favicon.png"));
+  console.log("  favicon.png (48x48)");
 
-  // Android adaptive background (432x432)
-  await sharp(bgSVG).resize(432, 432).png().toFile(join(ASSETS, "android-icon-background.png"));
-  console.log("  android-icon-background.png (432x432)");
+  // Android foreground — same emoji mosaic but no background (transparent)
+  const transparentBg = await sharp({
+    create: { width: SIZE, height: SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  }).png().toBuffer();
 
-  // Android monochrome (432x432)
-  await sharp(monoSVG).resize(432, 432).png().toFile(join(ASSETS, "android-icon-monochrome.png"));
-  console.log("  android-icon-monochrome.png (432x432)");
+  // Shift inward for Android safe zone (icon content should be within ~66% center)
+  const androidPad = 170;
+  const aCellW = (SIZE - androidPad * 2) / gridCols;
+  const aCellH = (SIZE - androidPad * 2) / gridRows;
+  const aEmojiSize = Math.floor(Math.min(aCellW, aCellH) * 0.9);
+
+  const aResizedEmojis = await Promise.all(
+    emojiBuffers.map((buf) =>
+      sharp(buf).resize(aEmojiSize, aEmojiSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+    )
+  );
+
+  const aComposites = shape.map(([row, col], i) => {
+    const emojiIdx = i % aResizedEmojis.length;
+    const x = Math.round(androidPad + col * aCellW + (aCellW - aEmojiSize) / 2);
+    const y = Math.round(androidPad + row * aCellH + (aCellH - aEmojiSize) / 2);
+    return { input: aResizedEmojis[emojiIdx], left: x, top: y };
+  });
+
+  await sharp(transparentBg)
+    .composite(aComposites)
+    .png()
+    .toFile(join(ASSETS, "android-icon-foreground.png"));
+  console.log("  android-icon-foreground.png (1024x1024)");
+
+  // Android background — just the gradient
+  const androidBgBuf = Buffer.from(createBackgroundSVG());
+  await sharp(androidBgBuf).resize(1024, 1024).png().toFile(join(ASSETS, "android-icon-background.png"));
+  console.log("  android-icon-background.png (1024x1024)");
+
+  // Monochrome
+  const monoBuf = Buffer.from(createMonochromeSVG());
+  await sharp(monoBuf).resize(1024, 1024).png().toFile(join(ASSETS, "android-icon-monochrome.png"));
+  console.log("  android-icon-monochrome.png (1024x1024)");
 
   console.log("\nAll icons generated!");
 }

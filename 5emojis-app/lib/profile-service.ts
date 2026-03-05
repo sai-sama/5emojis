@@ -10,6 +10,7 @@ export type FullProfile = {
   emojis: ProfileEmoji[];
   photos: ProfilePhoto[];
   interests: string[];
+  languages: string[];
   availability: string[];
   pets: string[];
   dietary: string[];
@@ -18,11 +19,12 @@ export type FullProfile = {
 
 // ─── Fetch full profile ─────────────────────────────────────
 export async function fetchFullProfile(userId: string): Promise<FullProfile | null> {
-  const [profileRes, emojisRes, photosRes, interestsRes, availRes, petsRes, dietaryRes, revealsRes] = await Promise.all([
+  const [profileRes, emojisRes, photosRes, interestsRes, langsRes, availRes, petsRes, dietaryRes, revealsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase.from("profile_emojis").select("*").eq("user_id", userId).order("position"),
     supabase.from("profile_photos").select("*").eq("user_id", userId).order("position"),
     supabase.from("profile_interests").select("*").eq("user_id", userId),
+    supabase.from("profile_languages").select("*").eq("user_id", userId),
     supabase.from("profile_availability").select("*").eq("user_id", userId),
     supabase.from("profile_pets").select("*").eq("user_id", userId),
     supabase.from("profile_dietary").select("*").eq("user_id", userId),
@@ -36,6 +38,7 @@ export async function fetchFullProfile(userId: string): Promise<FullProfile | nu
     emojis: emojisRes.data ?? [],
     photos: photosRes.data ?? [],
     interests: (interestsRes.data ?? []).map((i) => i.interest_tag),
+    languages: (langsRes.data ?? []).map((l: any) => l.language),
     availability: (availRes.data ?? []).map((a: any) => a.slot),
     pets: (petsRes.data ?? []).map((p: any) => p.pet),
     dietary: (dietaryRes.data ?? []).map((d: any) => d.preference),
@@ -266,12 +269,13 @@ export async function updateDietary(
 export async function addPhoto(
   userId: string,
   localUri: string,
-  position: number
+  position: number,
+  isPrimary: boolean = false
 ): Promise<{ url: string | null; error: string | null }> {
-  // Compress + validate size + content moderation
+  // Compress + validate size + face detection (if primary) + content moderation
   let prepared: { uri: string; base64: string };
   try {
-    prepared = await preparePhoto(localUri);
+    prepared = await preparePhoto(localUri, isPrimary);
   } catch (err: any) {
     logError(err, { screen: "ProfileService", context: "add_photo_prepare" });
     return { url: null, error: err.message };
@@ -332,13 +336,10 @@ export async function deleteAccount(
     }
   }
 
-  // 3. Delete profile row — all related tables cascade-delete
-  //    (emojis, photos, interests, reveals, availability, pets, dietary,
-  //     swipes, matches, messages, blocks, reports)
-  const { error } = await supabase
-    .from("profiles")
-    .delete()
-    .eq("id", userId);
+  // 3. Delete profile + auth user via security-definer RPC
+  //    (cascades: emojis, photos, interests, reveals, availability, pets,
+  //     dietary, swipes, matches, messages, blocks, reports)
+  const { error } = await supabase.rpc("delete_own_account");
 
   if (error) return { error: error.message };
 

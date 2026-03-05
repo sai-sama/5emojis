@@ -17,8 +17,12 @@ import { COLORS } from "../lib/constants";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 12;
-const EMOJI_SIZE = 44;
 const NUM_COLUMNS = 7;
+const COLUMN_GAP = 2;
+// Calculate emoji size dynamically so the grid fills the available width
+const EMOJI_SIZE = Math.floor(
+  (SCREEN_WIDTH - GRID_PADDING * 2 - COLUMN_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS
+);
 
 // ─── AI suggestions (curated pairings) ──────────────────────
 const ASSOCIATIONS: Record<string, string[]> = {
@@ -414,7 +418,7 @@ export default function EmojiPicker({ selected, onToggle, onSetAll, maxSelection
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: GRID_PADDING, paddingBottom: 20 }}
-        columnWrapperStyle={{ justifyContent: "flex-start", gap: 2 }}
+        columnWrapperStyle={{ justifyContent: "space-between" }}
         initialNumToRender={42}
         maxToRenderPerBatch={42}
         windowSize={5}

@@ -50,7 +50,7 @@ export default function PhotosScreen() {
     if (!result.canceled && result.assets[0]) {
       setSaving(true);
       const position = profile.photos.length + 1;
-      const { error } = await addPhoto(session.user.id, result.assets[0].uri, position);
+      const { error } = await addPhoto(session.user.id, result.assets[0].uri, position, position === 1);
       setSaving(false);
       if (error) {
         Alert.alert("Upload failed", error);

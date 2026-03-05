@@ -67,7 +67,7 @@ A friendship app that makes connecting with new people fun, low-pressure, and em
 - [x] Photo guidelines modal explaining photo policy
 - [x] Store lat/lng from city for geo queries
 - [ ] Phone number collection screen (store for later verification)
-- [ ] Face detection on primary photo (Google ML Kit)
+- [x] Face detection on primary photo (Google ML Kit)
 
 ### Profile
 - [x] Profile creation with: name, age (from DOB), up to 5 photos, 5 emojis, city, gender
@@ -121,7 +121,7 @@ A friendship app that makes connecting with new people fun, low-pressure, and em
 - [x] Block removes existing match
 - [x] Silent block (blocked user can't tell via RLS)
 - [x] Block filtering in incoming vibes
-- [ ] Admin report review system
+- [x] Admin report review system (in-app admin panel with error logs, reports, analytics)
 
 ### Safety & Legal
 - [x] Terms of Service — in-app screen
