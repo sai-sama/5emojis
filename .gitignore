@@ -8,3 +8,6 @@ web-build/
 *.tsbuildinfo
 supabase/.temp/
 **/supabase/.temp/
+*.ipa
+*.apk
+.emoji-cache/
