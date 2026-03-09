@@ -447,10 +447,10 @@ export default function ChatScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <AuroraBackground variant="warm" />
-      <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
         {/* ─── Header ──────────────────────────────────────── */}
@@ -735,10 +735,7 @@ export default function ChatScreen() {
 
             {/* ─── STATE: chat_active ─────────────────────── */}
             {chatState === "chat_active" && (
-              <Pressable
-                style={{ flex: 1 }}
-                onPress={() => setReactionPickerMessageId(null)}
-              >
+              <View style={{ flex: 1 }}>
                 <FlatList
                   ref={flatListRef}
                   data={[
@@ -765,6 +762,8 @@ export default function ChatScreen() {
                   onContentSizeChange={() =>
                     flatListRef.current?.scrollToEnd({ animated: false })
                   }
+                  onScrollBeginDrag={() => setReactionPickerMessageId(null)}
+                  keyboardDismissMode="interactive"
                   initialNumToRender={MESSAGE_PAGE_SIZE}
                   maxToRenderPerBatch={20}
                   onScroll={(e) => {
@@ -1045,7 +1044,7 @@ export default function ChatScreen() {
                     )}
                   </Pressable>
                 </View>
-              </Pressable>
+              </View>
             )}
           </View>
         )}
