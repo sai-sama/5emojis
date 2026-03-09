@@ -6,11 +6,13 @@ import { useAuth } from "./auth-context";
 type UnreadContextType = {
   unreadCount: number;
   refresh: () => void;
+  markAllAsRead: () => Promise<void>;
 };
 
 const UnreadContext = createContext<UnreadContextType>({
   unreadCount: 0,
   refresh: () => {},
+  markAllAsRead: async () => {},
 });
 
 export function UnreadProvider({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,26 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
         ).data?.map((m) => m.id) ?? []
       );
     setUnreadCount(count ?? 0);
+  }, [session]);
+
+  const markAllAsRead = useCallback(async () => {
+    if (!session?.user) return;
+    // Get all match IDs for this user
+    const { data: matchRows } = await supabase
+      .from("matches")
+      .select("id")
+      .or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`);
+    const matchIds = matchRows?.map((m) => m.id) ?? [];
+    if (matchIds.length === 0) return;
+
+    await supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .neq("sender_id", session.user.id)
+      .is("read_at", null)
+      .in("match_id", matchIds);
+
+    setUnreadCount(0);
   }, [session]);
 
   // Refresh on mount and subscribe to new messages
@@ -82,7 +104,7 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
   }, [unreadCount]);
 
   return (
-    <UnreadContext.Provider value={{ unreadCount, refresh }}>
+    <UnreadContext.Provider value={{ unreadCount, refresh, markAllAsRead }}>
       {children}
     </UnreadContext.Provider>
   );

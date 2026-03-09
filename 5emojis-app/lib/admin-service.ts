@@ -287,40 +287,44 @@ export async function fetchCityStats(): Promise<CityStats[]> {
     .sort((a, b) => b.count - a.count);
 }
 
-// ─── Premium Gate Settings ──────────────────────────────────
-export type PremiumGateSettings = {
-  enabled: boolean;
-  mode: "global" | "per_city";
-  gated_cities: string[];
+// ─── User Analytics (free vs premium, by city) ─────────────
+export type UserAnalytics = {
+  totalFree: number;
+  totalPremium: number;
+  byCity: { city: string; free: number; premium: number; total: number }[];
 };
 
-export async function fetchPremiumGateSettings(): Promise<PremiumGateSettings> {
+export async function fetchUserAnalytics(): Promise<UserAnalytics> {
   const { data, error } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", "premium_gate")
-    .single();
+    .from("profiles")
+    .select("city, is_premium");
 
   if (error || !data) {
-    return { enabled: false, mode: "global", gated_cities: [] };
+    logError(error, { screen: "AdminService", context: "fetch_user_analytics" });
+    return { totalFree: 0, totalPremium: 0, byCity: [] };
   }
 
-  return data.value as PremiumGateSettings;
-}
+  let totalFree = 0;
+  let totalPremium = 0;
+  const cityMap: Record<string, { free: number; premium: number }> = {};
 
-export async function updatePremiumGateSettings(
-  settings: PremiumGateSettings
-): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from("app_settings")
-    .update({ value: settings, updated_at: new Date().toISOString() })
-    .eq("key", "premium_gate");
-
-  if (error) {
-    logError(error, { screen: "AdminService", context: "update_premium_gate" });
-    return { error: error.message };
+  for (const row of data) {
+    const city = row.city || "Unknown";
+    if (!cityMap[city]) cityMap[city] = { free: 0, premium: 0 };
+    if (row.is_premium) {
+      totalPremium++;
+      cityMap[city].premium++;
+    } else {
+      totalFree++;
+      cityMap[city].free++;
+    }
   }
-  return { error: null };
+
+  const byCity = Object.entries(cityMap)
+    .map(([city, { free, premium }]) => ({ city, free, premium, total: free + premium }))
+    .sort((a, b) => b.total - a.total);
+
+  return { totalFree, totalPremium, byCity };
 }
 
 // ─── User detail ───────────────────────────────────────────

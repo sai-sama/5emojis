@@ -18,6 +18,7 @@ import { fonts } from "../lib/fonts";
 
 const FEATURES = [
   { icon: "infinite-outline", label: "Unlimited right swipes" },
+  { icon: "happy-outline", label: "Unlimited emoji edits" },
   { icon: "arrow-undo-outline", label: "Undo accidental passes" },
   { icon: "star-outline", label: "3 super likes per day" },
   { icon: "eye-outline", label: "See who liked you" },

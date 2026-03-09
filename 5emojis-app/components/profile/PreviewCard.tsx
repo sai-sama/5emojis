@@ -10,9 +10,10 @@ type Props = {
   profile: FullProfile;
   sortedEmojis: ProfileEmoji[];
   onEditEmojis?: () => void;
+  emojiCooldownLabel?: string | null;
 };
 
-export default function PreviewCard({ profile, sortedEmojis, onEditEmojis }: Props) {
+export default function PreviewCard({ profile, sortedEmojis, onEditEmojis, emojiCooldownLabel }: Props) {
   const primaryPhoto =
     profile.photos.find((p) => p.is_primary) || profile.photos[0];
   const locationDisplay = profile.profile.state
@@ -53,7 +54,7 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis }: Pro
       </View>
       {onEditEmojis ? (
         <TouchableOpacity
-          style={styles.emojiBox}
+          style={[styles.emojiBox, emojiCooldownLabel && styles.emojiBoxCooldown]}
           activeOpacity={0.7}
           onPress={onEditEmojis}
         >
@@ -64,9 +65,16 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis }: Pro
               </Text>
             ))}
           </View>
-          <View style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </View>
+          {emojiCooldownLabel ? (
+            <View style={styles.cooldownButton}>
+              <Ionicons name="time-outline" size={13} color={COLORS.textMuted} style={{ marginRight: 3 }} />
+              <Text style={styles.cooldownButtonText}>{emojiCooldownLabel}</Text>
+            </View>
+          ) : (
+            <View style={styles.editButton}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </View>
+          )}
         </TouchableOpacity>
       ) : (
         <View style={styles.emojiRow}>
@@ -178,5 +186,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
     color: "#FFF",
+  },
+  emojiBoxCooldown: {
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  cooldownButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primarySurface,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginLeft: 10,
+  },
+  cooldownButtonText: {
+    fontSize: 12,
+    fontFamily: fonts.bodyMedium,
+    color: COLORS.textMuted,
   },
 });

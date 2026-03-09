@@ -153,19 +153,19 @@ BEGIN
       created_matches := created_matches + 1;
 
       -- Insert icebreaker emoji response from mock user
-      INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only)
-      VALUES (m_id, mock_id, icebreaker_emojis[i], true);
+      INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only, created_at)
+      VALUES (m_id, mock_id, icebreaker_emojis[i], true, now() - interval '10 minutes');
 
       -- For matches 4 & 5: also add user's icebreaker + text messages → "chat_active"
       IF i >= 4 THEN
-        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only)
-        VALUES (m_id, requesting_user_id, '🌟🎨💜🦋🎵', true);
+        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only, created_at)
+        VALUES (m_id, requesting_user_id, '🌟🎨💜🦋🎵', true, now() - interval '8 minutes');
 
-        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only)
-        VALUES (m_id, mock_id, 'Hey! Love your emoji energy!', false);
+        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only, created_at)
+        VALUES (m_id, mock_id, 'Hey! Love your emoji energy!', false, now() - interval '5 minutes');
 
-        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only)
-        VALUES (m_id, mock_id, 'Want to grab coffee sometime?', false);
+        INSERT INTO public.messages (match_id, sender_id, content, is_emoji_only, created_at)
+        VALUES (m_id, mock_id, 'Want to grab coffee sometime?', false, now() - interval '2 minutes');
       END IF;
     END IF;
   END LOOP;
@@ -288,10 +288,10 @@ INSERT INTO public.profile_emojis (user_id, emoji, position) VALUES
 ('00000000-0000-4000-a000-000000000004', '📷', 1), ('00000000-0000-4000-a000-000000000004', '🏔️', 2), ('00000000-0000-4000-a000-000000000004', '🎶', 3), ('00000000-0000-4000-a000-000000000004', '🍜', 4), ('00000000-0000-4000-a000-000000000004', '🌅', 5),
 -- Aisha
 ('00000000-0000-4000-a000-000000000005', '💃', 1), ('00000000-0000-4000-a000-000000000005', '🎬', 2), ('00000000-0000-4000-a000-000000000005', '🧠', 3), ('00000000-0000-4000-a000-000000000005', '🌸', 4), ('00000000-0000-4000-a000-000000000005', '🍵', 5),
--- Tyler (perfect match — shares all 5 emojis with Sai: 🌴🦎🪂⛰️🚂)
-('00000000-0000-4000-a000-000000000006', '🌴', 1), ('00000000-0000-4000-a000-000000000006', '🦎', 2), ('00000000-0000-4000-a000-000000000006', '🪂', 3), ('00000000-0000-4000-a000-000000000006', '⛰️', 4), ('00000000-0000-4000-a000-000000000006', '🚂', 5),
--- Luna (perfect match — shares all 5 emojis with Sai: 🌴🦎🪂⛰️🚂)
-('00000000-0000-4000-a000-000000000007', '🌴', 1), ('00000000-0000-4000-a000-000000000007', '🦎', 2), ('00000000-0000-4000-a000-000000000007', '🪂', 3), ('00000000-0000-4000-a000-000000000007', '⛰️', 4), ('00000000-0000-4000-a000-000000000007', '🚂', 5),
+-- Tyler (perfect match — shares all 5 emojis with Sai: 🌴🌋🪂🏔️🚂)
+('00000000-0000-4000-a000-000000000006', '🌴', 1), ('00000000-0000-4000-a000-000000000006', '🌋', 2), ('00000000-0000-4000-a000-000000000006', '🪂', 3), ('00000000-0000-4000-a000-000000000006', '🏔️', 4), ('00000000-0000-4000-a000-000000000006', '🚂', 5),
+-- Luna (perfect match — shares all 5 emojis with Sai: 🌴🌋🪂🏔️🚂)
+('00000000-0000-4000-a000-000000000007', '🌴', 1), ('00000000-0000-4000-a000-000000000007', '🌋', 2), ('00000000-0000-4000-a000-000000000007', '🪂', 3), ('00000000-0000-4000-a000-000000000007', '🏔️', 4), ('00000000-0000-4000-a000-000000000007', '🚂', 5),
 -- Jordan
 ('00000000-0000-4000-a000-000000000008', '🎹', 1), ('00000000-0000-4000-a000-000000000008', '🎤', 2), ('00000000-0000-4000-a000-000000000008', '🌃', 3), ('00000000-0000-4000-a000-000000000008', '🔥', 4), ('00000000-0000-4000-a000-000000000008', '🎧', 5),
 -- Mei
@@ -328,7 +328,7 @@ INSERT INTO public.profile_emojis (user_id, emoji, position) VALUES
 ('00000000-0000-4000-a000-000000000024', '✍️', 1), ('00000000-0000-4000-a000-000000000024', '☕', 2), ('00000000-0000-4000-a000-000000000024', '🌿', 3), ('00000000-0000-4000-a000-000000000024', '📚', 4), ('00000000-0000-4000-a000-000000000024', '🌙', 5),
 -- James
 ('00000000-0000-4000-a000-000000000025', '📚', 1), ('00000000-0000-4000-a000-000000000025', '🎮', 2), ('00000000-0000-4000-a000-000000000025', '🏋️', 3), ('00000000-0000-4000-a000-000000000025', '🍕', 4), ('00000000-0000-4000-a000-000000000025', '🎧', 5)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (user_id, position) DO UPDATE SET emoji = EXCLUDED.emoji;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 6. PROFILE PHOTOS (1 primary photo each, using pravatar.cc)

@@ -44,6 +44,7 @@ import {
   canSwipeRight,
   canSuperLike,
   getRemainingRightSwipes,
+  getRemainingSuperLikes,
   recordSuperLike,
 } from "../../lib/swipe-limits";
 import {
@@ -692,10 +693,20 @@ export default function SwipeCardStack() {
   const [showTapHint, setShowTapHint] = useState(false);
   const tapHintTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCardTap = useCallback(() => {
+    // If 5/5 perfect emoji match, let them view the full profile
+    const topProfile = visibleProfiles[0];
+    if (topProfile) {
+      const userEmojiSet = new Set(userEmojis);
+      const matchCount = topProfile.emojis.filter((e) => userEmojiSet.has(e.emoji)).length;
+      if (matchCount === 5) {
+        router.push(`/user/${topProfile.profile.id}`);
+        return;
+      }
+    }
     setShowTapHint(true);
     if (tapHintTimeout.current) clearTimeout(tapHintTimeout.current);
     tapHintTimeout.current = setTimeout(() => setShowTapHint(false), 2000);
-  }, []);
+  }, [visibleProfiles, userEmojis]);
 
   // Clean up tap hint timeout on unmount
   useEffect(() => {
@@ -835,7 +846,20 @@ export default function SwipeCardStack() {
 
       </View>
 
-      {/* Action buttons hidden — swipe gestures only */}
+      {/* Super Like button — premium only */}
+      {isPremium && visibleProfiles.length > 0 && !allSwiped && (
+        <View style={styles.superLikeRow}>
+          <Pressable
+            style={[styles.superLikeButton, !canSuperLikeNow && styles.superLikeButtonDisabled]}
+            onPress={handleSuperLike}
+          >
+            <Ionicons name="star" size={20} color={canSuperLikeNow ? "#FFF" : "rgba(255,255,255,0.5)"} />
+            <Text style={[styles.superLikeText, !canSuperLikeNow && { opacity: 0.5 }]}>
+              Super Like{canSuperLikeNow ? ` (${getRemainingSuperLikes(dailyCounts)})` : ""}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* First-time swipe tutorial overlay */}
       {showTutorial && <SwipeTutorial onDismiss={dismissTutorial} />}
@@ -963,5 +987,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.bodySemiBold,
     color: "#FFF",
+  },
+  // ─── Super Like button ─────────────────────────────
+  superLikeRow: {
+    alignItems: "center",
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  superLikeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.highlight,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: COLORS.highlight,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  superLikeButtonDisabled: {
+    backgroundColor: COLORS.textMuted,
+    shadowOpacity: 0,
+  },
+  superLikeText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
   },
 });

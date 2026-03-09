@@ -41,45 +41,6 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [initialized, setInitialized] = useState(false);
-  const [premiumGated, setPremiumGated] = useState(false);
-
-  // Fetch premium gate setting from DB
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchGateSetting = async () => {
-      try {
-        // Fetch gate settings and user's city in parallel
-        const [settingsRes, profileRes] = await Promise.all([
-          supabase.from("app_settings" as any).select("value").eq("key", "premium_gate").single(),
-          supabase.from("profiles").select("city").eq("id", session.user.id).single(),
-        ]);
-
-        const settings = (settingsRes.data as any)?.value as {
-          enabled: boolean;
-          mode: string;
-          gated_cities: string[];
-        } | null;
-
-        if (!settings?.enabled) {
-          setPremiumGated(false);
-          return;
-        }
-
-        if (settings.mode === "global") {
-          setPremiumGated(true);
-        } else if (settings.mode === "per_city") {
-          const userCity = profileRes.data?.city ?? "";
-          setPremiumGated(settings.gated_cities.includes(userCity));
-        }
-      } catch (err: any) {
-        // If fetch fails, default to ungated (free premium)
-        logError(err, { screen: "PremiumProvider", context: "fetch_gate_setting" });
-      }
-    };
-
-    fetchGateSetting();
-  }, [session]);
 
   // Initialize RevenueCat
   useEffect(() => {
@@ -208,9 +169,8 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     }
   }, [checkEntitlements]);
 
-  // When premiumGated is false (default), everyone gets premium free (launch mode).
-  // Toggle via Admin Panel > Premium Gate to start gating when ready.
-  const effectivePremium = !premiumGated || isPremium || isAdmin;
+  // Premium is always gated — only paid subscribers and admins get premium features
+  const effectivePremium = isPremium || isAdmin;
 
   return (
     <PremiumContext.Provider

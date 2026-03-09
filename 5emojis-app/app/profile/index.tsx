@@ -30,9 +30,13 @@ import { COLORS, GENDERS, EMOJI_EDIT_COOLDOWN_HOURS, type GenderValue } from "..
 import { isSoundMuted, setSoundMuted } from "../../lib/sounds";
 import { getProfileCompletion } from "../../lib/profile-completion";
 import { resetMockData } from "../../lib/mock-data";
+import { usePremium } from "../../lib/premium-context";
+import { useUnread } from "../../lib/unread-context";
 
 export default function ProfileOverview() {
   const { session, signOut, deleteAccount, isAdmin } = useAuth();
+  const { isPremium } = usePremium();
+  const { refresh: refreshUnread } = useUnread();
   const { profile, loading, refresh } = useProfile();
 
   // Gender filter — multi-select (persisted via AsyncStorage, read by SwipeCardStack)
@@ -202,7 +206,24 @@ export default function ProfileOverview() {
     return { blocked: true, hoursLeft, minutesLeft };
   };
 
+  // Cooldown label for the edit button (null = no cooldown active)
+  const emojiCooldownLabel = (() => {
+    if (isAdmin || isPremium) return null;
+    const cooldown = getEmojiCooldownRemaining();
+    if (!cooldown.blocked) return null;
+    return cooldown.hoursLeft > 0
+      ? `${cooldown.hoursLeft}h ${cooldown.minutesLeft}m`
+      : `${cooldown.minutesLeft}m`;
+  })();
+
   const handleEditEmojis = () => {
+    // Admins and premium users bypass cooldown entirely
+    if (isAdmin || isPremium) {
+      setEditingEmojis(sortedEmojis.map((e) => e.emoji));
+      setEmojiModalVisible(true);
+      return;
+    }
+
     const cooldown = getEmojiCooldownRemaining();
     if (cooldown.blocked) {
       const timeStr = cooldown.hoursLeft > 0
@@ -210,15 +231,12 @@ export default function ProfileOverview() {
         : `${cooldown.minutesLeft}m`;
       Alert.alert(
         "Emoji Cooldown",
-        `You can edit your emojis again in ${timeStr}.\n\nWant to edit now?`,
+        `Free users can edit emojis once every 24 hours.\n\nYou can edit again in ${timeStr}.\n\nUpgrade to Premium for unlimited emoji edits!`,
         [
           { text: "Wait", style: "cancel" },
           {
-            text: "Get Daily Pass — $0.99",
-            onPress: () => {
-              // TODO: integrate IAP — for now just show placeholder
-              Alert.alert("Coming Soon", "In-app purchases will be available soon!");
-            },
+            text: "Go Premium",
+            onPress: () => router.push("/premium"),
           },
         ]
       );
@@ -262,6 +280,8 @@ export default function ProfileOverview() {
             if (error) {
               Alert.alert("Error", error);
             } else {
+              // Refresh unread badge to match new mock data
+              refreshUnread();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert(
                 "Done!",
@@ -378,6 +398,7 @@ export default function ProfileOverview() {
           profile={profile}
           sortedEmojis={sortedEmojis}
           onEditEmojis={handleEditEmojis}
+          emojiCooldownLabel={emojiCooldownLabel}
         />
 
         {/* Profile completion nudge */}

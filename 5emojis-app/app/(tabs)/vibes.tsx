@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { usePremium } from "../../lib/premium-context";
+import { useUnread } from "../../lib/unread-context";
 import { logError } from "../../lib/error-logger";
 import {
   fetchMatchesEnhanced,
@@ -176,9 +177,11 @@ function VibeCard({
 function MatchCard({
   item,
   onLongPress,
+  userEmojis,
 }: {
   item: EnhancedMatch;
   onLongPress: (item: EnhancedMatch) => void;
+  userEmojis: Set<string>;
 }) {
   const {
     otherUser,
@@ -247,31 +250,34 @@ function MatchCard({
           </Text>
         )}
 
-        {/* Row 3: Emoji bubbles + match badge */}
+        {/* Row 3: Emoji bubbles with match highlighting */}
         <View style={styles.emojiRow}>
-          <View style={styles.emojiStrip}>
-            {sortedEmojis.map((e) => (
-              <View key={e.id} style={styles.emojiBubble}>
-                <Text style={styles.emojiChar}>{e.emoji}</Text>
-              </View>
-            ))}
-          </View>
-          {match.emoji_match_count > 0 && (
-            <View
-              style={[
-                styles.emojiCountBadge,
-                match.is_emoji_perfect && styles.emojiCountBadgePerfect,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.emojiCountText,
-                  match.is_emoji_perfect && styles.emojiCountTextPerfect,
-                ]}
-              >
-                {match.emoji_match_count}/5
-                {match.is_emoji_perfect ? " ✨" : ""}
-              </Text>
+          {match.is_emoji_perfect ? (
+            <View style={styles.perfectEmojiStrip}>
+              <Text style={styles.perfectSparkle}>✨</Text>
+              {sortedEmojis.map((e) => (
+                <View key={e.id} style={styles.emojiBubblePerfect}>
+                  <Text style={styles.emojiChar}>{e.emoji}</Text>
+                </View>
+              ))}
+              <Text style={styles.perfectSparkle}>✨</Text>
+            </View>
+          ) : (
+            <View style={styles.emojiStrip}>
+              {sortedEmojis.map((e) => {
+                const isMatch = userEmojis.has(e.emoji);
+                return (
+                  <View
+                    key={e.id}
+                    style={[
+                      styles.emojiBubble,
+                      isMatch && styles.emojiBubbleMatch,
+                    ]}
+                  >
+                    <Text style={styles.emojiChar}>{e.emoji}</Text>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -308,6 +314,7 @@ function MatchCard({
 export default function VibesScreen() {
   const { session } = useAuth();
   const { isPremium } = usePremium();
+  const { unreadCount, markAllAsRead } = useUnread();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -315,6 +322,7 @@ export default function VibesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actingOnVibe, setActingOnVibe] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<MatchFilter>("all");
+  const [userEmojis, setUserEmojis] = useState<Set<string>>(new Set());
 
   // Block & Report state
   const [reportTarget, setReportTarget] = useState<{
@@ -328,12 +336,19 @@ export default function VibesScreen() {
       return;
     }
     try {
-      const [matchData, vibeData] = await Promise.all([
+      const [matchData, vibeData, emojisRes] = await Promise.all([
         fetchMatchesEnhanced(session.user.id),
         fetchIncomingVibes(session.user.id),
+        supabase
+          .from("profile_emojis")
+          .select("emoji")
+          .eq("user_id", session.user.id),
       ]);
       setMatches(matchData);
       setVibes(vibeData);
+      if (emojisRes.data) {
+        setUserEmojis(new Set(emojisRes.data.map((e) => e.emoji)));
+      }
       setLoadError(false);
     } catch (err: any) {
       logError(err, { screen: "VibesScreen", context: "load_matches_and_vibes" });
@@ -556,14 +571,30 @@ export default function VibesScreen() {
         </View>
       )}
 
-      {/* Filter chips */}
+      {/* Filter chips + mark all read */}
       {matches.length > 0 && (
         <View style={styles.filterSection}>
-          <FilterChips
-            active={activeFilter}
-            onChange={setActiveFilter}
-            counts={filterCounts}
-          />
+          <View style={styles.filterRow_wrapper}>
+            <View style={{ flex: 1 }}>
+              <FilterChips
+                active={activeFilter}
+                onChange={setActiveFilter}
+                counts={filterCounts}
+              />
+            </View>
+            {unreadCount > 0 && (
+              <Pressable
+                style={styles.markReadButton}
+                onPress={() => {
+                  markAllAsRead();
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="checkmark-done" size={18} color={COLORS.primary} />
+              </Pressable>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -615,7 +646,7 @@ export default function VibesScreen() {
             data={filteredMatches}
             keyExtractor={(item) => item.match.id}
             renderItem={({ item }) => (
-              <MatchCard item={item} onLongPress={handleMatchLongPress} />
+              <MatchCard item={item} onLongPress={handleMatchLongPress} userEmojis={userEmojis} />
             )}
             ListHeaderComponent={renderListHeader}
             contentContainerStyle={styles.list}
@@ -639,7 +670,7 @@ export default function VibesScreen() {
                 </Text>
                 <Text style={styles.emptyFilterText}>
                   {activeFilter === "all"
-                    ? "Vibe back on someone to start matching!"
+                    ? "Like someone back to start matching!"
                     : activeFilter === "new"
                     ? "Answer your icebreakers to move friends to chatting"
                     : activeFilter === "perfect"
@@ -835,6 +866,14 @@ const styles = StyleSheet.create({
   filterSection: {
     marginBottom: 14,
   },
+  filterRow_wrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  markReadButton: {
+    padding: 6,
+    marginRight: 8,
+  },
   filterRow: {
     flexDirection: "row",
     gap: 8,
@@ -906,11 +945,14 @@ const styles = StyleSheet.create({
   },
   photoWrapper: {
     position: "relative",
-    width: 90,
+    width: 110,
   },
   photo: {
-    width: 90,
-    height: "100%" as any,
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: "#F0EDE8",
   },
   photoPlaceholder: {
@@ -982,28 +1024,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emojiChar: {
-    fontSize: 15,
-  },
-  emojiCountBadge: {
-    backgroundColor: COLORS.primarySurface,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
-  },
-  emojiCountBadgePerfect: {
+  emojiBubbleMatch: {
     backgroundColor: COLORS.highlightSurface,
+    borderWidth: 1.5,
     borderColor: COLORS.highlight,
   },
-  emojiCountText: {
-    fontSize: 12,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.primary,
+  emojiBubblePerfect: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  emojiCountTextPerfect: {
-    color: COLORS.highlightDark,
+  perfectEmojiStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.highlightSurface,
+    borderWidth: 1.5,
+    borderColor: COLORS.highlight,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  perfectSparkle: {
+    fontSize: 12,
+  },
+  emojiChar: {
+    fontSize: 15,
   },
 
   // ─── Chat state indicators ─────────────────────────

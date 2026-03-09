@@ -24,20 +24,17 @@ import {
   updateReportStatus,
   suspendUser,
   unsuspendUser,
-  fetchCityStats,
-  fetchPremiumGateSettings,
-  updatePremiumGateSettings,
+  fetchUserAnalytics,
   type AppStats,
   type ErrorLog,
   type Report,
   type AdminUser,
-  type CityStats,
-  type PremiumGateSettings,
+  type UserAnalytics,
 } from "../../lib/admin-service";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 
-type Tab = "stats" | "users" | "errors" | "reports" | "premium";
+type Tab = "stats" | "users" | "errors" | "reports" | "analytics";
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("stats");
@@ -54,14 +51,8 @@ export default function AdminDashboard() {
   const [userDetail, setUserDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Premium gate
-  const [cityStats, setCityStats] = useState<CityStats[]>([]);
-  const [gateSettings, setGateSettings] = useState<PremiumGateSettings>({
-    enabled: false,
-    mode: "global",
-    gated_cities: [],
-  });
-  const [gateSaving, setGateSaving] = useState(false);
+  // Analytics
+  const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
 
   // Suspend modal
   const [suspendModal, setSuspendModal] = useState<{ userId: string; name: string } | null>(null);
@@ -69,18 +60,16 @@ export default function AdminDashboard() {
   const [suspendDays, setSuspendDays] = useState("7");
 
   const loadData = useCallback(async () => {
-    const [s, e, r, cs, gs] = await Promise.all([
+    const [s, e, r, ua] = await Promise.all([
       fetchAppStats(),
       fetchErrorLogs(0, 50),
       fetchReports(),
-      fetchCityStats(),
-      fetchPremiumGateSettings(),
+      fetchUserAnalytics(),
     ]);
     setStats(s);
     setErrors(e);
     setReports(r);
-    setCityStats(cs);
-    setGateSettings(gs);
+    setAnalytics(ua);
   }, []);
 
   useEffect(() => {
@@ -208,7 +197,7 @@ export default function AdminDashboard() {
 
       {/* Tab bar */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
-        {(["stats", "users", "errors", "reports", "premium"] as Tab[]).map((t) => (
+        {(["stats", "users", "errors", "reports", "analytics"] as Tab[]).map((t) => (
           <TouchableOpacity
             key={t}
             onPress={() => setTab(t)}
@@ -223,7 +212,7 @@ export default function AdminDashboard() {
                 ? `Errors${stats ? ` (${stats.errorsToday})` : ""}`
                 : t === "reports"
                 ? `Reports${stats ? ` (${stats.pendingReports})` : ""}`
-                : "Premium"}
+                : "Analytics"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -514,153 +503,78 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {/* PREMIUM GATE TAB */}
-        {tab === "premium" && (
+        {/* ANALYTICS TAB */}
+        {tab === "analytics" && analytics && (
           <View style={{ marginTop: 16, gap: 16 }}>
-            {/* Current status */}
-            <View style={[styles.userCountCard, {
-              backgroundColor: gateSettings.enabled ? "#FFF0F0" : "#E8F8F0",
-              borderColor: gateSettings.enabled ? "#FFCDD2" : "#A7F3D0",
-            }]}>
-              <Ionicons
-                name={gateSettings.enabled ? "lock-closed" : "lock-open"}
-                size={22}
-                color={gateSettings.enabled ? "#D63031" : "#00B894"}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.userCountText, {
-                  color: gateSettings.enabled ? "#D63031" : "#00B894",
-                }]}>
-                  Premium is {gateSettings.enabled ? "GATED" : "FREE for everyone"}
-                </Text>
-                <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 2 }}>
-                  {gateSettings.enabled
-                    ? gateSettings.mode === "global"
-                      ? "All users must subscribe for premium features"
-                      : `Gated in ${gateSettings.gated_cities.length} cit${gateSettings.gated_cities.length === 1 ? "y" : "ies"}`
-                    : "All users have premium features for free (launch mode)"}
-                </Text>
+            {/* Free vs Premium totals */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={[styles.userCountCard, { flex: 1, backgroundColor: "#F0F4FF", borderColor: "#C7D2FE" }]}>
+                <View>
+                  <Text style={{ fontSize: 28, fontFamily: fonts.headingBold, color: COLORS.primary }}>
+                    {analytics.totalFree}
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: fonts.bodyMedium, color: COLORS.textSecondary }}>
+                    Free Users
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.userCountCard, { flex: 1, backgroundColor: "#FFF7E0", borderColor: COLORS.highlight }]}>
+                <View>
+                  <Text style={{ fontSize: 28, fontFamily: fonts.headingBold, color: COLORS.highlightDark }}>
+                    {analytics.totalPremium}
+                  </Text>
+                  <Text style={{ fontSize: 12, fontFamily: fonts.bodyMedium, color: COLORS.textSecondary }}>
+                    Premium Users
+                  </Text>
+                </View>
               </View>
             </View>
 
-            {/* Global toggle */}
-            <View style={{ gap: 8 }}>
-              <Text style={styles.sectionTitle}>Premium Gate Controls</Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={[styles.gateButton, !gateSettings.enabled && styles.gateButtonActive]}
-                  onPress={async () => {
-                    setGateSaving(true);
-                    const updated = { ...gateSettings, enabled: false };
-                    const { error } = await updatePremiumGateSettings(updated);
-                    if (error) Alert.alert("Error", error);
-                    else setGateSettings(updated);
-                    setGateSaving(false);
-                  }}
-                  disabled={gateSaving}
-                >
-                  <Ionicons name="lock-open" size={16} color={!gateSettings.enabled ? "#FFF" : COLORS.text} />
-                  <Text style={[styles.gateButtonText, !gateSettings.enabled && { color: "#FFF" }]}>
-                    Free for All
+            {/* Conversion rate */}
+            {(analytics.totalFree + analytics.totalPremium) > 0 && (
+              <View style={[styles.userCountCard, { backgroundColor: "#E8F8F0", borderColor: "#A7F3D0" }]}>
+                <Ionicons name="trending-up" size={20} color="#00B894" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontFamily: fonts.bodySemiBold, color: "#00B894" }}>
+                    {((analytics.totalPremium / (analytics.totalFree + analytics.totalPremium)) * 100).toFixed(1)}% conversion
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.gateButton, gateSettings.enabled && gateSettings.mode === "global" && styles.gateButtonActiveRed]}
-                  onPress={async () => {
-                    Alert.alert(
-                      "Enable Premium Gate?",
-                      "This will require ALL users to subscribe for premium features. Are you sure?",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Enable",
-                          style: "destructive",
-                          onPress: async () => {
-                            setGateSaving(true);
-                            const updated = { ...gateSettings, enabled: true, mode: "global" as const };
-                            const { error } = await updatePremiumGateSettings(updated);
-                            if (error) Alert.alert("Error", error);
-                            else setGateSettings(updated);
-                            setGateSaving(false);
-                          },
-                        },
-                      ]
-                    );
-                  }}
-                  disabled={gateSaving}
-                >
-                  <Ionicons name="lock-closed" size={16} color={gateSettings.enabled && gateSettings.mode === "global" ? "#FFF" : COLORS.text} />
-                  <Text style={[styles.gateButtonText, gateSettings.enabled && gateSettings.mode === "global" && { color: "#FFF" }]}>
-                    Gate All
+                  <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 2 }}>
+                    {analytics.totalPremium} of {analytics.totalFree + analytics.totalPremium} users are premium
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.gateButton, gateSettings.enabled && gateSettings.mode === "per_city" && styles.gateButtonActiveOrange]}
-                  onPress={async () => {
-                    setGateSaving(true);
-                    const updated = { ...gateSettings, enabled: true, mode: "per_city" as const };
-                    const { error } = await updatePremiumGateSettings(updated);
-                    if (error) Alert.alert("Error", error);
-                    else setGateSettings(updated);
-                    setGateSaving(false);
-                  }}
-                  disabled={gateSaving}
-                >
-                  <Ionicons name="location" size={16} color={gateSettings.enabled && gateSettings.mode === "per_city" ? "#FFF" : COLORS.text} />
-                  <Text style={[styles.gateButtonText, gateSettings.enabled && gateSettings.mode === "per_city" && { color: "#FFF" }]}>
-                    Per City
-                  </Text>
-                </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            )}
 
-            {/* Users per city */}
+            {/* Users by city breakdown */}
             <View style={{ gap: 8 }}>
-              <Text style={styles.sectionTitle}>Users per City</Text>
-              {cityStats.length === 0 && (
+              <Text style={styles.sectionTitle}>Users by City</Text>
+              {analytics.byCity.length === 0 && (
                 <Text style={styles.emptyText}>No users yet</Text>
               )}
-              {cityStats.map((cs) => {
-                const isGated = gateSettings.gated_cities.includes(cs.city);
-                return (
-                  <View key={cs.city} style={styles.cityRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cityName}>{cs.city}</Text>
-                      <Text style={styles.cityCount}>
-                        {cs.count} user{cs.count !== 1 ? "s" : ""}
+              {analytics.byCity.map((cs) => (
+                <View key={cs.city} style={styles.cityRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cityName}>{cs.city}</Text>
+                    <Text style={styles.cityCount}>
+                      {cs.total} user{cs.total !== 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <View style={[styles.cityToggle, { backgroundColor: "#F0F4FF" }]}>
+                      <Text style={[styles.cityToggleText, { color: COLORS.primary }]}>
+                        {cs.free} free
                       </Text>
                     </View>
-                    {gateSettings.enabled && gateSettings.mode === "per_city" && (
-                      <TouchableOpacity
-                        style={[styles.cityToggle, isGated && styles.cityToggleActive]}
-                        onPress={async () => {
-                          const newCities = isGated
-                            ? gateSettings.gated_cities.filter((c) => c !== cs.city)
-                            : [...gateSettings.gated_cities, cs.city];
-                          setGateSaving(true);
-                          const updated = { ...gateSettings, gated_cities: newCities };
-                          const { error } = await updatePremiumGateSettings(updated);
-                          if (error) Alert.alert("Error", error);
-                          else setGateSettings(updated);
-                          setGateSaving(false);
-                        }}
-                        disabled={gateSaving}
-                      >
-                        <Text style={[styles.cityToggleText, isGated && { color: "#FFF" }]}>
-                          {isGated ? "Gated" : "Free"}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                    {(!gateSettings.enabled || gateSettings.mode !== "per_city") && (
-                      <View style={[styles.cityToggle, { backgroundColor: gateSettings.enabled ? "#FFEAA7" : "#E8F8F0" }]}>
-                        <Text style={[styles.cityToggleText, { color: gateSettings.enabled ? "#D63031" : "#00B894" }]}>
-                          {gateSettings.enabled ? "Gated" : "Free"}
+                    {cs.premium > 0 && (
+                      <View style={[styles.cityToggle, { backgroundColor: "#FFF7E0" }]}>
+                        <Text style={[styles.cityToggleText, { color: COLORS.highlightDark }]}>
+                          {cs.premium} paid
                         </Text>
                       </View>
                     )}
                   </View>
-                );
-              })}
+                </View>
+              ))}
             </View>
           </View>
         )}
