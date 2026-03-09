@@ -29,9 +29,11 @@ import {
 import { supabase } from "../../lib/supabase";
 import { blockUser } from "../../lib/block-report-service";
 import ReportModal from "../../components/ReportModal";
-import { calculateAge } from "../../components/swipe/mockProfiles";
+import { calculateAge, formatDistance } from "../../components/swipe/mockProfiles";
+import { getZodiacSign } from "../../lib/zodiac";
+import { useProfile } from "../../lib/profile-context";
 import { fonts } from "../../lib/fonts";
-import { COLORS } from "../../lib/constants";
+import { COLORS, GENDERS } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieLoading from "../../components/lottie/LottieLoading";
 import LottieEmptyState from "../../components/lottie/LottieEmptyState";
@@ -104,23 +106,40 @@ function FilterChips({
   );
 }
 
-// ─── Vibe Card (horizontal "Who Vibed You" row) ─────────────
+// ─── Vibe Card (horizontal "Who Liked You" row) ─────────────
 function VibeCard({
   vibe,
   onVibeBack,
   onPass,
   isPremiumLocked,
+  userEmojis,
 }: {
   vibe: IncomingVibe;
   onVibeBack: () => void;
   onPass: () => void;
   isPremiumLocked: boolean;
+  userEmojis: Set<string>;
 }) {
   const age = calculateAge(vibe.user.dob);
   const sortedEmojis = [...vibe.emojis].sort((a, b) => a.position - b.position);
+  const genderInfo = GENDERS.find((g) => g.value === vibe.user.gender) || GENDERS[0];
+  const matchingCount = sortedEmojis.filter((e) => userEmojis.has(e.emoji)).length;
+  const hasMatches = matchingCount > 0;
+
+  const handleCardPress = () => {
+    if (isPremiumLocked) {
+      router.push("/premium");
+    } else {
+      router.push(`/user/${vibe.user.id}`);
+    }
+  };
 
   return (
-    <View style={styles.vibeCard}>
+    <Pressable
+      style={[styles.vibeCard, hasMatches && !isPremiumLocked && styles.vibeCardGlow]}
+      onPress={handleCardPress}
+    >
+      {/* Photo — fills top of card */}
       <View style={styles.vibePhotoWrap}>
         {vibe.photo ? (
           <Image
@@ -130,28 +149,44 @@ function VibeCard({
           />
         ) : (
           <View style={[styles.vibePhoto, styles.vibePhotoPlaceholder]}>
-            <Ionicons name="person" size={28} color={COLORS.textMuted} />
+            <Ionicons name="person" size={32} color={COLORS.textMuted} />
           </View>
         )}
         {isPremiumLocked && (
           <View style={styles.lockOverlay}>
-            <Text style={{ fontSize: 20 }}>🔒</Text>
+            <Text style={{ fontSize: 22 }}>🔒</Text>
           </View>
         )}
       </View>
 
-      <Text style={styles.vibeName} numberOfLines={1}>
-        {isPremiumLocked ? "???" : `${vibe.user.name}, ${age}`}
-      </Text>
-
-      <View style={styles.vibeEmojis}>
-        {sortedEmojis.map((e) => (
-          <Text key={e.id} style={styles.vibeEmojiChar}>
-            {e.emoji}
-          </Text>
-        ))}
+      {/* Info section */}
+      <View style={styles.vibeInfoSection}>
+        <Text style={styles.vibeName} numberOfLines={1}>
+          {isPremiumLocked ? "???" : `${vibe.user.name}, ${age}`}
+        </Text>
+        {!isPremiumLocked && (
+          <View style={[styles.vibeGenderDot, { backgroundColor: genderInfo.surface }]}>
+            <Text style={{ fontSize: 10 }}>{genderInfo.emoji}</Text>
+          </View>
+        )}
       </View>
 
+      {/* Emojis with match highlighting */}
+      <View style={styles.vibeEmojis}>
+        {sortedEmojis.map((e) => {
+          const isMatch = userEmojis.has(e.emoji);
+          return (
+            <Text
+              key={e.id}
+              style={[styles.vibeEmojiChar, isMatch && !isPremiumLocked && styles.vibeEmojiMatch]}
+            >
+              {e.emoji}
+            </Text>
+          );
+        })}
+      </View>
+
+      {/* Action buttons */}
       {isPremiumLocked ? (
         <Pressable
           style={styles.vibeUnlockBtn}
@@ -161,15 +196,15 @@ function VibeCard({
         </Pressable>
       ) : (
         <View style={styles.vibeActions}>
-          <Pressable style={styles.vibePassBtn} onPress={onPass}>
+          <Pressable style={styles.vibePassBtn} onPress={(e) => { e.stopPropagation(); onPass(); }}>
             <Ionicons name="close" size={20} color={COLORS.pass} />
           </Pressable>
-          <Pressable style={styles.vibeBackBtn} onPress={onVibeBack}>
+          <Pressable style={styles.vibeBackBtn} onPress={(e) => { e.stopPropagation(); onVibeBack(); }}>
             <Text style={styles.vibeBackText}>💜</Text>
           </Pressable>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -178,10 +213,14 @@ function MatchCard({
   item,
   onLongPress,
   userEmojis,
+  userLat,
+  userLng,
 }: {
   item: EnhancedMatch;
   onLongPress: (item: EnhancedMatch) => void;
   userEmojis: Set<string>;
+  userLat: number;
+  userLng: number;
 }) {
   const {
     otherUser,
@@ -195,6 +234,9 @@ function MatchCard({
   } = item;
   const age = calculateAge(otherUser.dob);
   const sortedEmojis = [...otherEmojis].sort((a, b) => a.position - b.position);
+  const zodiac = getZodiacSign(otherUser.dob);
+  const genderInfo = GENDERS.find((g) => g.value === otherUser.gender) || GENDERS[0];
+  const distance = formatDistance(userLat, userLng, otherUser.latitude, otherUser.longitude);
 
   // Format last message preview
   const previewText = (() => {
@@ -249,6 +291,16 @@ function MatchCard({
             {otherUser.profession}
           </Text>
         )}
+
+        {/* Row 2b: Zodiac · Gender · Distance */}
+        <View style={styles.detailChips}>
+          <Text style={styles.detailChipText}>{zodiac.emoji}</Text>
+          <Text style={styles.detailChipDot}>·</Text>
+          <Text style={{ fontSize: 11 }}>{genderInfo.emoji}</Text>
+          <Text style={styles.detailChipDot}>·</Text>
+          <Ionicons name="location-outline" size={11} color={COLORS.textMuted} />
+          <Text style={styles.detailChipText}>{distance}</Text>
+        </View>
 
         {/* Row 3: Emoji bubbles with match highlighting */}
         <View style={styles.emojiRow}>
@@ -315,6 +367,7 @@ export default function VibesScreen() {
   const { session } = useAuth();
   const { isPremium } = usePremium();
   const { unreadCount, markAllAsRead } = useUnread();
+  const { profile: myProfile } = useProfile();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -565,6 +618,7 @@ export default function VibesScreen() {
                 onVibeBack={() => handleVibeBack(vibe)}
                 onPass={() => handlePass(vibe)}
                 isPremiumLocked={!isPremium}
+                userEmojis={userEmojis}
               />
             ))}
           </ScrollView>
@@ -585,8 +639,9 @@ export default function VibesScreen() {
             {unreadCount > 0 && (
               <Pressable
                 style={styles.markReadButton}
-                onPress={() => {
-                  markAllAsRead();
+                onPress={async () => {
+                  await markAllAsRead();
+                  loadData();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
                 hitSlop={8}
@@ -646,7 +701,13 @@ export default function VibesScreen() {
             data={filteredMatches}
             keyExtractor={(item) => item.match.id}
             renderItem={({ item }) => (
-              <MatchCard item={item} onLongPress={handleMatchLongPress} userEmojis={userEmojis} />
+              <MatchCard
+                item={item}
+                onLongPress={handleMatchLongPress}
+                userEmojis={userEmojis}
+                userLat={myProfile?.profile.latitude ?? 0}
+                userLng={myProfile?.profile.longitude ?? 0}
+              />
             )}
             ListHeaderComponent={renderListHeader}
             contentContainerStyle={styles.list}
@@ -754,11 +815,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   vibeCard: {
-    width: 145,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 20,
-    padding: 12,
-    alignItems: "center",
+    width: 160,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 18,
+    overflow: "hidden",
     shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -767,14 +827,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 107, 107, 0.1)",
   },
+  vibeCardGlow: {
+    borderWidth: 1.5,
+    borderColor: "#E8B931",
+    shadowColor: "#E8B931",
+    shadowOpacity: 0.2,
+  },
   vibePhotoWrap: {
     position: "relative",
-    marginBottom: 8,
+    width: "100%",
+    height: 120,
   },
   vibePhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 28,
+    width: "100%",
+    height: "100%",
     backgroundColor: "#F0EDE8",
   },
   vibePhotoBlur: {
@@ -790,29 +856,52 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+  vibeInfoSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    gap: 4,
   },
   vibeName: {
     fontSize: 14,
     fontFamily: fonts.headingBold,
     color: COLORS.text,
-    marginBottom: 4,
     textAlign: "center",
+    flexShrink: 1,
+  },
+  vibeGenderDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
   },
   vibeEmojis: {
     flexDirection: "row",
     gap: 2,
-    marginBottom: 8,
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
   vibeEmojiChar: {
-    fontSize: 14,
+    fontSize: 15,
+  },
+  vibeEmojiMatch: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 6,
+    overflow: "hidden",
   },
   vibeActions: {
     flexDirection: "row",
     gap: 12,
+    justifyContent: "center",
+    paddingBottom: 10,
   },
   vibePassBtn: {
     width: 38,
@@ -823,15 +912,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFD6D6",
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  vibePassText: {
-    fontSize: 16,
-    color: COLORS.passButton,
-    fontWeight: "700",
   },
   vibeBackBtn: {
     width: 38,
@@ -842,10 +922,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "#D4C4FF",
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
   },
   vibeBackText: {
     fontSize: 16,
@@ -855,6 +931,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 16,
+    alignSelf: "center",
+    marginBottom: 10,
   },
   vibeUnlockText: {
     fontSize: 13,
@@ -1005,6 +1083,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  detailChips: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  detailChipText: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    color: COLORS.textMuted,
+  },
+  detailChipDot: {
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
   emojiRow: {
     flexDirection: "row",

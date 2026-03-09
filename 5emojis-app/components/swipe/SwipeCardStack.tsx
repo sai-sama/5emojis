@@ -844,22 +844,20 @@ export default function SwipeCardStack() {
           </View>
         )}
 
-      </View>
-
-      {/* Super Like button — premium only */}
-      {isPremium && visibleProfiles.length > 0 && !allSwiped && (
-        <View style={styles.superLikeRow}>
+        {/* Super Like floating button — premium only, overlaid on card */}
+        {isPremium && visibleProfiles.length > 0 && !allSwiped && (
           <Pressable
-            style={[styles.superLikeButton, !canSuperLikeNow && styles.superLikeButtonDisabled]}
+            style={[styles.superLikeFloating, !canSuperLikeNow && styles.superLikeFloatingDisabled]}
             onPress={handleSuperLike}
           >
-            <Ionicons name="star" size={20} color={canSuperLikeNow ? "#FFF" : "rgba(255,255,255,0.5)"} />
-            <Text style={[styles.superLikeText, !canSuperLikeNow && { opacity: 0.5 }]}>
-              Super Like{canSuperLikeNow ? ` (${getRemainingSuperLikes(dailyCounts)})` : ""}
+            <Ionicons name="star" size={16} color={canSuperLikeNow ? COLORS.highlight : "rgba(255,255,255,0.5)"} />
+            <Text style={[styles.superLikeFloatingText, !canSuperLikeNow && { opacity: 0.5 }]}>
+              {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"}
             </Text>
           </Pressable>
-        </View>
-      )}
+        )}
+
+      </View>
 
       {/* First-time swipe tutorial overlay */}
       {showTutorial && <SwipeTutorial onDismiss={dismissTutorial} />}
@@ -988,33 +986,26 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: "#FFF",
   },
-  // ─── Super Like button ─────────────────────────────
-  superLikeRow: {
-    alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  superLikeButton: {
+  // ─── Super Like floating button ────────────────────
+  superLikeFloating: {
+    position: "absolute",
+    bottom: 14,
+    right: 20,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.highlight,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 20,
-    gap: 6,
-    shadowColor: COLORS.highlight,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    gap: 4,
+    zIndex: 50,
   },
-  superLikeButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
+  superLikeFloatingDisabled: {
+    opacity: 0.5,
   },
-  superLikeText: {
+  superLikeFloatingText: {
     color: "#FFF",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bodySemiBold,
   },
 });
