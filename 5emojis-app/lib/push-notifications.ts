@@ -1,4 +1,3 @@
-import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
@@ -82,16 +81,6 @@ export async function registerForPushNotifications(
     .from("profiles")
     .update({ push_token: token })
     .eq("id", userId);
-
-  // Android: set notification channel
-  if (Platform.OS === "android") {
-    Notifications.setNotificationChannelAsync("default", {
-      name: "default",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#7C3AED",
-    });
-  }
 
   return token;
 }

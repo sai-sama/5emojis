@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "239853984029",
+    "project_id": "emojis-b18a1",
+    "storage_bucket": "emojis-b18a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:239853984029:android:b72d6ec71ae1aa1b4da9f4",
+        "android_client_info": {
+          "package_name": "com.fiveemojis.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDppbpM1cFvPPQvfwnkJOZqKI7SLujz44"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

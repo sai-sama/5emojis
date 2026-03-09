@@ -40,3 +40,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase service account key (secret)
+*.firebase-adminsdk-*.json
+emojis-b18a1-firebase-adminsdk-*.json

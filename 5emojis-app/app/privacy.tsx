@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { fonts } from "../lib/fonts";
 import { COLORS } from "../lib/constants";
 
-const EFFECTIVE_DATE = "March 6, 2026";
+const EFFECTIVE_DATE = "March 9, 2026";
 
 function Section({ title, children }: { title: string; children: string }) {
   return (
@@ -78,7 +78,7 @@ export default function PrivacyPolicy() {
         </Text>
 
         <Section title="1. Information We Collect">
-          {`We collect information you provide directly when you create an account and use 5Emojis ("the App"):
+          {`Desi Digital LLC ("we", "us", or "our") operates 5Emojis ("the App"). We collect information you provide directly when you create an account and use the App:
 
 Account Information: Email address, name, date of birth, and authentication credentials. If you sign in with Apple or Google, we receive your name and email from those providers.
 
@@ -128,9 +128,9 @@ Service Providers: We use third-party services to help operate the App:
 - Apple and Google for social sign-in authentication
 - Expo for push notification delivery
 - OpenStreetMap Nominatim for reverse geocoding (converting GPS coordinates to city names) as a fallback service
-- Google AdMob for serving advertisements to free-tier users. AdMob may collect device identifiers and usage data to serve relevant ads. We request non-personalized ads only. Premium subscribers do not see ads.
+- RevenueCat for subscription management and receipt validation
 
-These providers are bound by their respective privacy policies and terms of service.
+These providers are bound by their respective privacy policies and terms of service. 5Emojis does not display advertisements and does not share your data with advertising networks.
 
 Legal Requirements: We may disclose your information if required by law, court order, or government request, or if we believe disclosure is necessary to protect our rights, your safety, or the safety of others.
 
@@ -221,13 +221,15 @@ Our use of third-party services (Apple Sign-In, Google Sign-In, OpenAI moderatio
         </Section>
 
         <Section title="12. Premium Subscriptions and Payments">
-          {`5Emojis offers optional premium subscription services. When you subscribe:
+          {`5Emojis offers optional premium subscription services (monthly at $7.99/month or annual at $49.99/year). When you subscribe:
 
 - Payment is processed through the Apple App Store or Google Play Store. We do not directly collect or store your payment card information.
 - We use RevenueCat, a third-party service, to manage subscription entitlements and receipt validation. RevenueCat receives your anonymized user ID and purchase receipts to verify subscription status.
 - We store your subscription status (active/inactive), plan type, and expiration date in our database to provide premium features.
 - Daily usage data (swipe counts, super like counts) is tracked to enforce daily limits for both free and premium users.
-- You can manage or cancel your subscription at any time through your device settings.`}
+- You can manage or cancel your subscription at any time through your device settings.
+
+5Emojis does not display advertisements. We monetize exclusively through optional premium subscriptions and do not sell your personal data to any third party.`}
         </Section>
 
         <Section title="13. Changes to This Policy">
@@ -237,6 +239,7 @@ Our use of third-party services (Apple Sign-In, Google Sign-In, OpenAI moderatio
         <Section title="14. Contact Us">
           {`If you have any questions about this Privacy Policy or our data practices, please contact us at:
 
+Desi Digital LLC
 privacy@5emojis.app`}
         </Section>
       </ScrollView>

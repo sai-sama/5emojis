@@ -1,10 +1,12 @@
 import "../global.css";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, Image, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
+import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import { YoungSerif_400Regular } from "@expo-google-fonts/young-serif";
 import {
@@ -74,6 +76,16 @@ export default function RootLayout() {
   useEffect(() => {
     loadMuteSetting();
     initErrorLogging();
+
+    // Android: create notification channel early so it exists before any notification arrives
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#7C3AED",
+      });
+    }
 
     // Handle notification taps → navigate to chat (app is running)
     const cleanup = addNotificationResponseListener((matchId) => {

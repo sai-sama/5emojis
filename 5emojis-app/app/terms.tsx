@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { fonts } from "../lib/fonts";
 import { COLORS } from "../lib/constants";
 
-const EFFECTIVE_DATE = "March 6, 2026";
+const EFFECTIVE_DATE = "March 9, 2026";
 
 function Section({ title, children }: { title: string; children: string }) {
   return (
@@ -78,7 +78,7 @@ export default function TermsOfService() {
         </Text>
 
         <Section title="1. Acceptance of Terms">
-          {`By creating an account or using 5Emojis ("the App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
+          {`By creating an account or using 5Emojis ("the App"), operated by Desi Digital LLC ("we", "us", or "our"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
 
 You must explicitly accept these Terms and our Privacy Policy before creating an account or signing in, whether through email, Apple Sign-In, or Google Sign-In. Continued use of the App constitutes ongoing acceptance of these Terms.`}
         </Section>
@@ -192,14 +192,15 @@ Upon termination, your right to use the App will immediately cease. We may retai
         <Section title="11. Premium Features and Purchases">
           {`5Emojis offers optional premium subscription services ("Premium Services") that enhance your experience. Premium features include:
 
-- Unlimited right swipes (free users: 25 per day)
+- Unlimited right swipes (free users: 35 per day)
+- Unlimited emoji edits (free users: once every 24 hours)
 - Undo accidental swipes
 - 3 Super Likes per day (places you at the top of someone's discovery feed with a star badge; does NOT guarantee a match)
 - See who has swiped right on you
-- Full discovery filter access (extended radius, custom age ranges)
+- Full discovery filter access (extended radius up to 250 miles, custom age ranges)
 - Ability to add hidden reveals to your profile
 
-Premium subscriptions are available in weekly, monthly, and annual plans.
+Premium subscriptions are available in monthly ($7.99/month) and annual ($49.99/year) plans.
 
 If you purchase Premium Services:
 - All purchases are processed through the Apple App Store or Google Play Store
@@ -210,9 +211,9 @@ If you purchase Premium Services:
 - We do not directly collect or store your payment card information
 - Subscription management is handled by RevenueCat, a third-party payment processor
 
-Core features of 5Emojis (swiping, matching, messaging, profile creation) will always remain free. Free users receive 25 right swipes per day, unlimited left swipes, basic discovery filters, and full chat functionality.
+Core features of 5Emojis (swiping, matching, messaging, profile creation) will always remain free. Free users receive 35 right swipes per day, unlimited left swipes, basic discovery filters (up to 50 miles), and full chat functionality.
 
-The free tier of 5Emojis includes advertisements served by Google AdMob. By using the free tier, you consent to the display of ads. Premium subscribers enjoy an ad-free experience. We request non-personalized ads only and do not sell your personal data to advertisers.`}
+5Emojis does not display advertisements. We monetize exclusively through optional premium subscriptions. We do not sell your personal data.`}
         </Section>
 
         <Section title="12. Interactions with Other Users">
@@ -234,9 +235,9 @@ We encourage you to exercise caution when communicating with other users and whe
         </Section>
 
         <Section title="14. Intellectual Property">
-          {`The App, including its design, features, branding, name, logo, and technology, is owned by 5Emojis and is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the App without our prior written consent.
+          {`The App, including its design, features, branding, name, logo, and technology, is owned by Desi Digital LLC ("the Company") and is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the App without our prior written consent.
 
-The 5Emojis name, logo, and all related names, logos, product and service names, designs, and slogans are trademarks of 5Emojis. You may not use such marks without our prior written permission.`}
+The 5Emojis name, logo, and all related names, logos, product and service names, designs, and slogans are trademarks of Desi Digital LLC. You may not use such marks without our prior written permission.`}
         </Section>
 
         <Section title="15. Disclaimers">
@@ -289,6 +290,7 @@ Your continued use of the App after changes become effective constitutes your ac
         <Section title="22. Contact Us">
           {`If you have any questions about these Terms, please contact us at:
 
+Desi Digital LLC
 support@5emojis.app`}
         </Section>
       </ScrollView>

@@ -9,6 +9,7 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
+  Platform,
 } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -31,7 +32,6 @@ import { blockUser } from "../../lib/block-report-service";
 import ReportModal from "../../components/ReportModal";
 import { calculateAge, formatDistance } from "../../components/swipe/mockProfiles";
 import { getZodiacSign } from "../../lib/zodiac";
-import { useProfile } from "../../lib/profile-context";
 import { fonts } from "../../lib/fonts";
 import { COLORS, GENDERS } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
@@ -124,7 +124,7 @@ function VibeCard({
   const sortedEmojis = [...vibe.emojis].sort((a, b) => a.position - b.position);
   const genderInfo = GENDERS.find((g) => g.value === vibe.user.gender) || GENDERS[0];
   const matchingCount = sortedEmojis.filter((e) => userEmojis.has(e.emoji)).length;
-  const hasMatches = matchingCount > 0;
+  const isPerfect = matchingCount === 5;
 
   const handleCardPress = () => {
     if (isPremiumLocked) {
@@ -136,7 +136,7 @@ function VibeCard({
 
   return (
     <Pressable
-      style={[styles.vibeCard, hasMatches && !isPremiumLocked && styles.vibeCardGlow]}
+      style={styles.vibeCard}
       onPress={handleCardPress}
     >
       {/* Photo — fills top of card */}
@@ -165,26 +165,36 @@ function VibeCard({
           {isPremiumLocked ? "???" : `${vibe.user.name}, ${age}`}
         </Text>
         {!isPremiumLocked && (
-          <View style={[styles.vibeGenderDot, { backgroundColor: genderInfo.surface }]}>
-            <Text style={{ fontSize: 10 }}>{genderInfo.emoji}</Text>
-          </View>
+          <Text style={{ fontSize: 12 }}>{genderInfo.emoji}</Text>
         )}
       </View>
 
-      {/* Emojis with match highlighting */}
-      <View style={styles.vibeEmojis}>
-        {sortedEmojis.map((e) => {
-          const isMatch = userEmojis.has(e.emoji);
-          return (
-            <Text
-              key={e.id}
-              style={[styles.vibeEmojiChar, isMatch && !isPremiumLocked && styles.vibeEmojiMatch]}
-            >
-              {e.emoji}
-            </Text>
-          );
-        })}
-      </View>
+      {/* Emojis — matching emojis get golden border, perfect match gets sparkle strip */}
+      {isPerfect && !isPremiumLocked ? (
+        <View style={styles.vibeEmojis}>
+          <View style={styles.vibePerfectStrip}>
+            <Text style={styles.perfectSparkle}>✨</Text>
+            {sortedEmojis.map((e) => (
+              <Text key={e.id} style={styles.vibeEmojiChar}>{e.emoji}</Text>
+            ))}
+            <Text style={styles.perfectSparkle}>✨</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.vibeEmojis}>
+          {sortedEmojis.map((e) => {
+            const isMatch = userEmojis.has(e.emoji) && !isPremiumLocked;
+            return (
+              <View
+                key={e.id}
+                style={[styles.vibeEmojiBubble, isMatch && styles.vibeEmojiBubbleMatch]}
+              >
+                <Text style={styles.vibeEmojiChar}>{e.emoji}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Action buttons */}
       {isPremiumLocked ? (
@@ -236,7 +246,10 @@ function MatchCard({
   const sortedEmojis = [...otherEmojis].sort((a, b) => a.position - b.position);
   const zodiac = getZodiacSign(otherUser.dob);
   const genderInfo = GENDERS.find((g) => g.value === otherUser.gender) || GENDERS[0];
-  const distance = formatDistance(userLat, userLng, otherUser.latitude, otherUser.longitude);
+  const hasUserLocation = userLat !== 0 || userLng !== 0;
+  const distance = hasUserLocation
+    ? formatDistance(userLat, userLng, otherUser.latitude, otherUser.longitude)
+    : null;
 
   // Format last message preview
   const previewText = (() => {
@@ -296,10 +309,14 @@ function MatchCard({
         <View style={styles.detailChips}>
           <Text style={styles.detailChipText}>{zodiac.emoji}</Text>
           <Text style={styles.detailChipDot}>·</Text>
-          <Text style={{ fontSize: 11 }}>{genderInfo.emoji}</Text>
-          <Text style={styles.detailChipDot}>·</Text>
-          <Ionicons name="location-outline" size={11} color={COLORS.textMuted} />
-          <Text style={styles.detailChipText}>{distance}</Text>
+          <Text style={{ fontSize: 12 }}>{genderInfo.emoji}</Text>
+          {distance && (
+            <>
+              <Text style={styles.detailChipDot}>·</Text>
+              <Ionicons name="location-outline" size={11} color={COLORS.textMuted} />
+              <Text style={styles.detailChipText}>{distance}</Text>
+            </>
+          )}
         </View>
 
         {/* Row 3: Emoji bubbles with match highlighting */}
@@ -367,7 +384,6 @@ export default function VibesScreen() {
   const { session } = useAuth();
   const { isPremium } = usePremium();
   const { unreadCount, markAllAsRead } = useUnread();
-  const { profile: myProfile } = useProfile();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -376,6 +392,7 @@ export default function VibesScreen() {
   const [actingOnVibe, setActingOnVibe] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<MatchFilter>("all");
   const [userEmojis, setUserEmojis] = useState<Set<string>>(new Set());
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
 
   // Block & Report state
   const [reportTarget, setReportTarget] = useState<{
@@ -389,18 +406,26 @@ export default function VibesScreen() {
       return;
     }
     try {
-      const [matchData, vibeData, emojisRes] = await Promise.all([
+      const [matchData, vibeData, emojisRes, locationRes] = await Promise.all([
         fetchMatchesEnhanced(session.user.id),
         fetchIncomingVibes(session.user.id),
         supabase
           .from("profile_emojis")
           .select("emoji")
           .eq("user_id", session.user.id),
+        supabase
+          .from("profiles")
+          .select("latitude, longitude")
+          .eq("id", session.user.id)
+          .single(),
       ]);
       setMatches(matchData);
       setVibes(vibeData);
       if (emojisRes.data) {
         setUserEmojis(new Set(emojisRes.data.map((e) => e.emoji)));
+      }
+      if (locationRes.data?.latitude && locationRes.data?.longitude) {
+        setUserLocation({ lat: locationRes.data.latitude, lng: locationRes.data.longitude });
       }
       setLoadError(false);
     } catch (err: any) {
@@ -509,11 +534,11 @@ export default function VibesScreen() {
           ]);
           Alert.alert(
             "It's a match! 🎉",
-            `You and ${vibe.user.name} matched!`,
+            `You and ${vibe.user.name} are now friends! Break the ice.`,
             [
               { text: "Keep browsing" },
               {
-                text: "Send emojis",
+                text: "Answer icebreaker",
                 onPress: () => router.push(`/chat/${result.match.id}`),
               },
             ]
@@ -705,8 +730,8 @@ export default function VibesScreen() {
                 item={item}
                 onLongPress={handleMatchLongPress}
                 userEmojis={userEmojis}
-                userLat={myProfile?.profile.latitude ?? 0}
-                userLng={myProfile?.profile.longitude ?? 0}
+                userLat={userLocation.lat}
+                userLng={userLocation.lng}
               />
             )}
             ListHeaderComponent={renderListHeader}
@@ -816,22 +841,33 @@ const styles = StyleSheet.create({
   },
   vibeCard: {
     width: 160,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.95)",
     borderRadius: 18,
     overflow: "hidden",
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
     borderWidth: 1,
     borderColor: "rgba(255, 107, 107, 0.1)",
   },
-  vibeCardGlow: {
+  vibePerfectStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: COLORS.highlightSurface,
     borderWidth: 1.5,
-    borderColor: "#E8B931",
-    shadowColor: "#E8B931",
-    shadowOpacity: 0.2,
+    borderColor: COLORS.highlight,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   vibePhotoWrap: {
     position: "relative",
@@ -875,13 +911,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     flexShrink: 1,
   },
-  vibeGenderDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   vibeEmojis: {
     flexDirection: "row",
     gap: 2,
@@ -889,13 +918,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
-  vibeEmojiChar: {
-    fontSize: 15,
-  },
-  vibeEmojiMatch: {
-    backgroundColor: "#FEF3C7",
-    borderRadius: 6,
+  vibeEmojiBubble: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
     overflow: "hidden",
+  },
+  vibeEmojiBubbleMatch: {
+    backgroundColor: COLORS.highlightSurface,
+    borderWidth: 1.5,
+    borderColor: COLORS.highlight,
+  },
+  vibeEmojiChar: {
+    fontSize: 14,
   },
   vibeActions: {
     flexDirection: "row",
@@ -963,7 +1000,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: Platform.OS === "android" ? "#F5F2EF" : "rgba(255,255,255,0.7)",
     borderWidth: 1,
     borderColor: COLORS.border,
     gap: 6,
@@ -1005,21 +1042,27 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "stretch",
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: Platform.OS === "android" ? "#FFF9F9" : "rgba(255,255,255,0.85)",
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 12,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
     borderWidth: 1,
     borderColor: "rgba(124, 58, 237, 0.06)",
   },
   cardUnread: {
     borderColor: "rgba(124, 58, 237, 0.2)",
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.95)",
   },
   photoWrapper: {
     position: "relative",
@@ -1112,8 +1155,9 @@ const styles = StyleSheet.create({
   emojiBubble: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 14,
     backgroundColor: COLORS.primarySurface,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
