@@ -33,6 +33,10 @@ export type Database = {
           suspended_at: string | null;
           suspended_until: string | null;
           suspension_reason: string | null;
+          is_premium: boolean;
+          premium_until: string | null;
+          revenucat_customer_id: string | null;
+          hidden_emojis: string[];
           is_admin: boolean;
           created_at: string;
           updated_at: string;
@@ -61,6 +65,10 @@ export type Database = {
           suspended_at?: string | null;
           suspended_until?: string | null;
           suspension_reason?: string | null;
+          is_premium?: boolean;
+          premium_until?: string | null;
+          revenucat_customer_id?: string | null;
+          hidden_emojis?: string[];
           is_admin?: boolean;
           is_new_to_city?: boolean;
           city: string;
@@ -153,14 +161,47 @@ export type Database = {
           swiper_id: string;
           swiped_id: string;
           direction: "right" | "left";
+          is_super_like: boolean;
           created_at: string;
         };
         Insert: {
           swiper_id: string;
           swiped_id: string;
           direction: "right" | "left";
+          is_super_like?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["swipes"]["Insert"]>;
+        Relationships: [];
+      };
+      daily_swipe_counts: {
+        Row: {
+          id: string;
+          user_id: string;
+          swipe_date: string;
+          right_count: number;
+          super_like_count: number;
+        };
+        Insert: {
+          user_id: string;
+          swipe_date: string;
+          right_count?: number;
+          super_like_count?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["daily_swipe_counts"]["Insert"]>;
+        Relationships: [];
+      };
+      super_likes: {
+        Row: {
+          id: string;
+          sender_id: string;
+          receiver_id: string;
+          created_at: string;
+        };
+        Insert: {
+          sender_id: string;
+          receiver_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["super_likes"]["Insert"]>;
         Relationships: [];
       };
       matches: {

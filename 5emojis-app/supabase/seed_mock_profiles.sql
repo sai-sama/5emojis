@@ -90,6 +90,11 @@ BEGIN
      OR (swiper_id = ANY(mock_ids) AND swiped_id = requesting_user_id);
   GET DIAGNOSTICS deleted_swipes = ROW_COUNT;
 
+  -- 3b. Delete blocks involving mock users so they reappear in discovery + vibes
+  DELETE FROM public.blocks
+  WHERE (blocker_id = requesting_user_id AND blocked_id = ANY(mock_ids))
+     OR (blocker_id = ANY(mock_ids) AND blocked_id = requesting_user_id);
+
   -- 4. Move mock profiles to user's location so they appear in discovery feed
   IF user_loc.latitude IS NOT NULL THEN
     UPDATE public.profiles

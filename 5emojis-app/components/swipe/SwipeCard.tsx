@@ -1,5 +1,5 @@
-import { memo, useMemo } from "react";
-import { View, Text, Image, StyleSheet, Dimensions, Platform } from "react-native";
+import { memo, useMemo, useState } from "react";
+import { View, Text, Image, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -35,6 +35,7 @@ function SwipeCardInner({
   showEmojis = false,
 }: SwipeCardProps) {
   const { profile: p, emojis, photo } = profile;
+  const [imageError, setImageError] = useState(false);
   const age = calculateAge(p.dob);
   const zodiac = getZodiacSign(p.dob);
   const distance = formatDistance(userLat, userLng, p.latitude, p.longitude);
@@ -128,7 +129,19 @@ function SwipeCardInner({
   return (
     <View style={styles.card} accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
       <View style={styles.photoContainer}>
-        <Image source={{ uri: photo.url }} style={styles.photo} accessibilityLabel={`Photo of ${p.name}`} />
+        {imageError ? (
+          <View style={[styles.photo, { alignItems: "center", justifyContent: "center", backgroundColor: "#2a2a2a" }]}>
+            <Text style={{ fontSize: 48 }}>📸</Text>
+            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4 }}>Photo unavailable</Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: photo.url }}
+            style={styles.photo}
+            accessibilityLabel={`Photo of ${p.name}`}
+            onError={() => setImageError(true)}
+          />
+        )}
 
         {/* Stronger multi-stop gradient for overlay readability */}
         <LinearGradient
@@ -240,8 +253,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 32,
     elevation: 16,
-    borderWidth: Platform.OS === "ios" ? 0.5 : 0,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 0,
   },
   photoContainer: {
     flex: 1,

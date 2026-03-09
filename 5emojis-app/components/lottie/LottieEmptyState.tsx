@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import LottieView from "lottie-react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 
@@ -13,18 +13,14 @@ type LottieEmptyStateProps = {
 export default function LottieEmptyState({
   title,
   subtitle,
-  size = 220,
+  size = 120,
   children,
 }: LottieEmptyStateProps) {
   return (
     <View style={styles.container}>
-      <LottieView
-        source={require("../../assets/animations/empty-box.json")}
-        autoPlay
-        loop
-        speed={0.8}
-        style={{ width: size, height: size }}
-      />
+      <View style={[styles.iconCircle, { width: size, height: size, borderRadius: size / 2 }]}>
+        <Ionicons name="search-outline" size={size * 0.4} color={COLORS.primary} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
       {children}
@@ -38,6 +34,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
+  },
+  iconCircle: {
+    backgroundColor: COLORS.primarySurface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   title: {
     fontSize: 22,

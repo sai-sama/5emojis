@@ -29,7 +29,7 @@ export default function ProfileCompletionCard({ profile }: Props) {
         <View style={styles.textCol}>
           <Text style={styles.title}>Complete your profile</Text>
           <Text style={styles.subtitle}>
-            {filled} of {total} filled — better profiles get more vibes!
+            {filled} of {total} filled — better profiles get more matches!
           </Text>
         </View>
         <View style={styles.percentCircle}>

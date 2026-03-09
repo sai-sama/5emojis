@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "./types";
+import { logError } from "./error-logger";
 
 // ─── Types ──────────────────────────────────────────────────
 export type DiscoveryProfile = {
@@ -26,7 +27,8 @@ export async function fetchDiscoveryFeed(
   userLat: number,
   userLng: number,
   radiusMiles: number,
-  genderFilter?: string | null
+  genderFilter?: string | null,
+  hiddenEmojis?: string[]
 ): Promise<DiscoveryProfile[]> {
   // Call the PostGIS-powered RPC function
   // It already filters out: own profile, blocked users, already-swiped users
@@ -39,7 +41,7 @@ export async function fetchDiscoveryFeed(
   });
 
   if (error || !profiles?.length) {
-    if (error) console.warn("Discovery feed error:", error.message);
+    if (error) logError(error, { screen: "DiscoveryService", context: "fetch_discovery_feed" });
     return [];
   }
 
@@ -72,17 +74,23 @@ export async function fetchDiscoveryFeed(
     photoByUser.set(photo.user_id, photo);
   }
 
+  // Build hidden emoji set for fast lookup
+  const hiddenSet = hiddenEmojis?.length ? new Set(hiddenEmojis) : null;
+
   // Assemble DiscoveryProfile objects — skip anyone missing a photo
   return profiles
     .map((profile: Profile) => {
       const photo = photoByUser.get(profile.id);
       if (!photo) return null; // No primary photo = skip (shouldn't happen, but defensive)
 
-      return {
-        profile,
-        emojis: emojisByUser.get(profile.id) ?? [],
-        photo,
-      } satisfies DiscoveryProfile;
+      const emojis = emojisByUser.get(profile.id) ?? [];
+
+      // Filter out profiles that have any of the user's hidden emojis
+      if (hiddenSet && emojis.some((e) => hiddenSet.has(e.emoji))) {
+        return null;
+      }
+
+      return { profile, emojis, photo } satisfies DiscoveryProfile;
     })
     .filter((p: DiscoveryProfile | null): p is DiscoveryProfile => p !== null);
 }

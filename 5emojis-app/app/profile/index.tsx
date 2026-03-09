@@ -163,7 +163,6 @@ export default function ProfileOverview() {
     if (!profile) return "";
     const parts: string[] = [];
     if (profile.profile.profession) parts.push(profile.profile.profession);
-    if (profile.profile.life_stage) parts.push(profile.profile.life_stage);
     if (profile.interests.length > 0)
       parts.push(`${profile.interests.length} interest${profile.interests.length !== 1 ? "s" : ""}`);
     return parts.join(" · ") || "Tap to add details";
@@ -250,7 +249,7 @@ export default function ProfileOverview() {
   const handleResetMockData = () => {
     Alert.alert(
       "Reset Mock Data",
-      "This will:\n• Delete all swipes/matches/messages with mock profiles\n• Move mock profiles to your location\n• Create 5 ready-made matches (3 icebreaker pending, 2 chat active)\n• Pre-seed swipes so remaining 20 profiles = instant match on swipe right\n\nContinue?",
+      "This will:\n• Delete all swipes/matches/messages with mock profiles\n• Move mock profiles to your location\n• Create 5 ready-made matches (3 icebreaker pending, 2 chat active)\n• 20 incoming likes appear in \"Who Liked You\"\n• Swiping right on any = instant match\n\nContinue?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -429,6 +428,19 @@ export default function ProfileOverview() {
           onAgeChange={handleAgeChange}
         />
 
+        {/* Hidden Emojis */}
+        <View style={{ marginHorizontal: 20, marginTop: 16 }}>
+          <ProfileSectionRow
+            icon="eye-off-outline"
+            title="Hidden Emojis"
+            summary={
+              (profile?.profile.hidden_emojis?.length ?? 0) > 0
+                ? `${profile!.profile.hidden_emojis.length} emoji${profile!.profile.hidden_emojis.length !== 1 ? "s" : ""} hidden`
+                : "None"
+            }
+            onPress={() => router.push("/profile/hidden-emojis")}
+          />
+        </View>
 
         {/* Legal */}
         <View style={styles.section}>

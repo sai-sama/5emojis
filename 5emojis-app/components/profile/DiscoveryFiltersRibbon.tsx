@@ -7,10 +7,12 @@ import {
   StyleSheet,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { fonts } from "../../lib/fonts";
-import { COLORS, GENDERS, type GenderValue } from "../../lib/constants";
+import { COLORS, GENDERS, FREE_MAX_RADIUS_MILES, type GenderValue } from "../../lib/constants";
 import { RADIUS_STEPS } from "../../lib/profile-constants";
+import { usePremium } from "../../lib/premium-context";
 
 const AGE_PRESETS = [
   { label: "Any", min: 18, max: 99 },
@@ -19,6 +21,9 @@ const AGE_PRESETS = [
   { label: "35-50", min: 35, max: 50 },
   { label: "50+", min: 50, max: 99 },
 ] as const;
+
+// Free users only see preset age ranges; custom age range is premium
+const FREE_AGE_PRESETS = AGE_PRESETS;
 
 type Props = {
   genderFilters: GenderValue[];
@@ -39,6 +44,7 @@ export default function DiscoveryFiltersRibbon({
   preferredAgeMax,
   onAgeChange,
 }: Props) {
+  const { isPremium } = usePremium();
   const [expanded, setExpanded] = useState(false);
 
   const toggle = () => {
@@ -130,22 +136,28 @@ export default function DiscoveryFiltersRibbon({
           <View style={styles.chipRow}>
             {RADIUS_STEPS.map((r) => {
               const active = searchRadius === r;
+              const locked = !isPremium && r > FREE_MAX_RADIUS_MILES;
               return (
                 <Pressable
                   key={r}
                   onPress={() => {
+                    if (locked) {
+                      router.push("/premium");
+                      return;
+                    }
                     Haptics.selectionAsync();
                     onRadiusChange(r);
                   }}
-                  style={[styles.chip, active && styles.chipActive]}
+                  style={[styles.chip, active && styles.chipActive, locked && styles.chipLocked]}
                 >
                   <Text
                     style={[
                       styles.chipText,
                       active && styles.chipTextActive,
+                      locked && styles.chipTextLocked,
                     ]}
                   >
-                    {r}mi
+                    {r}mi{locked ? " \uD83D\uDD12" : ""}
                   </Text>
                 </Pressable>
               );
@@ -297,6 +309,13 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: "#FFF",
+  },
+  chipLocked: {
+    opacity: 0.5,
+    borderStyle: "dashed",
+  },
+  chipTextLocked: {
+    color: COLORS.textMuted,
   },
 
   // Disclaimer

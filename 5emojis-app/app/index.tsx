@@ -1,7 +1,8 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../lib/auth-context";
-import { View, ActivityIndicator } from "react-native";
+import { View, Image, ActivityIndicator } from "react-native";
 import { COLORS } from "../lib/constants";
+import BrandLogo from "../components/BrandLogo";
 
 export default function Index() {
   const { session, loading, needsOnboarding, isSuspended } = useAuth();
@@ -9,7 +10,8 @@ export default function Index() {
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <BrandLogo size="large" />
+        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 24 }} />
       </View>
     );
   }

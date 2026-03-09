@@ -26,6 +26,19 @@ import { COLORS, GENDERS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { supabase } from "../../lib/supabase";
 import { logError } from "../../lib/error-logger";
+import {
+  SITUATIONS,
+  FRIENDSHIP_STYLES,
+  PERSONALITY_TYPES,
+  COMMUNICATION_STYLES,
+  KIDS_OPTIONS,
+  RELATIONSHIP_STATUS_OPTIONS,
+  WORK_STYLE_OPTIONS,
+  PETS_OPTIONS,
+  DIETARY_OPTIONS,
+  AVAILABILITY_SLOTS,
+  ALL_INTERESTS,
+} from "../../lib/profile-constants";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PHOTO_HEIGHT = SCREEN_WIDTH * 1.25; // 4:5 aspect
@@ -71,6 +84,34 @@ export default function UserProfileScreen() {
       if (!userId) return;
       (async () => {
         try {
+          // Check if this user is blocked (either direction) before loading
+          if (!isSelf && currentUserId) {
+            const { data: blocks } = await supabase
+              .from("blocks")
+              .select("id")
+              .or(
+                `and(blocker_id.eq.${currentUserId},blocked_id.eq.${userId}),and(blocker_id.eq.${userId},blocked_id.eq.${currentUserId})`
+              )
+              .limit(1);
+            if (blocks && blocks.length > 0) {
+              router.back();
+              return;
+            }
+
+            // Only allow viewing profiles of matched users
+            const { data: match } = await supabase
+              .from("matches")
+              .select("id")
+              .or(
+                `and(user1_id.eq.${currentUserId},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${currentUserId})`
+              )
+              .limit(1);
+            if (!match || match.length === 0) {
+              router.back();
+              return;
+            }
+          }
+
           const data = await fetchFullProfile(userId);
           setProfileData(data);
 
@@ -114,34 +155,66 @@ export default function UserProfileScreen() {
     [sortedEmojis, myEmojiSet]
   );
 
-  // "More" section items — only show if populated
-  const moreItems = useMemo(() => {
-    if (!profileData) return [];
-    const items: { icon: string; label: string; value: string }[] = [];
-    if (profileData.languages.length > 0)
-      items.push({ icon: "chatbubble-ellipses-outline", label: "Languages", value: profileData.languages.join(", ") });
-    if (profileData.pets.length > 0)
-      items.push({ icon: "paw-outline", label: "Pets", value: profileData.pets.join(", ") });
-    if (profileData.dietary.length > 0)
-      items.push({ icon: "leaf-outline", label: "Dietary", value: profileData.dietary.join(", ") });
-    if (profileData.availability.length > 0)
-      items.push({ icon: "time-outline", label: "Available", value: profileData.availability.join(", ") });
-    return items;
-  }, [profileData]);
+  // Helper to find option from constants by value
+  const findOption = (value: string, options: readonly { label?: string; value?: string; icon: string }[]) => {
+    return options.find(
+      (o) => ("value" in o ? o.value : o.label)?.toLowerCase() === value.toLowerCase()
+    ) ?? null;
+  };
+  const findIcon = (value: string, options: readonly { label?: string; value?: string; icon: string }[]): string => {
+    return findOption(value, options)?.icon ?? "";
+  };
+  const findLabel = (value: string, options: readonly { label?: string; value?: string; icon: string }[]): string => {
+    const opt = findOption(value, options);
+    return (opt && "label" in opt ? opt.label : null) ?? value;
+  };
 
-  // About section items — only show if populated
-  const aboutItems = useMemo(() => {
-    if (!p) return [];
-    const items: { label: string; value: string }[] = [];
-    if (p.life_stage) items.push({ label: "Life stage", value: p.life_stage });
-    if (p.friendship_style) items.push({ label: "Friendship style", value: p.friendship_style });
-    if (p.personality_type) items.push({ label: "Personality", value: p.personality_type });
-    if (p.communication_style) items.push({ label: "Communication", value: p.communication_style });
-    if (p.work_style) items.push({ label: "Work style", value: p.work_style });
-    if (p.relationship_status) items.push({ label: "Relationship", value: p.relationship_status });
-    if (p.kids) items.push({ label: "Kids", value: p.kids });
-    return items;
-  }, [p]);
+  // Friendship styles (promoted — core to the app)
+  const friendshipStyle = p?.friendship_style;
+  const friendshipIcon = friendshipStyle ? findIcon(friendshipStyle, FRIENDSHIP_STYLES) : "";
+
+  // Detail chips — icon + label pairs for the "About" section
+  const detailChips = useMemo(() => {
+    if (!p || !profileData) return [];
+    const chips: { icon: string; label: string }[] = [];
+
+    if (p.life_stage) {
+      chips.push({ icon: findIcon(p.life_stage, SITUATIONS) || "📋", label: findLabel(p.life_stage, SITUATIONS) });
+    }
+    if (p.personality_type) {
+      chips.push({ icon: findIcon(p.personality_type, PERSONALITY_TYPES) || "🧠", label: findLabel(p.personality_type, PERSONALITY_TYPES) });
+    }
+    if (p.communication_style) {
+      chips.push({ icon: findIcon(p.communication_style, COMMUNICATION_STYLES) || "💬", label: `Comms: ${findLabel(p.communication_style, COMMUNICATION_STYLES)}` });
+    }
+    if (p.work_style) {
+      chips.push({ icon: findIcon(p.work_style, WORK_STYLE_OPTIONS) || "💼", label: findLabel(p.work_style, WORK_STYLE_OPTIONS) });
+    }
+    if (p.relationship_status) {
+      chips.push({ icon: findIcon(p.relationship_status, RELATIONSHIP_STATUS_OPTIONS) || "💫", label: findLabel(p.relationship_status, RELATIONSHIP_STATUS_OPTIONS) });
+    }
+    if (p.kids) {
+      chips.push({ icon: findIcon(p.kids, KIDS_OPTIONS) || "👶", label: `Kids: ${findLabel(p.kids, KIDS_OPTIONS)}` });
+    }
+    // Pets
+    for (const pet of profileData.pets) {
+      chips.push({ icon: findIcon(pet, PETS_OPTIONS) || "🐾", label: `Pets: ${findLabel(pet, PETS_OPTIONS)}` });
+    }
+    // Dietary
+    for (const d of profileData.dietary) {
+      chips.push({ icon: findIcon(d, DIETARY_OPTIONS) || "🍽️", label: `Diet: ${findLabel(d, DIETARY_OPTIONS)}` });
+    }
+    // Languages
+    for (const lang of profileData.languages) {
+      chips.push({ icon: "🗣️", label: lang });
+    }
+    // Availability
+    for (const slot of profileData.availability) {
+      chips.push({ icon: findIcon(slot, AVAILABILITY_SLOTS) || "🕐", label: findLabel(slot, AVAILABILITY_SLOTS) });
+    }
+
+    return chips;
+  }, [p, profileData]);
 
   const handlePhotoScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -206,7 +279,7 @@ export default function UserProfileScreen() {
               hitSlop={12}
               style={styles.backButton}
             >
-              <Ionicons name="chevron-back" size={24} color="#FFF" />
+              <Ionicons name="chevron-back" size={26} color="#FFF" />
             </Pressable>
 
             {/* Photo counter */}
@@ -239,25 +312,21 @@ export default function UserProfileScreen() {
         <View style={styles.emojiTileWrapper}>
           <View style={styles.emojiTile}>
             <View style={styles.emojiRow}>
-              {sortedEmojis.map((e) => (
-                <Text
-                  key={e.id}
-                  style={[
-                    styles.emojiChar,
-                    myEmojiSet.has(e.emoji) && styles.emojiCharMatch,
-                  ]}
-                >
-                  {e.emoji}
-                </Text>
-              ))}
+              {sortedEmojis.map((e) => {
+                const isMatch = !isSelf && myEmojiSet.has(e.emoji);
+                return (
+                  <View
+                    key={e.id}
+                    style={[
+                      styles.emojiChip,
+                      isMatch && styles.emojiChipMatch,
+                    ]}
+                  >
+                    <Text style={styles.emojiChar}>{e.emoji}</Text>
+                  </View>
+                );
+              })}
             </View>
-            {!isSelf && matchCount > 0 && (
-              <View style={[styles.matchBadge, matchCount === 5 && styles.matchBadgePerfect]}>
-                <Text style={[styles.matchBadgeText, matchCount === 5 && styles.matchBadgeTextPerfect]}>
-                  {matchCount}/5{matchCount === 5 ? " ✨" : ""}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -308,16 +377,27 @@ export default function UserProfileScreen() {
             </View>
           ) : null}
 
-          {/* ─── About Card ──────────────────────────────── */}
-          {aboutItems.length > 0 && (
+          {/* ─── Friendship Style (hero section) ────────── */}
+          {friendshipStyle && (
+            <View style={styles.friendshipCard}>
+              <Text style={styles.friendshipIcon}>{friendshipIcon}</Text>
+              <Text style={styles.friendshipLabel}>Looking for</Text>
+              <Text style={styles.friendshipValue}>{friendshipStyle}</Text>
+            </View>
+          )}
+
+          {/* ─── About (icon chips) ──────────────────────── */}
+          {detailChips.length > 0 && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>About</Text>
-              {aboutItems.map((item, i) => (
-                <View key={i} style={styles.aboutRow}>
-                  <Text style={styles.aboutLabel}>{item.label}</Text>
-                  <Text style={styles.aboutValue}>{item.value}</Text>
-                </View>
-              ))}
+              <View style={styles.chipRow}>
+                {detailChips.map((chip, i) => (
+                  <View key={i} style={styles.detailChip}>
+                    <Text style={styles.detailChipIcon}>{chip.icon}</Text>
+                    <Text style={styles.detailChipText}>{chip.label}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           )}
 
@@ -326,11 +406,14 @@ export default function UserProfileScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Interests</Text>
               <View style={styles.chipRow}>
-                {profileData.interests.map((tag, i) => (
-                  <View key={i} style={styles.chip}>
-                    <Text style={styles.chipText}>{tag}</Text>
-                  </View>
-                ))}
+                {profileData.interests.map((tag, i) => {
+                  const icon = ALL_INTERESTS.find((t) => t.label === tag)?.icon;
+                  return (
+                    <View key={i} style={styles.chip}>
+                      <Text style={styles.chipText}>{icon ? `${icon} ` : ""}{tag}</Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -343,26 +426,6 @@ export default function UserProfileScreen() {
                 <View key={i} style={styles.revealRow}>
                   <Text style={styles.revealBullet}>{i + 1}</Text>
                   <Text style={styles.revealText}>{reveal}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* ─── More Card ───────────────────────────────── */}
-          {moreItems.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>More</Text>
-              {moreItems.map((item, i) => (
-                <View key={i} style={styles.moreRow}>
-                  <Ionicons
-                    name={item.icon as any}
-                    size={18}
-                    color={COLORS.primary}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.moreLabel}>{item.label}</Text>
-                    <Text style={styles.moreValue}>{item.value}</Text>
-                  </View>
                 </View>
               ))}
             </View>
@@ -459,14 +522,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 8,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -528,33 +592,29 @@ const styles = StyleSheet.create({
   },
   emojiRow: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
+  },
+  emojiChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  emojiChipMatch: {
+    borderColor: COLORS.highlight,
+    backgroundColor: COLORS.highlightSurface,
+    shadowColor: COLORS.highlight,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   emojiChar: {
-    fontSize: 28,
-  },
-  emojiCharMatch: {
-    textShadowColor: COLORS.highlight,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  matchBadge: {
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginLeft: 4,
-  },
-  matchBadgePerfect: {
-    backgroundColor: COLORS.highlightSurface,
-  },
-  matchBadgeText: {
-    fontSize: 12,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.primary,
-  },
-  matchBadgeTextPerfect: {
-    color: COLORS.highlightDark,
+    fontSize: 26,
   },
 
   // ─── Profile Details ────────────────────────────────────
@@ -626,22 +686,50 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // About
-  aboutRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  // Friendship style hero
+  friendshipCard: {
     alignItems: "center",
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.borderLight,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
   },
-  aboutLabel: {
-    fontSize: 14,
-    fontFamily: fonts.bodyMedium,
+  friendshipIcon: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  friendshipLabel: {
+    fontSize: 12,
+    fontFamily: fonts.body,
     color: COLORS.textSecondary,
+    marginBottom: 2,
   },
-  aboutValue: {
-    fontSize: 14,
+  friendshipValue: {
+    fontSize: 18,
+    fontFamily: fonts.headingBold,
+    color: COLORS.primary,
+  },
+
+  // Detail chips (About section)
+  detailChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  detailChipIcon: {
+    fontSize: 16,
+  },
+  detailChipText: {
+    fontSize: 13,
     fontFamily: fonts.bodySemiBold,
     color: COLORS.text,
   },
@@ -693,24 +781,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // More
-  moreRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 10,
-  },
-  moreLabel: {
-    fontSize: 12,
-    fontFamily: fonts.bodyMedium,
-    color: COLORS.textSecondary,
-  },
-  moreValue: {
-    fontSize: 14,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.text,
-    marginTop: 1,
-  },
 
   // Safety
   safetySection: {

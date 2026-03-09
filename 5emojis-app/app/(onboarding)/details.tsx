@@ -8,9 +8,9 @@ import { useOnboarding } from "../../lib/onboarding-context";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import {
-  SITUATIONS,
   FRIENDSHIP_STYLES,
   ALL_INTERESTS,
+  COMMON_PROFESSIONS,
   MAX_INTERESTS,
   MAX_FRIENDSHIP_STYLES,
   getInterestSuggestions,
@@ -20,7 +20,6 @@ import OnboardingButton from "../../components/OnboardingButton";
 export default function DetailsScreen() {
   const { data, update } = useOnboarding();
   const [profession, setProfession] = useState(data.profession);
-  const [selectedSituation, setSelectedSituation] = useState(data.lifeStage);
   const [selectedFriendshipStyles, setSelectedFriendshipStyles] = useState<string[]>(data.friendshipStyles);
   const [selectedInterests, setSelectedInterests] = useState<string[]>(data.interests);
 
@@ -49,7 +48,6 @@ export default function DetailsScreen() {
 
   const canContinue =
     profession.trim() &&
-    selectedSituation &&
     selectedFriendshipStyles.length > 0 &&
     selectedInterests.length >= 3;
 
@@ -80,14 +78,43 @@ export default function DetailsScreen() {
           <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: COLORS.textSecondary, letterSpacing: 0.5, marginBottom: 8 }}>
             💼  WHAT DO YOU DO?
           </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            {COMMON_PROFESSIONS.map(({ label, icon }) => {
+              const sel = profession === label;
+              return (
+                <TouchableOpacity
+                  key={label}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setProfession(sel ? "" : label);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: sel ? COLORS.primary : "rgba(255,255,255,0.3)",
+                    borderWidth: 1.5,
+                    borderColor: sel ? COLORS.primary : "rgba(255,255,255,0.15)",
+                  }}
+                >
+                  <Text style={{ fontSize: 14, marginRight: 5 }}>{icon}</Text>
+                  <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : COLORS.text }}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
           <TextInput
             value={profession}
             onChangeText={setProfession}
-            placeholder="e.g. Software Engineer, Teacher, Student"
+            placeholder="Or type your own..."
             placeholderTextColor="#B2BEC3"
             autoCapitalize="words"
             style={{
-              backgroundColor: COLORS.surface,
+              backgroundColor: "rgba(255,255,255,0.3)",
               borderRadius: 14,
               paddingHorizontal: 16,
               paddingVertical: 14,
@@ -95,44 +122,10 @@ export default function DetailsScreen() {
               fontFamily: fonts.body,
               color: COLORS.text,
               borderWidth: 1.5,
-              borderColor: profession.trim() ? COLORS.primary : COLORS.border,
+              borderColor: profession.trim() ? COLORS.primary : "rgba(255,255,255,0.15)",
               marginBottom: 24,
             }}
           />
-
-          {/* Situation */}
-          <Text style={{ fontSize: 13, fontFamily: fonts.bodyBold, color: COLORS.textSecondary, letterSpacing: 0.5, marginBottom: 10 }}>
-            🧭  I'M CURRENTLY...
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
-            {SITUATIONS.map(({ label, icon }) => {
-              const sel = selectedSituation === label;
-              return (
-                <TouchableOpacity
-                  key={label}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedSituation(label);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    borderRadius: 20,
-                    backgroundColor: sel ? COLORS.primary : COLORS.surface,
-                    borderWidth: 1.5,
-                    borderColor: sel ? COLORS.primary : COLORS.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, marginRight: 6 }}>{icon}</Text>
-                  <Text style={{ fontSize: 14, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : "#2D3436" }}>
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
 
           {/* Friendship Style */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -158,14 +151,14 @@ export default function DetailsScreen() {
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     borderRadius: 18,
-                    backgroundColor: sel ? COLORS.primary : COLORS.surface,
+                    backgroundColor: sel ? COLORS.primary : "rgba(255,255,255,0.3)",
                     borderWidth: 1.5,
-                    borderColor: sel ? COLORS.primary : COLORS.border,
+                    borderColor: sel ? COLORS.primary : "rgba(255,255,255,0.15)",
                     opacity: full ? 0.4 : 1,
                   }}
                 >
                   <Text style={{ fontSize: 14, marginRight: 5 }}>{icon}</Text>
-                  <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : "#2D3436" }}>
+                  <Text style={{ fontSize: 13, fontFamily: fonts.bodySemiBold, color: sel ? "#FFF" : COLORS.text }}>
                     {label}
                   </Text>
                 </TouchableOpacity>
@@ -246,9 +239,9 @@ export default function DetailsScreen() {
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     borderRadius: 18,
-                    backgroundColor: sel ? COLORS.primarySurface : COLORS.surface,
+                    backgroundColor: sel ? COLORS.primarySurface : "rgba(255,255,255,0.3)",
                     borderWidth: 1.5,
-                    borderColor: sel ? COLORS.primary : COLORS.border,
+                    borderColor: sel ? COLORS.primary : "rgba(255,255,255,0.15)",
                     opacity: full ? 0.35 : 1,
                   }}
                 >
@@ -256,7 +249,7 @@ export default function DetailsScreen() {
                   <Text style={{
                     fontSize: 13,
                     fontFamily: fonts.bodySemiBold,
-                    color: sel ? COLORS.primary : COLORS.textSecondary,
+                    color: sel ? COLORS.primary : COLORS.text,
                   }}>
                     {label}
                   </Text>
@@ -276,7 +269,7 @@ export default function DetailsScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             update({
               profession: profession.trim(),
-              lifeStage: selectedSituation,
+              lifeStage: "",
               friendshipStyles: selectedFriendshipStyles,
               interests: selectedInterests,
             });

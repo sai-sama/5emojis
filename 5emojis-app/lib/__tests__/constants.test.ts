@@ -164,8 +164,10 @@ describe("PREMIUM_GATES", () => {
   it("has expected gate keys", () => {
     expect(PREMIUM_GATES).toHaveProperty("undoSwipe");
     expect(PREMIUM_GATES).toHaveProperty("seeWhoVibedYou");
-    expect(PREMIUM_GATES).toHaveProperty("profileBoost");
-    expect(PREMIUM_GATES).toHaveProperty("unlimitedEmojiChanges");
+    expect(PREMIUM_GATES).toHaveProperty("superLikes");
+    expect(PREMIUM_GATES).toHaveProperty("unlimitedSwipes");
+    expect(PREMIUM_GATES).toHaveProperty("fullFilters");
+    expect(PREMIUM_GATES).toHaveProperty("addReveals");
   });
 
   it("all gates are boolean values", () => {

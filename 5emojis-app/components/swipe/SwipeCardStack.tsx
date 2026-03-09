@@ -30,13 +30,22 @@ import Animated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
-import { COLORS, PREMIUM_GATES } from "../../lib/constants";
+import { COLORS, FREE_DAILY_RIGHT_SWIPES } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { SwipeCard } from "./SwipeCard";
 import { EmojiSizzle } from "./EmojiSizzle";
 import MatchModal from "../MatchModal";
 import { useAuth } from "../../lib/auth-context";
+import { usePremium } from "../../lib/premium-context";
 import { recordSwipe, undoSwipe, type MatchResult } from "../../lib/swipe-service";
+import {
+  getDailySwipeCounts,
+  incrementRightSwipe,
+  canSwipeRight,
+  canSuperLike,
+  getRemainingRightSwipes,
+  recordSuperLike,
+} from "../../lib/swipe-limits";
 import {
   fetchDiscoveryFeed,
   fetchOwnProfile,
@@ -292,6 +301,7 @@ const SwipeableTopCard = forwardRef<
 
 export default function SwipeCardStack() {
   const { session, devMode } = useAuth();
+  const { isPremium } = usePremium();
   const { setUndo } = useUndo();
   const [profiles, setProfiles] = useState<SwipeProfile[]>([]);
   const [userLat, setUserLat] = useState(0);
@@ -300,6 +310,22 @@ export default function SwipeCardStack() {
   const [userName, setUserName] = useState("");
   const [genderFilters, setGenderFilters] = useState<GenderValue[]>(["male", "female", "nonbinary"]);
   const [feedLoaded, setFeedLoaded] = useState(false);
+  const [feedError, setFeedError] = useState(false);
+  const [hasHiddenEmojis, setHasHiddenEmojis] = useState(false);
+
+  // ─── Daily swipe tracking ───────────────────────────────────
+  const [dailyCounts, setDailyCounts] = useState({ rightCount: 0, superLikeCount: 0 });
+  const remainingSwipes = getRemainingRightSwipes(dailyCounts, isPremium);
+  const canSuperLikeNow = canSuperLike(dailyCounts, isPremium);
+
+  // Load daily counts on focus
+  useFocusEffect(
+    useCallback(() => {
+      if (session?.user) {
+        getDailySwipeCounts(session.user.id).then(setDailyCounts);
+      }
+    }, [session])
+  );
 
   // ─── First-time swipe tutorial ─────────────────────────────
   const [showTutorial, setShowTutorial] = useState(false);
@@ -402,6 +428,7 @@ export default function SwipeCardStack() {
       setUserLat(ownProfile.latitude);
       setUserLng(ownProfile.longitude);
       setUserName(ownProfile.name);
+      setHasHiddenEmojis((ownProfile.hidden_emojis ?? []).length > 0);
 
       // Fetch current user's emojis for match highlighting
       const { data: myEmojis } = await supabase
@@ -418,14 +445,17 @@ export default function SwipeCardStack() {
         ownProfile.latitude,
         ownProfile.longitude,
         ownProfile.search_radius_miles,
-        null // fetch all genders, filter client-side via genderFilters
+        null, // fetch all genders, filter client-side via genderFilters
+        ownProfile.hidden_emojis ?? []
       );
 
       setProfiles(feed);
       setCurrentIndex(0);
+      setFeedError(false);
     } catch (err: any) {
-      // Network error — profiles stay empty
+      // Network error — show retry UI
       logError(err, { screen: "SwipeCardStack", context: "load_discovery_feed" });
+      setFeedError(true);
     } finally {
       setFeedLoaded(true);
     }
@@ -472,6 +502,12 @@ export default function SwipeCardStack() {
   // ─── Swipe complete handler ─────────────────────────────
   const onSwipeComplete = useCallback(
     (direction: "left" | "right") => {
+      // Enforce swipe limit for free users on right swipes
+      if (direction === "right" && !canSwipeRight(dailyCounts, isPremium)) {
+        router.push("/premium");
+        return;
+      }
+
       // Fire direction-specific emoji confetti + sound
       const emojis = direction === "right" ? VIBE_EMOJIS : PASS_EMOJIS;
       setSizzle({ emojis, direction, key: Date.now() });
@@ -486,13 +522,21 @@ export default function SwipeCardStack() {
         setLastSwipe(null);
       }
 
-      // Record swipe to Supabase
+      // Record swipe to Supabase + track daily count
       if (session?.user && swipedProfile) {
         recordSwipe(
           session.user.id,
           swipedProfile.profile.id,
           direction
         ).then((result) => {
+          // Increment daily count for right swipes
+          if (direction === "right") {
+            incrementRightSwipe(session.user.id).catch((err: any) =>
+              logError(err, { screen: "SwipeCardStack", context: "increment_right_swipe" })
+            );
+            setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
+          }
+
           if (result.matched) {
             // Clear undo — can't undo a match from the card stack
             setLastSwipe(null);
@@ -512,7 +556,7 @@ export default function SwipeCardStack() {
                 result.otherUser.id,
                 userName,
                 result.match.id
-              );
+              ).catch(() => {}); // best-effort push
             }
           }
         }).catch((err: any) => {
@@ -526,20 +570,65 @@ export default function SwipeCardStack() {
       // The new SwipeableTopCard mounts with fresh translateX = 0.
       setCurrentIndex((prev) => prev + 1);
     },
-    [currentIndex, session, filteredProfiles, userEmojis]
+    [currentIndex, session, filteredProfiles, userEmojis, dailyCounts, isPremium]
   );
+
+  // ─── Super like handler ────────────────────────────────────
+  const handleSuperLike = useCallback(() => {
+    if (!session?.user || !isPremium) {
+      router.push("/premium");
+      return;
+    }
+    if (!canSuperLikeNow) {
+      Alert.alert("Daily Limit", "You've used all 3 super likes today. Try again tomorrow!");
+      return;
+    }
+    const swipedProfile = filteredProfiles[currentIndex];
+    if (!swipedProfile) return;
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSizzle({ emojis: ["⭐", "💜", "✨", "🌟", "💫"], direction: "right", key: Date.now() });
+    playSwipeSound();
+
+    // Record super like + right swipe
+    recordSuperLike(session.user.id, swipedProfile.profile.id).then(() => {
+      setDailyCounts((prev) => ({ ...prev, superLikeCount: prev.superLikeCount + 1 }));
+    }).catch((err: any) => {
+      logError(err, { screen: "SwipeCardStack", context: "record_super_like" });
+    });
+    recordSwipe(session.user.id, swipedProfile.profile.id, "right", true).then((result) => {
+      incrementRightSwipe(session.user.id).catch((err: any) =>
+        logError(err, { screen: "SwipeCardStack", context: "increment_right_swipe_super" })
+      );
+      setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
+      if (result.matched) {
+        setMatchData({
+          matchId: result.match.id,
+          otherUser: result.otherUser,
+          otherEmojis: result.otherEmojis,
+          otherPhoto: result.otherPhoto,
+          emojiMatchCount: result.match.emoji_match_count,
+          isPerfect: result.match.is_emoji_perfect,
+          icebreakerQuestion: result.icebreakerQuestion,
+        });
+        if (userName) {
+          notifyNewMatch(result.otherUser.id, userName, result.match.id);
+        }
+      }
+    }).catch((err: any) => {
+      logError(err, { screen: "SwipeCardStack", context: "super_like" });
+    });
+
+    setCurrentIndex((prev) => prev + 1);
+  }, [session, isPremium, canSuperLikeNow, filteredProfiles, currentIndex, userName]);
 
   // ─── Undo handler ──────────────────────────────────────────
   const handleUndo = useCallback(() => {
     if (!lastSwipe || currentIndex === 0) return;
 
     // Premium gate check
-    if (PREMIUM_GATES.undoSwipe) {
-      Alert.alert(
-        "Premium Feature",
-        "Undo swipe is a premium feature. Upgrade to unlock!",
-        [{ text: "OK" }]
-      );
+    if (!isPremium) {
+      router.push("/premium");
       return;
     }
 
@@ -599,6 +688,22 @@ export default function SwipeCardStack() {
     setCurrentIndex(0);
   }, [genderFilters]);
 
+  // ─── Card tap tooltip ─────────────────────────────────────
+  const [showTapHint, setShowTapHint] = useState(false);
+  const tapHintTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleCardTap = useCallback(() => {
+    setShowTapHint(true);
+    if (tapHintTimeout.current) clearTimeout(tapHintTimeout.current);
+    tapHintTimeout.current = setTimeout(() => setShowTapHint(false), 2000);
+  }, []);
+
+  // Clean up tap hint timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tapHintTimeout.current) clearTimeout(tapHintTimeout.current);
+    };
+  }, []);
+
   // ─── Render ─────────────────────────────────────────────
   const visibleProfiles = filteredProfiles.slice(
     currentIndex,
@@ -615,12 +720,33 @@ export default function SwipeCardStack() {
     <View style={styles.container}>
       {/* Card stack area — empty state sits behind cards */}
       <View style={styles.cardArea}>
+        {/* Error state — network error loading feed */}
+        {feedError && allSwiped && (
+          <View style={StyleSheet.absoluteFill}>
+            <LottieEmptyState
+              title="Couldn't load profiles"
+              subtitle="Check your internet connection and try again."
+            >
+              <View style={styles.emptyActions}>
+                <Pressable style={styles.refreshButton} onPress={loadFeed}>
+                  <Ionicons name="refresh-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.refreshText}>Retry</Text>
+                </Pressable>
+              </View>
+            </LottieEmptyState>
+          </View>
+        )}
+
         {/* Empty state — always rendered, revealed when last card exits */}
-        {allSwiped && (
+        {allSwiped && !feedError && (
           <View style={StyleSheet.absoluteFill}>
             <LottieEmptyState
               title="That's everyone nearby!"
-              subtitle="New friends are joining every day. Try expanding your search radius to find more people."
+              subtitle={
+                hasHiddenEmojis
+                  ? "Your hidden emojis filter may be narrowing results. Try adjusting it, expanding your radius, or check back soon!"
+                  : "New friends are joining every day. Try expanding your search radius to find more people."
+              }
             >
               <View style={styles.emptyActions}>
                 <Pressable
@@ -632,7 +758,7 @@ export default function SwipeCardStack() {
                 </Pressable>
                 <Pressable
                   style={styles.secondaryButton}
-                  onPress={() => router.push("/(tabs)/")}
+                  onPress={() => router.push("/profile")}
                 >
                   <Ionicons name="options-outline" size={16} color={COLORS.primary} style={{ marginRight: 4 }} />
                   <Text style={styles.secondaryButtonText}>Adjust Filters</Text>
@@ -695,11 +821,21 @@ export default function SwipeCardStack() {
             userLat={userLat}
             userLng={userLng}
             userEmojis={userEmojis}
-            onTap={() => router.push(`/user/${visibleProfiles[0].profile.id}`)}
+            onTap={handleCardTap}
           />
         )}
 
+        {/* Tap hint tooltip */}
+        {showTapHint && (
+          <View style={styles.tapHint}>
+            <Ionicons name="lock-closed" size={13} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={styles.tapHintText}>Match to see their full profile</Text>
+          </View>
+        )}
+
       </View>
+
+      {/* Action buttons hidden — swipe gestures only */}
 
       {/* First-time swipe tutorial overlay */}
       {showTutorial && <SwipeTutorial onDismiss={dismissTutorial} />}
@@ -739,6 +875,7 @@ export default function SwipeCardStack() {
           }}
         />
       )}
+
     </View>
   );
 }
@@ -750,7 +887,6 @@ const styles = StyleSheet.create({
   },
   cardArea: {
     flex: 1,
-    paddingHorizontal: 8,
   },
   cardWrapper: {
     position: "absolute",
@@ -810,5 +946,22 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 15,
     fontFamily: fonts.bodySemiBold,
+  },
+
+  tapHint: {
+    position: "absolute",
+    bottom: 16,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  tapHintText: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: "#FFF",
   },
 });

@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -36,11 +37,22 @@ export default function SignIn() {
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [resending, setResending] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
   const handleSubmit = async () => {
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service and Privacy Policy.");
+      return;
+    }
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setError("Please enter a valid email address.");
       return;
     }
     if (password.length < 6) {
@@ -82,6 +94,10 @@ export default function SignIn() {
   };
 
   const handleAppleSignIn = async () => {
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service and Privacy Policy.");
+      return;
+    }
     setSocialLoading("apple");
     setError("");
     const { error: err } = await signInWithApple();
@@ -96,6 +112,10 @@ export default function SignIn() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service and Privacy Policy.");
+      return;
+    }
     setSocialLoading("google");
     setError("");
     const { error: err } = await signInWithGoogle();
@@ -113,6 +133,10 @@ export default function SignIn() {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
       setError("Enter your email above, then tap reset.");
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setError("Please enter a valid email address.");
       return;
     }
     setError("");
@@ -192,10 +216,12 @@ export default function SignIn() {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 32 }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 24, paddingBottom: 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={true}
         >
+          <View style={{ flex: 1, justifyContent: "center" }}>
           {/* Hero branding */}
           <Text style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>
             👋🎉🌟💜🤝
@@ -206,6 +232,49 @@ export default function SignIn() {
           <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", marginBottom: 32 }}>
             Stop overthinking your first message.{"\n"}Just send 5 emojis.
           </Text>
+
+          {/* Terms acceptance checkbox */}
+          <Pressable
+            onPress={() => {
+              setTermsAccepted(!termsAccepted);
+              setError("");
+            }}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 20, paddingHorizontal: 4 }}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                borderWidth: 2,
+                borderColor: termsAccepted ? COLORS.primary : COLORS.textSecondary,
+                backgroundColor: termsAccepted ? COLORS.primary : "transparent",
+                alignItems: "center",
+                justifyContent: "center",
+                marginTop: 1,
+              }}
+            >
+              {termsAccepted && (
+                <Ionicons name="checkmark" size={14} color="#FFF" />
+              )}
+            </View>
+            <Text style={{ flex: 1, fontSize: 13, fontFamily: fonts.body, color: COLORS.textSecondary, lineHeight: 18 }}>
+              I agree to the{" "}
+              <Text
+                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
+                onPress={() => router.push("/terms")}
+              >
+                Terms of Service
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
+                onPress={() => router.push("/privacy")}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </Pressable>
 
           {/* Social auth */}
           {Platform.OS === "ios" && (
@@ -432,26 +501,6 @@ export default function SignIn() {
             </TouchableOpacity>
           )}
 
-          {/* Terms — sign-up only */}
-          {mode === "sign-up" && !forgotPasswordMode && (
-            <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", lineHeight: 18, marginBottom: 8 }}>
-              By creating an account, you agree to our{" "}
-              <Text
-                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
-                onPress={() => router.push("/terms")}
-              >
-                Terms of Service
-              </Text>
-              {" "}and{" "}
-              <Text
-                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
-                onPress={() => router.push("/privacy")}
-              >
-                Privacy Policy
-              </Text>
-            </Text>
-          )}
-
           {/* Toggle mode */}
           {!forgotPasswordMode && (
             <TouchableOpacity
@@ -472,6 +521,7 @@ export default function SignIn() {
           )}
 
           <View style={{ height: 32 }} />
+          </View>
         </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

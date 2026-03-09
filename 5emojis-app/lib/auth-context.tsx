@@ -9,6 +9,7 @@ import { Platform } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { deleteAccount as deleteAccountService } from "./profile-service";
 import { registerForPushNotifications } from "./push-notifications";
@@ -60,12 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Configure Google Sign-In once on mount
-  // NOTE: Do NOT pass iosClientId — the native iOS flow embeds a nonce in the
-  // ID token that we can't extract, causing a mismatch with Supabase.
-  // Using only webClientId triggers a web-based flow that works correctly.
+  // iosClientId is required for the SDK to initialize on iOS (without
+  // GoogleService-Info.plist). The webClientId ensures the returned ID token
+  // is audience-matched for Supabase's server-side verification.
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     });
   }, []);
 
@@ -94,48 +96,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (DEV_BYPASS_AUTH) return;
 
-    supabase.auth
-      .getSession()
+    // Failsafe: if session check hangs (bad network), stop loading after 8s
+    // so the app never gets permanently stuck on the loading screen.
+    const loadingTimeout = setTimeout(() => setLoading(false), 8000);
+
+    // Track whether initial load is done. The onAuthStateChange listener
+    // fires INITIAL_SESSION immediately with a potentially stale token —
+    // we must ignore it and let our manual flow handle the first session.
+    let initialLoadDone = false;
+
+    // Fresh install detection: AsyncStorage is cleared on app uninstall,
+    // but iOS Keychain (where Supabase stores auth tokens) persists.
+    // If the flag is missing, this is a fresh install — clear stale tokens.
+    const clearStaleSession = async () => {
+      const hasLaunched = await AsyncStorage.getItem("has_launched_before");
+      if (!hasLaunched) {
+        await supabase.auth.signOut().catch(() => {});
+        await AsyncStorage.setItem("has_launched_before", "true");
+      }
+    };
+
+    // Manual session init: getUser() forces a server round-trip which
+    // refreshes an expired token. We only set session AFTER this succeeds.
+    clearStaleSession()
+      .then(() => supabase.auth.getSession())
       .then(async ({ data: { session: s } }) => {
-        setSession(s);
         if (s?.user) {
           try {
-            // Verify the auth user still exists server-side (may have been deleted)
             const { data: authUser, error: authError } = await supabase.auth.getUser();
             if (authError || !authUser?.user) {
-              // Auth user was deleted — clear the stale session
               await supabase.auth.signOut().catch(() => {});
               setSession(null);
               setNeedsOnboarding(false);
               return;
             }
 
-            const result = await checkProfile(s.user.id);
+            // getUser() triggers token refresh — re-read the now-valid session
+            const { data: { session: refreshed } } = await supabase.auth.getSession();
+            setSession(refreshed);
+
+            const result = await checkProfile(authUser.user.id);
             setNeedsOnboarding(!result.exists);
             setIsSuspended(result.suspended);
             setSuspendedUntil(result.suspendedUntil);
             setIsAdmin(result.admin);
             if (result.exists && !result.suspended) {
-              registerForPushNotifications(s.user.id);
+              registerForPushNotifications(authUser.user.id);
             }
           } catch (err: any) {
-            // profiles table may not exist yet — treat as needs onboarding
+            // Network error — set the cached session so app isn't stuck on sign-in.
+            // Do NOT set needsOnboarding=true here — profile may exist, we just can't check.
+            // The user will see the main app; if profile is truly missing, the next
+            // successful API call will reveal it.
+            setSession(s);
             logError(err, { screen: "AuthProvider", context: "session_profile_check" });
-            setNeedsOnboarding(true);
           }
+        } else {
+          setSession(null);
         }
       })
       .catch((err: any) => {
-        // Network/Supabase unreachable — proceed without session
         logError(err, { screen: "AuthProvider", context: "get_session" });
       })
       .finally(() => {
+        initialLoadDone = true;
+        clearTimeout(loadingTimeout);
         setLoading(false);
       });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      // Skip INITIAL_SESSION — our manual flow above handles the first
+      // session with a proper token refresh. Without this guard the
+      // listener sets a stale cached token before the refresh finishes.
+      if (!initialLoadDone) return;
+
       setSession(s);
       if (s?.user) {
         try {
@@ -148,8 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             registerForPushNotifications(s.user.id);
           }
         } catch (err: any) {
+          // Network error — don't change onboarding state, keep previous value
           logError(err, { screen: "AuthProvider", context: "auth_state_change_profile_check" });
-          setNeedsOnboarding(true);
         }
       } else {
         setNeedsOnboarding(false);
@@ -159,7 +195,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(loadingTimeout);
+      subscription.unsubscribe();
+    };
   }, [checkProfile]);
 
   const signUp = useCallback(
@@ -239,6 +278,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: "No ID token returned from Google." };
       }
 
+      // On iOS, the native Google SDK embeds its own nonce in the ID token
+      // but doesn't expose the raw value — passing the hashed nonce from the
+      // JWT causes a double-hash mismatch in Supabase. The fix is to NOT pass
+      // a nonce here and enable "Skip nonce checks" for Google in the Supabase
+      // dashboard (Authentication → Providers → Google → Skip Nonce Check).
+      // On Android, no nonce is present so this works as-is.
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: "google",
         token: response.data.idToken,

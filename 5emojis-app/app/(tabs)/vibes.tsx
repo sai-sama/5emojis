@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useFocusEffect, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
+import { usePremium } from "../../lib/premium-context";
 import { logError } from "../../lib/error-logger";
 import {
   fetchMatchesEnhanced,
@@ -29,7 +30,7 @@ import { blockUser } from "../../lib/block-report-service";
 import ReportModal from "../../components/ReportModal";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import { fonts } from "../../lib/fonts";
-import { COLORS, PREMIUM_GATES } from "../../lib/constants";
+import { COLORS } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieLoading from "../../components/lottie/LottieLoading";
 import LottieEmptyState from "../../components/lottie/LottieEmptyState";
@@ -107,14 +108,15 @@ function VibeCard({
   vibe,
   onVibeBack,
   onPass,
+  isPremiumLocked,
 }: {
   vibe: IncomingVibe;
   onVibeBack: () => void;
   onPass: () => void;
+  isPremiumLocked: boolean;
 }) {
   const age = calculateAge(vibe.user.dob);
   const sortedEmojis = [...vibe.emojis].sort((a, b) => a.position - b.position);
-  const isPremiumLocked = PREMIUM_GATES.seeWhoVibedYou;
 
   return (
     <View style={styles.vibeCard}>
@@ -152,13 +154,7 @@ function VibeCard({
       {isPremiumLocked ? (
         <Pressable
           style={styles.vibeUnlockBtn}
-          onPress={() =>
-            Alert.alert(
-              "Unlock Vibes",
-              "Upgrade to see who vibed you!",
-              [{ text: "OK" }]
-            )
-          }
+          onPress={() => router.push("/premium")}
         >
           <Text style={styles.vibeUnlockText}>Unlock</Text>
         </Pressable>
@@ -311,9 +307,11 @@ function MatchCard({
 // ─── Main Screen ─────────────────────────────────────────────
 export default function VibesScreen() {
   const { session } = useAuth();
+  const { isPremium } = usePremium();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [actingOnVibe, setActingOnVibe] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<MatchFilter>("all");
@@ -336,9 +334,10 @@ export default function VibesScreen() {
       ]);
       setMatches(matchData);
       setVibes(vibeData);
+      setLoadError(false);
     } catch (err: any) {
-      console.warn("Failed to load matches/vibes:", err);
       logError(err, { screen: "VibesScreen", context: "load_matches_and_vibes" });
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -351,6 +350,10 @@ export default function VibesScreen() {
     }, [loadData])
   );
 
+  // Stable ref to loadData so the subscription doesn't churn
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+
   // Realtime: refresh when new matches or messages arrive
   useEffect(() => {
     if (!session?.user) return;
@@ -359,21 +362,21 @@ export default function VibesScreen() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "matches" },
-        () => loadData()
+        () => loadDataRef.current()
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        () => loadData()
+        () => loadDataRef.current()
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "swipes" },
-        () => loadData()
+        () => loadDataRef.current()
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [session, loadData]);
+  }, [session]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -438,7 +441,7 @@ export default function VibesScreen() {
           ]);
           Alert.alert(
             "It's a match! 🎉",
-            `You and ${vibe.user.name} vibed each other!`,
+            `You and ${vibe.user.name} matched!`,
             [
               { text: "Keep browsing" },
               {
@@ -530,7 +533,7 @@ export default function VibesScreen() {
       {vibes.length > 0 && (
         <View style={styles.vibesSection}>
           <View style={styles.vibesHeader}>
-            <Text style={styles.vibesSectionTitle}>Who Vibed You</Text>
+            <Text style={styles.vibesSectionTitle}>Who Liked You</Text>
             <View style={styles.vibeCountBadge}>
               <Text style={styles.vibeCountText}>{vibes.length}</Text>
             </View>
@@ -546,6 +549,7 @@ export default function VibesScreen() {
                 vibe={vibe}
                 onVibeBack={() => handleVibeBack(vibe)}
                 onPass={() => handlePass(vibe)}
+                isPremiumLocked={!isPremium}
               />
             ))}
           </ScrollView>
@@ -577,6 +581,22 @@ export default function VibesScreen() {
           <View style={styles.centered}>
             <LottieLoading message="Loading your friends..." />
           </View>
+        ) : loadError && !hasContent ? (
+          <LottieEmptyState
+            title="Couldn't load matches"
+            subtitle="Check your internet connection and try again."
+          >
+            <Pressable
+              style={styles.emptyCtaButton}
+              onPress={() => {
+                setLoading(true);
+                loadData();
+              }}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+              <Text style={styles.emptyCtaText}>Retry</Text>
+            </Pressable>
+          </LottieEmptyState>
         ) : !hasContent ? (
           <LottieEmptyState
             title="No matches yet"

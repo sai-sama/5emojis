@@ -66,7 +66,7 @@ export const ALL_INTERESTS = [
   { label: "Climbing", icon: "🧗" },
 ] as const;
 
-export const RADIUS_STEPS = [5, 10, 15, 25, 50, 75, 100] as const;
+export const RADIUS_STEPS = [5, 10, 25, 50, 100, 250] as const;
 
 // ─── Availability slots ──────────────────────────────────────
 export const AVAILABILITY_SLOTS = [
@@ -134,6 +134,14 @@ export const DIETARY_OPTIONS = [
   { label: "Halal", value: "halal", icon: "🍖" },
   { label: "Kosher", value: "kosher", icon: "✡️" },
   { label: "No Restrictions", value: "no_restrictions", icon: "🍽️" },
+] as const;
+
+export const COMMON_PROFESSIONS = [
+  { label: "Student", icon: "📚" },
+  { label: "Engineer", icon: "💻" },
+  { label: "Healthcare", icon: "🏥" },
+  { label: "Creative", icon: "🎨" },
+  { label: "Business", icon: "💼" },
 ] as const;
 
 export const MAX_INTERESTS = 5;

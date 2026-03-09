@@ -5,15 +5,35 @@ import Constants from "expo-constants";
 import { supabase } from "./supabase";
 import { logError } from "./error-logger";
 
-// Configure how notifications appear when the app is in the foreground
+// Track which chat the user is currently viewing — set by ChatScreen
+let _activeMatchId: string | null = null;
+export function setActiveChatId(matchId: string | null) {
+  _activeMatchId = matchId;
+}
+
+// Configure how notifications appear when the app is in the foreground.
+// Suppress notification if the user is already viewing the relevant chat.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data;
+    // If user is actively viewing this chat, suppress the alert
+    if (data?.matchId && data.matchId === _activeMatchId) {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 /**
@@ -98,7 +118,7 @@ export async function sendPushNotification(
     if (!token) return;
 
     // Send via Expo Push API
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -110,9 +130,24 @@ export async function sendPushNotification(
         title,
         body,
         sound: "default",
+        channelId: "default",
         data: data ?? {},
       }),
     });
+
+    // Check for invalid/expired tokens and clean them up
+    if (response.ok) {
+      try {
+        const result = await response.json();
+        const ticketData = result?.data;
+        if (ticketData?.status === "error" && ticketData?.details?.error === "DeviceNotRegistered") {
+          // Token is invalid — remove it from the profile
+          await supabase.from("profiles").update({ push_token: null }).eq("id", recipientUserId);
+        }
+      } catch {
+        // JSON parse failed — ignore
+      }
+    }
   } catch (err: any) {
     // Silently fail — push is best-effort
     logError(err, { screen: "PushNotifications", context: "send_push_notification" });
@@ -130,7 +165,7 @@ export async function notifyNewMatch(
   await sendPushNotification(
     recipientUserId,
     "New Match! 🎉",
-    `You and ${matcherName} vibed each other!`,
+    `You and ${matcherName} matched!`,
     { type: "match", matchId }
   );
 }
@@ -169,4 +204,20 @@ export function addNotificationResponseListener(
   );
 
   return () => subscription.remove();
+}
+
+/**
+ * Check if the app was launched from a notification tap (cold start).
+ * Should be called once on app startup.
+ */
+export async function checkInitialNotification(
+  onNavigate: (matchId: string) => void
+): Promise<void> {
+  const response = await Notifications.getLastNotificationResponseAsync();
+  if (response) {
+    const data = response.notification.request.content.data;
+    if (data?.matchId) {
+      onNavigate(data.matchId as string);
+    }
+  }
 }

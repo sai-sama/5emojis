@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import * as Notifications from "expo-notifications";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
 
@@ -60,11 +61,12 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
           event: "UPDATE",
           schema: "public",
           table: "messages",
-          filter: `read_at=neq.null`,
         },
-        () => {
+        (payload) => {
           // A message was marked as read — recalculate
-          refresh();
+          if (payload.new.read_at && !payload.old?.read_at) {
+            refresh();
+          }
         }
       )
       .subscribe();
@@ -73,6 +75,11 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(channel);
     };
   }, [session, refresh]);
+
+  // Sync app icon badge count
+  useEffect(() => {
+    Notifications.setBadgeCountAsync(unreadCount).catch(() => {});
+  }, [unreadCount]);
 
   return (
     <UnreadContext.Provider value={{ unreadCount, refresh }}>

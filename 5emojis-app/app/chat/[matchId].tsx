@@ -40,10 +40,11 @@ import {
   fetchReactions,
   subscribeToReactions,
   REACTION_EMOJIS,
+  MESSAGE_PAGE_SIZE,
   type ChatState,
 } from "../../lib/message-service";
 import { blockUser } from "../../lib/block-report-service";
-import { notifyNewMessage } from "../../lib/push-notifications";
+import { notifyNewMessage, setActiveChatId } from "../../lib/push-notifications";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import { getZodiacSign } from "../../lib/zodiac";
 import { COLORS } from "../../lib/constants";
@@ -77,6 +78,10 @@ export default function ChatScreen() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  // Pagination state
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Reveals state
   const [revealsExpanded, setRevealsExpanded] = useState(false);
 
@@ -95,6 +100,14 @@ export default function ChatScreen() {
 
   const currentUserId = session?.user?.id ?? "";
 
+  // ─── Track active chat for notification suppression ─────────
+  useFocusEffect(
+    useCallback(() => {
+      if (matchId) setActiveChatId(matchId);
+      return () => setActiveChatId(null);
+    }, [matchId])
+  );
+
   // ─── Load match data + messages + icebreaker question ──────
   useFocusEffect(
     useCallback(() => {
@@ -107,7 +120,12 @@ export default function ChatScreen() {
         try {
           const matches = await fetchMatches(session.user.id);
           const found = matches.find((m) => m.match.id === matchId);
-          setMatchData(found ?? null);
+          if (!found) {
+            // Match was deleted or user is blocked — go back
+            router.back();
+            return;
+          }
+          setMatchData(found);
 
           // Only overwrite route-param question if DB actually has one
           if (found?.match.icebreaker_question_id) {
@@ -115,8 +133,9 @@ export default function ChatScreen() {
             if (q) setIcebreakerQuestion(q);
           }
 
-          const msgs = await fetchMessages(matchId);
+          const msgs = await fetchMessages(matchId, MESSAGE_PAGE_SIZE);
           setMessages(msgs);
+          setHasMoreMessages(msgs.length >= MESSAGE_PAGE_SIZE);
 
           if (found) {
             const otherUserId =
@@ -290,7 +309,7 @@ export default function ChatScreen() {
 
       // Notify the other user
       if (otherUserId) {
-        notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true);
+        notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true).catch(() => {});
       }
     }
     setSendingIcebreaker(false);
@@ -308,7 +327,7 @@ export default function ChatScreen() {
 
     // Notify the other user
     if (otherUserId) {
-      notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, false);
+      notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, false).catch(() => {});
     }
 
     const msgs = await fetchMessages(matchId);
@@ -319,6 +338,24 @@ export default function ChatScreen() {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [textInput, session, matchId, otherUserId, other]);
+
+  // ─── Load older messages (pagination) ────────────────────────
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMoreMessages || messages.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const oldestDate = messages[0]?.created_at;
+      const older = await fetchMessages(matchId, MESSAGE_PAGE_SIZE, oldestDate);
+      if (older.length < MESSAGE_PAGE_SIZE) setHasMoreMessages(false);
+      if (older.length > 0) {
+        setMessages((prev) => [...older, ...prev]);
+      }
+    } catch (err: any) {
+      logError(err, { screen: "ChatScreen", context: "load_more_messages" });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMoreMessages, messages, matchId]);
 
   // ─── Emoji reaction handler ────────────────────────────────
   const handleReaction = useCallback(
@@ -728,6 +765,15 @@ export default function ChatScreen() {
                   onContentSizeChange={() =>
                     flatListRef.current?.scrollToEnd({ animated: false })
                   }
+                  initialNumToRender={MESSAGE_PAGE_SIZE}
+                  maxToRenderPerBatch={20}
+                  onScroll={(e) => {
+                    // Load older messages when user scrolls near the top
+                    if (e.nativeEvent.contentOffset.y < 100 && hasMoreMessages) {
+                      loadMoreMessages();
+                    }
+                  }}
+                  scrollEventThrottle={200}
                   renderItem={({ item }) => {
                     if (item.type === "icebreaker_reveal") {
                       return (
@@ -865,27 +911,6 @@ export default function ChatScreen() {
                           groupedReactions.length > 0 && { marginBottom: 14 },
                         ]}
                       >
-                        {/* Reaction quick-picker (shown on long-press) — above bubble */}
-                        {reactionPickerMessageId === msg.id && (
-                          <Animated.View
-                            entering={FadeIn.duration(150)}
-                            style={[
-                              styles.reactionPicker,
-                              isMe ? styles.reactionPickerMe : styles.reactionPickerOther,
-                            ]}
-                          >
-                            {REACTION_EMOJIS.map((emoji) => (
-                              <Pressable
-                                key={emoji}
-                                onPress={() => handleReaction(msg.id, emoji)}
-                                style={styles.reactionPickerItem}
-                              >
-                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
-                              </Pressable>
-                            ))}
-                          </Animated.View>
-                        )}
-
                         <Pressable
                           onLongPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -932,6 +957,27 @@ export default function ChatScreen() {
                             )}
                           </View>
                         </Pressable>
+
+                        {/* Reaction quick-picker (shown on long-press) — below bubble */}
+                        {reactionPickerMessageId === msg.id && (
+                          <Animated.View
+                            entering={FadeIn.duration(150)}
+                            style={[
+                              styles.reactionPicker,
+                              isMe ? styles.reactionPickerMe : styles.reactionPickerOther,
+                            ]}
+                          >
+                            {REACTION_EMOJIS.map((emoji) => (
+                              <Pressable
+                                key={emoji}
+                                onPress={() => handleReaction(msg.id, emoji)}
+                                style={styles.reactionPickerItem}
+                              >
+                                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+                              </Pressable>
+                            ))}
+                          </Animated.View>
+                        )}
 
                         {/* Reaction pills — tucked under the bubble, overlapping */}
                         {groupedReactions.length > 0 && (
@@ -1598,7 +1644,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingHorizontal: 6,
     paddingVertical: 4,
-    marginBottom: 6,
+    marginTop: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,

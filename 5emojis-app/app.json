@@ -50,6 +50,13 @@
           "icon": "./assets/icon.png",
           "color": "#7C3AED"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "5Emojis uses your location to show you people nearby.",
+          "locationWhenInUsePermission": "5Emojis uses your location to show you people nearby."
+        }
       ]
     ],
     "extra": {

@@ -115,7 +115,7 @@ function AnimatedTab({
       <Animated.View style={[iconStyle, { position: "relative" }]}>
         <Ionicons
           name={focused ? config.iconFocused : config.icon}
-          size={22}
+          size={26}
           color={focused ? "#FFF" : "rgba(255,255,255,0.55)"}
         />
         {!!badge && badge > 0 && (
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-evenly",
     backgroundColor: "#7C3AED",
-    paddingTop: 8,
+    paddingTop: 2,
     borderTopWidth: 0,
     shadowColor: "#5B21B6",
     shadowOffset: { width: 0, height: -4 },
@@ -218,21 +218,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 6,
+    paddingVertical: 2,
     position: "relative",
   },
   activePill: {
     position: "absolute",
     top: 2,
-    width: 56,
-    height: 32,
-    borderRadius: 16,
+    width: 62,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.2)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.body,
     color: "rgba(255,255,255,0.55)",
     marginTop: 2,
@@ -248,10 +248,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   undoLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.body,
     color: "rgba(255,255,255,0.55)",
-    marginTop: 2,
+    marginTop: 3,
   },
   undoLabelActive: {
     color: "#FFF",

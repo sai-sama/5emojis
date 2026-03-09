@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { Match, Message, ProfileEmoji, ProfilePhoto, Profile } from "./types";
 import { ChatState, getChatState } from "./message-service";
+import { logError } from "./error-logger";
 
 // ─── Types ──────────────────────────────────────────────────
 export type MatchResult = {
@@ -46,15 +47,16 @@ export type EnhancedMatch = MatchWithProfile & {
 export async function recordSwipe(
   swiperId: string,
   swipedId: string,
-  direction: "left" | "right"
+  direction: "left" | "right",
+  isSuperLike: boolean = false
 ): Promise<MatchResult> {
   // Insert the swipe — DB trigger handles match creation for right swipes
   const { error } = await supabase
     .from("swipes")
-    .insert({ swiper_id: swiperId, swiped_id: swipedId, direction });
+    .insert({ swiper_id: swiperId, swiped_id: swipedId, direction, is_super_like: isSuperLike });
 
   if (error) {
-    console.warn("Failed to record swipe:", error.message);
+    logError(error, { screen: "SwipeService", context: "record_swipe" });
     return { matched: false };
   }
 
@@ -104,10 +106,15 @@ export async function recordSwipe(
       .order("position"),
   ]);
 
+  // Guard against deleted/missing profile (shouldn't happen but defensive)
+  if (!profileRes.data) {
+    return { matched: false };
+  }
+
   return {
     matched: true,
     match,
-    otherUser: profileRes.data!,
+    otherUser: profileRes.data,
     otherEmojis: emojisRes.data ?? [],
     otherPhoto: photoRes.data,
     icebreakerQuestion: questionRes.data?.question ?? null,
@@ -119,20 +126,42 @@ export async function recordSwipe(
 export async function fetchMatches(
   userId: string
 ): Promise<MatchWithProfile[]> {
-  // Get all matches involving this user
-  const { data: matches, error } = await supabase
-    .from("matches")
-    .select("*")
-    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-    .order("created_at", { ascending: false });
+  // Get all matches involving this user + any blocks (for filtering)
+  const [matchesRes, blocksRes] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("*")
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("blocks")
+      .select("blocker_id, blocked_id")
+      .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`),
+  ]);
 
-  if (error || !matches?.length) {
+  const matches = matchesRes.data;
+  if (matchesRes.error || !matches?.length) {
     return [];
   }
 
+  // Build set of blocked user IDs (both directions)
+  const blockedIds = new Set<string>();
+  for (const b of blocksRes.data ?? []) {
+    if (b.blocker_id === userId) blockedIds.add(b.blocked_id);
+    else blockedIds.add(b.blocker_id);
+  }
+
+  // Filter out matches with blocked users
+  const filteredMatches = matches.filter((match) => {
+    const otherUserId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    return !blockedIds.has(otherUserId);
+  });
+
+  if (filteredMatches.length === 0) return [];
+
   // For each match, fetch the other user's profile + emojis + photo
   const results = await Promise.all(
-    matches.map(async (match) => {
+    filteredMatches.map(async (match) => {
       const otherUserId =
         match.user1_id === userId ? match.user2_id : match.user1_id;
 
@@ -379,28 +408,12 @@ export async function undoSwipe(
 
 // ─── Unmatch (remove match + messages, no block) ─────────────
 export async function unmatchUser(matchId: string): Promise<{ error: string | null }> {
-  // Delete messages first (FK constraint)
-  const { error: msgErr } = await supabase
-    .from("messages")
-    .delete()
-    .eq("match_id", matchId);
-  if (msgErr) return { error: msgErr.message };
-
-  // Delete message reactions for this match's messages
-  await supabase
-    .from("message_reactions")
-    .delete()
-    .in(
-      "message_id",
-      (await supabase.from("messages").select("id").eq("match_id", matchId)).data?.map((m) => m.id) ?? []
-    );
-
-  // Delete the match
-  const { error: matchErr } = await supabase
+  // Delete the match — messages and reactions cascade-delete via FK constraints
+  const { error } = await supabase
     .from("matches")
     .delete()
     .eq("id", matchId);
-  if (matchErr) return { error: matchErr.message };
+  if (error) return { error: error.message };
 
   return { error: null };
 }

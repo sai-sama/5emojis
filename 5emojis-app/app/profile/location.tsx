@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Pressable,
   ScrollView,
@@ -21,23 +20,16 @@ import {
   updateProfileFields,
 } from "../../lib/profile-service";
 import {
-  searchLocations,
-  type ResolvedLocation,
-} from "../../lib/geocoding";
+  requestLocationPermission,
+  getCurrentLocation,
+} from "../../lib/location-service";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 
 export default function LocationScreen() {
   const { session } = useAuth();
   const { profile, refresh } = useProfile();
-  const [saving, setSaving] = useState(false);
-
-  // Location search
-  const [editingLocation, setEditingLocation] = useState(false);
-  const [locationInput, setLocationInput] = useState("");
-  const [suggestions, setSuggestions] = useState<ResolvedLocation[]>([]);
-  const [geocoding, setGeocoding] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // Local state
   const [isNewToCity, setIsNewToCity] = useState(
@@ -53,27 +45,26 @@ export default function LocationScreen() {
 
   if (!profile) return null;
 
-  // ─── Location search ───────────────────────────────────────
-  const handleLocationInput = useCallback((text: string) => {
-    setLocationInput(text);
-    setSuggestions([]);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const trimmed = text.trim();
-    if (!trimmed || trimmed.length < 3) return;
-
-    debounceRef.current = setTimeout(async () => {
-      setGeocoding(true);
-      const results = await searchLocations(trimmed);
-      setGeocoding(false);
-      setSuggestions(results);
-    }, 600);
-  }, []);
-
-  const selectSuggestion = async (location: ResolvedLocation) => {
+  // ─── Refresh GPS location ───────────────────────────────────
+  const handleRefreshLocation = async () => {
     if (!session?.user) return;
-    setSuggestions([]);
-    setSaving(true);
+    setGpsLoading(true);
+    const granted = await requestLocationPermission();
+    if (!granted) {
+      Alert.alert(
+        "Location Access Needed",
+        "Please enable location access in your device settings."
+      );
+      setGpsLoading(false);
+      return;
+    }
+
+    const location = await getCurrentLocation();
+    if (!location) {
+      Alert.alert("Couldn't get location", "Please try again.");
+      setGpsLoading(false);
+      return;
+    }
 
     const { error } = await updateLocation(session.user.id, {
       city: location.city,
@@ -82,9 +73,7 @@ export default function LocationScreen() {
       longitude: location.longitude,
     });
 
-    setSaving(false);
-    setEditingLocation(false);
-    setLocationInput("");
+    setGpsLoading(false);
 
     if (error) {
       Alert.alert("Error", error);
@@ -112,77 +101,49 @@ export default function LocationScreen() {
           <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Location</Text>
-        <View style={{ width: 32 }}>
-          {saving && <ActivityIndicator size="small" color={COLORS.primary} />}
-        </View>
+        <View style={{ width: 32 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Current location */}
+        {/* Current location card */}
         <View style={styles.card}>
           <View style={styles.locationRow}>
-            <Text style={{ fontSize: 20 }}>📍</Text>
-            <Text style={styles.locationCity}>{locationDisplay}</Text>
-            <TouchableOpacity
-              hitSlop={12}
-              onPress={() => {
-                setEditingLocation(!editingLocation);
-                setLocationInput("");
-                setSuggestions([]);
-              }}
-            >
-              <Text style={styles.changeText}>
-                {editingLocation ? "Cancel" : "Change"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.locationIcon}>
+              <Ionicons name="location" size={22} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationCity}>{locationDisplay}</Text>
+              <Text style={styles.locationSub}>Based on your device location</Text>
+            </View>
           </View>
 
-          {editingLocation && (
-            <View style={{ marginTop: 12 }}>
-              <TextInput
-                value={locationInput}
-                onChangeText={handleLocationInput}
-                placeholder="Enter city or postal code"
-                placeholderTextColor="#B2BEC3"
-                autoFocus
-                autoCapitalize="words"
-                style={styles.textInput}
-              />
+          {/* Refresh button */}
+          <TouchableOpacity
+            onPress={handleRefreshLocation}
+            disabled={gpsLoading}
+            style={styles.refreshButton}
+          >
+            {gpsLoading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Ionicons name="navigate" size={16} color={COLORS.primary} />
+            )}
+            <Text style={styles.refreshButtonText}>
+              {gpsLoading ? "Updating..." : "Refresh Location"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-              {geocoding && (
-                <View style={styles.searchingRow}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                  <Text style={styles.searchingText}>Finding locations...</Text>
-                </View>
-              )}
-
-              {!geocoding && suggestions.length > 0 && (
-                <View style={styles.suggestionList}>
-                  {suggestions.map((loc, i) => (
-                    <TouchableOpacity
-                      key={`${loc.latitude}-${loc.longitude}`}
-                      onPress={() => selectSuggestion(loc)}
-                      style={[
-                        styles.suggestionRow,
-                        i > 0 && styles.suggestionBorder,
-                      ]}
-                    >
-                      <Text style={{ fontSize: 20 }}>{loc.flag}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.suggestionCity}>{loc.city}</Text>
-                        {loc.state ? (
-                          <Text style={styles.suggestionState}>{loc.state}</Text>
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
+        {/* Info note */}
+        <View style={styles.infoRow}>
+          <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+          <Text style={styles.infoText}>
+            Your location updates automatically when you open the app. Use refresh
+            if you've moved since then.
+          </Text>
         </View>
 
         {/* New to city */}
@@ -191,7 +152,7 @@ export default function LocationScreen() {
           onPress={toggleNewToCity}
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.toggleLabel}>🆕  New to this city?</Text>
+            <Text style={styles.toggleLabel}>New to this city?</Text>
             <Text style={styles.toggleSub}>
               Show a badge so locals know you're looking to meet people
             </Text>
@@ -217,12 +178,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  backArrow: {
-    fontSize: 32,
-    color: COLORS.text,
-    fontWeight: "300",
-    lineHeight: 32,
-  },
   headerTitle: {
     fontSize: 18,
     fontFamily: fonts.headingBold,
@@ -243,69 +198,60 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+  },
+  locationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primarySurface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   locationCity: {
-    flex: 1,
     fontSize: 17,
     fontFamily: fonts.headingBold,
     color: COLORS.text,
   },
-  changeText: {
+  locationSub: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  refreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySurface,
+  },
+  refreshButtonText: {
     fontSize: 14,
     fontFamily: fonts.bodySemiBold,
     color: COLORS.primary,
   },
-  textInput: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: fonts.body,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchingRow: {
+
+  // Info
+  infoRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
-    marginTop: 8,
+    marginTop: 14,
+    marginBottom: 14,
+    paddingHorizontal: 4,
   },
-  searchingText: {
+  infoText: {
+    flex: 1,
     fontSize: 13,
     fontFamily: fonts.body,
-    color: COLORS.textSecondary,
-  },
-  suggestionList: {
-    marginTop: 8,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: "hidden",
-  },
-  suggestionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  suggestionBorder: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  suggestionCity: {
-    fontSize: 15,
-    fontFamily: fonts.bodySemiBold,
-    color: COLORS.text,
-  },
-  suggestionState: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
+    lineHeight: 18,
   },
 
   // Toggle

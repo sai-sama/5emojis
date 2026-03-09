@@ -16,6 +16,8 @@ export default function TabHeader() {
   useEffect(() => {
     if (!session?.user?.id) return;
 
+    // Use the session access token as a dependency so this re-runs
+    // after a token refresh (e.g. first open after idle)
     supabase
       .from("profile_photos")
       .select("url")
@@ -25,7 +27,7 @@ export default function TabHeader() {
       .then(({ data }) => {
         if (data?.url) setAvatarUri(data.url);
       });
-  }, [session?.user?.id]);
+  }, [session?.user?.id, session?.access_token]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 4 }]}>

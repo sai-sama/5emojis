@@ -8,17 +8,19 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
+import { usePremium } from "../../lib/premium-context";
 import { useProfile } from "../../lib/profile-context";
 import { updateProfileFields, updateInterests, updateReveals } from "../../lib/profile-service";
 import Chip from "../../components/profile/Chip";
 import {
-  SITUATIONS,
   FRIENDSHIP_STYLES,
   ALL_INTERESTS,
   MAX_INTERESTS,
@@ -30,12 +32,12 @@ import { COLORS } from "../../lib/constants";
 
 export default function AboutScreen() {
   const { session } = useAuth();
+  const { isPremium } = usePremium();
   const { profile, refresh } = useProfile();
   const [saving, setSaving] = useState(false);
 
   // Local editing state — initialised from profile
   const [profession, setProfession] = useState(profile?.profile.profession || "");
-  const [lifeStage, setLifeStage] = useState(profile?.profile.life_stage || "");
   const [friendshipStyles, setFriendshipStyles] = useState<string[]>(
     profile?.profile.friendship_style ? [profile.profile.friendship_style] : []
   );
@@ -57,12 +59,11 @@ export default function AboutScreen() {
     const existingReveals = [...(profile.reveals ?? []), "", "", "", ""].slice(0, 4);
     return (
       (profession.trim() || null) !== (profile.profile.profession || null) ||
-      (lifeStage || null) !== (profile.profile.life_stage || null) ||
       (friendshipStyles[0] || null) !== (profile.profile.friendship_style || null) ||
       JSON.stringify([...interests].sort()) !== JSON.stringify([...profile.interests].sort()) ||
       JSON.stringify(reveals) !== JSON.stringify(existingReveals)
     );
-  }, [profile, profession, lifeStage, friendshipStyles, interests, reveals]);
+  }, [profile, profession, friendshipStyles, interests, reveals]);
 
   if (!profile) return null;
 
@@ -73,14 +74,12 @@ export default function AboutScreen() {
 
     const { error } = await updateProfileFields(session.user.id, {
       profession: profession.trim() || null,
-      life_stage: lifeStage || null,
       friendship_style: friendshipStyles[0] || null,
     });
     if (error) Alert.alert("Error", error);
 
     await updateInterests(session.user.id, interests);
     await updateReveals(session.user.id, reveals);
-    setSaving(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     refresh();
     router.back();
@@ -99,9 +98,15 @@ export default function AboutScreen() {
         </View>
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Profession */}
         <Text style={styles.fieldLabel}>What do you do?</Text>
@@ -113,23 +118,6 @@ export default function AboutScreen() {
           autoCapitalize="words"
           style={styles.textInput}
         />
-
-        {/* Life Stage */}
-        <Text style={styles.fieldLabel}>I'm currently...</Text>
-        <View style={styles.chipGrid}>
-          {SITUATIONS.map(({ label, icon }) => (
-            <Chip
-              key={label}
-              label={label}
-              icon={icon}
-              selected={lifeStage === label}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setLifeStage(lifeStage === label ? "" : label);
-              }}
-            />
-          ))}
-        </View>
 
         {/* Friendship Styles */}
         <View style={styles.fieldRow}>
@@ -225,15 +213,27 @@ export default function AboutScreen() {
           <View style={styles.revealsHeader}>
             <Ionicons name="lock-closed" size={14} color={COLORS.textSecondary} />
             <Text style={styles.fieldLabel}>Hidden Reveals</Text>
+            {!isPremium && (
+              <TouchableOpacity onPress={() => router.push("/premium")} style={styles.premiumBadge}>
+                <Ionicons name="star" size={10} color="#FFF" />
+                <Text style={styles.premiumBadgeText}>Premium</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.revealsSubtitle}>
-            4 things people discover about you after matching
+            {isPremium
+              ? "4 things people discover about you after matching"
+              : "Upgrade to premium to add your own hidden reveals"}
           </Text>
           {reveals.map((reveal, index) => (
             <TextInput
               key={index}
               value={reveal}
               onChangeText={(text) => {
+                if (!isPremium) {
+                  router.push("/premium");
+                  return;
+                }
                 const updated = [...reveals];
                 updated[index] = text;
                 setReveals(updated);
@@ -249,11 +249,13 @@ export default function AboutScreen() {
               }
               placeholderTextColor="#B2BEC3"
               maxLength={100}
-              style={styles.revealInput}
+              editable={isPremium}
+              style={[styles.revealInput, !isPremium && { opacity: 0.5 }]}
             />
           ))}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Sticky save button */}
       {dirty && (
@@ -375,6 +377,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginBottom: 4,
+  },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: "auto",
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    color: "#FFF",
   },
   revealsSubtitle: {
     fontSize: 12,

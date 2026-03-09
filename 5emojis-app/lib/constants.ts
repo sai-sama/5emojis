@@ -78,11 +78,30 @@ export const GENDERS = [
 export type GenderValue = "male" | "female" | "nonbinary";
 
 // ─── Premium Feature Flags ──────────────────────────────────
-// Flip these to `true` to gate features behind premium.
-// When true, tapping the feature shows a paywall prompt.
+// When true, tapping the feature shows a paywall prompt for free users.
 export const PREMIUM_GATES = {
-  undoSwipe: false,        // Undo last swipe
-  seeWhoVibedYou: false,   // See who swiped right on you
-  profileBoost: false,      // Boost profile visibility
-  unlimitedEmojiChanges: false, // Change emojis anytime (vs once/week)
+  undoSwipe: true,           // Undo last swipe — premium only
+  seeWhoVibedYou: true,     // See who swiped right on you — premium only
+  superLikes: true,          // Send super likes — premium only
+  unlimitedSwipes: true,     // Unlimited right swipes — premium only
+  fullFilters: true,         // Full age range slider + 100+ mile radius — premium only
+  addReveals: true,          // Add profile reveals — premium only
+} as const;
+
+// ─── Swipe Limits ──────────────────────────────────────────
+export const FREE_DAILY_RIGHT_SWIPES = 35;
+export const PREMIUM_DAILY_SUPER_LIKES = 3;
+export const FREE_MAX_RADIUS_MILES = 50;  // Free users capped at 50mi
+
+// ─── Subscription Plans ────────────────────────────────────
+// RevenueCat product IDs — configure these in RevenueCat dashboard
+// after creating products in App Store Connect / Google Play Console
+export const SUBSCRIPTION_PRODUCTS = {
+  monthly: "5emojis_premium_monthly",   // $7.99/month
+  annual: "5emojis_premium_annual",     // $49.99/year
+} as const;
+
+export const SUBSCRIPTION_PRICES = {
+  monthly: "$7.99",
+  annual: "$49.99",
 } as const;

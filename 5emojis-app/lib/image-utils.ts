@@ -4,9 +4,9 @@ import { logError } from "./error-logger";
 import { detectFaceInPhoto } from "./face-detection";
 
 // ─── Constants ──────────────────────────────────────────────
-const MAX_WIDTH = 800; // 2x retina for ~400px card width
-const JPEG_QUALITY = 0.7;
-const MAX_FILE_SIZE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
+const MAX_WIDTH = 600; // 2x retina for ~300px card width
+const JPEG_QUALITY = 0.6;
+const MAX_FILE_SIZE_BYTES = 800 * 1024; // 800 KB
 
 // ─── Compress ───────────────────────────────────────────────
 /** Check if expo-image-manipulator native module is available (dev build only). */
@@ -46,7 +46,7 @@ export async function compressPhoto(uri: string): Promise<string> {
 }
 
 // ─── Validate size ──────────────────────────────────────────
-/** Returns file size in KB. Throws if over 1.5 MB. */
+/** Returns file size in KB. Throws if over 800 KB. */
 export async function validatePhotoSize(uri: string): Promise<number> {
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) throw new Error("Photo file not found");

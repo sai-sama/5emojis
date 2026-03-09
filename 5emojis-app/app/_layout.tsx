@@ -4,7 +4,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { View, Text, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, Image, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
 import { useFonts } from "expo-font";
 import { YoungSerif_400Regular } from "@expo-google-fonts/young-serif";
 import {
@@ -14,10 +14,11 @@ import {
   DMSans_700Bold,
 } from "@expo-google-fonts/dm-sans";
 import { AuthProvider } from "../lib/auth-context";
+import { PremiumProvider } from "../lib/premium-context";
 import { COLORS } from "../lib/constants";
 import { loadMuteSetting } from "../lib/sounds";
 import { initErrorLogging, logError } from "../lib/error-logger";
-import { addNotificationResponseListener } from "../lib/push-notifications";
+import { addNotificationResponseListener, checkInitialNotification } from "../lib/push-notifications";
 import { router } from "expo-router";
 
 class ErrorBoundary extends React.Component<
@@ -74,10 +75,17 @@ export default function RootLayout() {
     loadMuteSetting();
     initErrorLogging();
 
-    // Handle notification taps → navigate to chat
+    // Handle notification taps → navigate to chat (app is running)
     const cleanup = addNotificationResponseListener((matchId) => {
       router.push(`/chat/${matchId}`);
     });
+
+    // Handle cold start — app was launched from a notification tap
+    checkInitialNotification((matchId) => {
+      // Small delay to let navigation mount first
+      setTimeout(() => router.push(`/chat/${matchId}`), 500);
+    });
+
     return cleanup;
   }, []);
 
@@ -92,8 +100,12 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.background }}>
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>👋🎉🌟💜🤝</Text>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Image
+          source={require("../assets/splash-icon.png")}
+          style={{ width: 80, height: 80, marginBottom: 20, borderRadius: 20 }}
+          resizeMode="contain"
+        />
+        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 12 }} />
       </View>
     );
   }
@@ -103,6 +115,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ErrorBoundary>
         <AuthProvider>
+          <PremiumProvider>
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
@@ -129,7 +142,15 @@ export default function RootLayout() {
                 gestureEnabled: false,
               }}
             />
+            <Stack.Screen
+              name="premium"
+              options={{
+                presentation: "modal",
+                headerShown: false,
+              }}
+            />
           </Stack>
+          </PremiumProvider>
         </AuthProvider>
         </ErrorBoundary>
       </SafeAreaProvider>

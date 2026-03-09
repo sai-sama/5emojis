@@ -22,6 +22,7 @@ export default function ProfileLayout() {
           <Stack.Screen name="about" />
           <Stack.Screen name="more" />
           <Stack.Screen name="location" />
+          <Stack.Screen name="hidden-emojis" />
         </Stack>
       </View>
     </ProfileProvider>

@@ -64,6 +64,7 @@ export async function updateProfileFields(
     kids?: string | null;
     relationship_status?: string | null;
     work_style?: string | null;
+    hidden_emojis?: string[];
   }
 ): Promise<{ error: string | null }> {
   const { error } = await supabase

@@ -44,7 +44,7 @@ async function geocodeWithNominatim(
 }
 
 // ─── Nominatim reverse geocode ───────────────────────────────
-async function reverseGeocodeWithNominatim(
+export async function reverseGeocodeWithNominatim(
   latitude: number,
   longitude: number
 ): Promise<{ city: string; state: string; countryCode: string } | null> {
