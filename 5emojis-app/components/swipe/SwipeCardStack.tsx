@@ -67,7 +67,7 @@ import { logError } from "../../lib/error-logger";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // ─── Geometry ───────────────────────────────────────────────
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.80;
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.78;
 
 // ─── Thresholds ─────────────────────────────────────────────
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
@@ -890,8 +890,8 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     position: "absolute",
-    left: 8,
-    right: 8,
+    left: 6,
+    right: 6,
     top: 0,
   },
   emptyContainer: {

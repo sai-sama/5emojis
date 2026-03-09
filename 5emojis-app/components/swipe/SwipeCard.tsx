@@ -143,17 +143,17 @@ function SwipeCardInner({
           />
         )}
 
-        {/* Stronger multi-stop gradient for overlay readability */}
+        {/* Subtle gradient — preserve photo, readable text */}
         <LinearGradient
           colors={[
-            "rgba(0,0,0,0.08)",
             "transparent",
             "transparent",
-            "rgba(0,0,0,0.45)",
-            "rgba(0,0,0,0.7)",
-            "rgba(0,0,0,0.85)",
+            "rgba(0,0,0,0.04)",
+            "rgba(0,0,0,0.35)",
+            "rgba(0,0,0,0.65)",
+            "rgba(0,0,0,0.82)",
           ]}
-          locations={[0, 0.12, 0.35, 0.65, 0.8, 1]}
+          locations={[0, 0.42, 0.56, 0.72, 0.86, 1]}
           style={styles.photoGradient}
         />
 
@@ -216,22 +216,30 @@ function SwipeCardInner({
 
         {/* Name / bio overlay */}
         <View style={styles.nameOverlay}>
-          <Text style={styles.name}>
-            {p.name}, {age} {zodiac.emoji}
-          </Text>
-          <View style={[styles.genderBadge, { backgroundColor: genderInfo.color }]}>
-            <Text style={styles.genderEmoji}>{genderInfo.emoji}</Text>
-            <Text style={styles.genderLabel}>{genderInfo.label}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {p.name}, {age}
+            </Text>
+            <Text style={styles.zodiacEmoji}>{zodiac.emoji}</Text>
+            <View style={[styles.genderDot, { backgroundColor: genderInfo.color }]}>
+              <Text style={styles.genderDotEmoji}>{genderInfo.emoji}</Text>
+            </View>
           </View>
-          {p.profession && (
-            <Text style={styles.profession}>{p.profession}</Text>
-          )}
-          <View style={styles.distanceRow}>
-            <Text style={styles.distance}>📍 {distance}</Text>
+          <View style={styles.detailRow}>
+            {p.profession && (
+              <>
+                <Text style={styles.detailText}>{p.profession}</Text>
+                <Text style={styles.detailSep}>·</Text>
+              </>
+            )}
+            <Text style={styles.detailText}>{distance}</Text>
             {p.is_new_to_city && (
-              <View style={styles.newBadge}>
-                <Text style={styles.newBadgeText}>New Here</Text>
-              </View>
+              <>
+                <Text style={styles.detailSep}>·</Text>
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>New Here</Text>
+                </View>
+              </>
             )}
           </View>
         </View>
@@ -245,15 +253,14 @@ export const SwipeCard = memo(SwipeCardInner);
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "#000",
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 32,
-    elevation: 16,
-    borderWidth: 0,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
   },
   photoContainer: {
     flex: 1,
@@ -278,7 +285,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: "100%",
-    borderRadius: 20,
+    borderRadius: 24,
   },
   vibeGlow: {
     borderWidth: 4,
@@ -299,7 +306,7 @@ const styles = StyleSheet.create({
   // ─── Emoji overlay (on card, above name) ──────
   emojiOverlay: {
     position: "absolute",
-    bottom: 156,
+    bottom: 90,
     left: 0,
     right: 0,
     flexDirection: "row",
@@ -308,17 +315,17 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   emojiChip: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
   emojiChipMatch: {
-    backgroundColor: "rgba(251,191,36,0.28)",
+    backgroundColor: "rgba(251,191,36,0.25)",
     borderColor: COLORS.highlight,
     borderWidth: 2,
     shadowColor: COLORS.highlight,
@@ -328,49 +335,60 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   emojiChipText: {
-    fontSize: 24,
+    fontSize: 22,
   },
   // ─── Name / bio overlay ───────────────────────
   nameOverlay: {
     position: "absolute",
-    bottom: 28,
-    left: 20,
-    right: 20,
+    bottom: 20,
+    left: 18,
+    right: 18,
   },
-  name: {
-    fontSize: 28,
-    fontFamily: fonts.heading,
-    color: "#FFF",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
-  genderBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    marginTop: 5,
-  },
-  genderEmoji: {
-    fontSize: 12,
-  },
-  genderLabel: {
-    color: "#FFF",
-    fontSize: 12,
-    fontFamily: fonts.bodySemiBold,
-    textShadowColor: "rgba(0,0,0,0.2)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  distanceRow: {
+  nameRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  name: {
+    fontSize: 30,
+    fontFamily: fonts.heading,
+    color: "#FFF",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
+  zodiacEmoji: {
+    fontSize: 20,
     marginTop: 2,
+  },
+  genderDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
+  },
+  genderDotEmoji: {
+    fontSize: 11,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  detailText: {
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
+    color: "rgba(255,255,255,0.9)",
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  detailSep: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.5)",
   },
   newBadge: {
     backgroundColor: COLORS.secondary,
@@ -382,23 +400,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,
-  },
-  profession: {
-    fontSize: 15,
-    fontFamily: fonts.bodyMedium,
-    color: "rgba(255,255,255,0.92)",
-    marginTop: 4,
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  distance: {
-    fontSize: 13,
-    fontFamily: fonts.body,
-    color: "rgba(255,255,255,0.8)",
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   // ─── Stamps ─────────────────────────────────────
   stampContainer: {

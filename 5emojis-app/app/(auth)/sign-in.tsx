@@ -58,14 +58,11 @@ export default function SignIn() {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 32 }}>
           {/* Hero branding */}
-          <Text style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>
-            👋🎉🌟💜🤝
-          </Text>
           <View style={{ alignItems: "center" }}>
-            <BrandLogo size="large" />
+            <BrandLogo size="large" showEmojis />
           </View>
           <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", marginBottom: 40 }}>
-            Stop overthinking your first message.{"\n"}Just send 5 emojis.
+            Your next friend is 5 emojis away.
           </Text>
 
           {/* Social auth */}

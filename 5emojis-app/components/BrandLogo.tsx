@@ -3,8 +3,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "../lib/constants";
 import { fonts } from "../lib/fonts";
 
+const BRAND_EMOJIS = ["👋", "✨", "🎉", "💜", "🫶"];
+
 type BrandLogoProps = {
   size?: "compact" | "large";
+  showEmojis?: boolean;
   onPress?: () => void;
 };
 
@@ -24,16 +27,20 @@ const SIZES = {
     sparkleFontSize: 22,
     gap: 4,
     sparkleGap: 2,
+    emojiFontSize: 32,
+    emojiGap: 6,
+    emojiMarginTop: 6,
   },
 };
 
-export default function BrandLogo({ size = "compact", onPress }: BrandLogoProps) {
+export default function BrandLogo({ size = "compact", showEmojis = false, onPress }: BrandLogoProps) {
   const s = SIZES[size];
   const Wrapper = onPress ? TouchableOpacity : View;
   const wrapperProps = onPress ? { onPress, activeOpacity: 0.7 } : {};
 
   return (
     <Wrapper {...wrapperProps} style={styles.container}>
+      <View style={styles.logoRow}>
       <LinearGradient
         colors={[COLORS.primary, COLORS.primaryLight]}
         start={{ x: 0, y: 0 }}
@@ -74,14 +81,33 @@ export default function BrandLogo({ size = "compact", onPress }: BrandLogoProps)
       >
         ✦
       </Text>
+      </View>
+
+      {showEmojis && size === "large" && (
+        <View style={[styles.emojiRow, { gap: s.emojiGap, marginTop: s.emojiMarginTop }]}>
+          {BRAND_EMOJIS.map((emoji, i) => (
+            <Text key={i} style={{ fontSize: s.emojiFontSize }}>
+              {emoji}
+            </Text>
+          ))}
+        </View>
+      )}
     </Wrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: "center",
+  },
+  logoRow: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  emojiRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   badge: {
     alignItems: "center",

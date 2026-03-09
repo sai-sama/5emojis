@@ -48,7 +48,6 @@ function AnimatedTab({
 
   // Animated values
   const scale = useSharedValue(1);
-  const pillOpacity = useSharedValue(0);
   const breathe = useSharedValue(1);
   const colorProgress = useSharedValue(0);
 
@@ -59,8 +58,6 @@ function AnimatedTab({
         withTiming(0.8, { duration: 80 }),
         withSpring(1, { damping: 8, stiffness: 300 })
       );
-      // Show pill
-      pillOpacity.value = withSpring(1, { damping: 15 });
       // Subtle breathing on active icon
       breathe.value = withRepeat(
         withSequence(
@@ -74,7 +71,6 @@ function AnimatedTab({
       colorProgress.value = withTiming(1, { duration: 200 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
-      pillOpacity.value = withTiming(0, { duration: 150 });
       breathe.value = withTiming(1, { duration: 200 });
       colorProgress.value = withTiming(0, { duration: 200 });
       scale.value = withTiming(1, { duration: 150 });
@@ -85,11 +81,6 @@ function AnimatedTab({
     transform: [
       { scale: scale.value * breathe.value },
     ],
-  }));
-
-  const pillStyle = useAnimatedStyle(() => ({
-    opacity: pillOpacity.value,
-    transform: [{ scale: pillOpacity.value }],
   }));
 
   const labelStyle = useAnimatedStyle(() => ({
@@ -109,13 +100,10 @@ function AnimatedTab({
       accessibilityLabel={`${config.label}${badge ? `, ${badge} unread` : ""}`}
       accessibilityState={{ selected: focused }}
     >
-      {/* Active pill background */}
-      <Animated.View style={[styles.activePill, pillStyle]} />
-
       <Animated.View style={[iconStyle, { position: "relative" }]}>
         <Ionicons
           name={focused ? config.iconFocused : config.icon}
-          size={26}
+          size={28}
           color={focused ? "#FFF" : "rgba(255,255,255,0.55)"}
         />
         {!!badge && badge > 0 && (
@@ -206,36 +194,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-evenly",
     backgroundColor: "#7C3AED",
-    paddingTop: 2,
+    paddingTop: 6,
     borderTopWidth: 0,
     shadowColor: "#5B21B6",
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 2,
-    position: "relative",
-  },
-  activePill: {
-    position: "absolute",
-    top: 2,
-    width: 62,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    paddingVertical: 4,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.body,
     color: "rgba(255,255,255,0.55)",
-    marginTop: 2,
+    marginTop: 3,
   },
   tabLabelFocused: {
     fontFamily: fonts.bodySemiBold,
