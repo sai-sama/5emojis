@@ -2,13 +2,9 @@ import { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -16,88 +12,19 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 import { useAuth } from "../../lib/auth-context";
-import { supabase } from "../../lib/supabase";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import BrandLogo from "../../components/BrandLogo";
 
 export default function SignIn() {
-  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuth();
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const { signInWithApple, signInWithGoogle } = useAuth();
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<"apple" | "google" | null>(null);
-  const [confirmationSent, setConfirmationSent] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
-  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
-  const handleSubmit = async () => {
-    if (!termsAccepted) {
-      setError("Please accept the Terms of Service and Privacy Policy.");
-      return;
-    }
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !password) {
-      setError("Please enter your email and password.");
-      return;
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-    if (mode === "sign-up" && password !== confirmPassword) {
-      setError("Passwords don't match.");
-      return;
-    }
-
-    setError("");
-    setLoading(true);
-
-    if (mode === "sign-up") {
-      const { error: err, needsConfirmation } = await signUp(trimmedEmail, password);
-      setLoading(false);
-      if (err) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setError(err);
-      } else if (needsConfirmation) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setConfirmationSent(true);
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace("/");
-      }
-    } else {
-      const { error: err } = await signIn(trimmedEmail, password);
-      setLoading(false);
-      if (err) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setError(err);
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace("/");
-      }
-    }
-  };
+  const isBusy = socialLoading !== null;
 
   const handleAppleSignIn = async () => {
-    if (!termsAccepted) {
-      setError("Please accept the Terms of Service and Privacy Policy.");
-      return;
-    }
     setSocialLoading("apple");
     setError("");
     const { error: err } = await signInWithApple();
@@ -112,10 +39,6 @@ export default function SignIn() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!termsAccepted) {
-      setError("Please accept the Terms of Service and Privacy Policy.");
-      return;
-    }
     setSocialLoading("google");
     setError("");
     const { error: err } = await signInWithGoogle();
@@ -129,99 +52,11 @@ export default function SignIn() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      setError("Enter your email above, then tap reset.");
-      return;
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(trimmedEmail);
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-    } else {
-      setForgotPasswordSent(true);
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    setResending(true);
-    const { error: err } = await supabase.auth.resend({
-      type: "signup",
-      email: email.trim().toLowerCase(),
-    });
-    setResending(false);
-    if (err) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-  };
-
-  const isBusy = loading || socialLoading !== null;
-
-  if (confirmationSent) {
-    return (
-      <View style={{ flex: 1 }}>
-        <AuroraBackground variant="aurora" />
-        <SafeAreaView style={{ flex: 1 }}>
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
-            <Text style={{ fontSize: 56 }}>📬</Text>
-            <Text style={{ fontSize: 24, fontFamily: fonts.heading, color: COLORS.text, marginTop: 16, textAlign: "center" }}>
-              Check your email!
-            </Text>
-            <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, marginTop: 8, textAlign: "center", lineHeight: 22 }}>
-              We sent a confirmation link to{"\n"}
-              <Text style={{ fontFamily: fonts.bodyBold, color: COLORS.primary }}>{email.trim()}</Text>
-            </Text>
-            <TouchableOpacity
-              onPress={handleResendConfirmation}
-              disabled={resending}
-              style={{ marginTop: 32, opacity: resending ? 0.6 : 1 }}
-            >
-              <Text style={{ color: COLORS.textSecondary, fontFamily: fonts.bodySemiBold, fontSize: 15 }}>
-                {resending ? "Resending..." : "Didn't get it? Resend"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                setConfirmationSent(false);
-                setMode("sign-in");
-              }}
-              style={{ marginTop: 16 }}
-            >
-              <Text style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, fontSize: 16 }}>
-                Already confirmed? Sign in
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1 }}>
       <AuroraBackground variant="aurora" />
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingTop: 24, paddingBottom: 24 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={true}
-        >
-          <View style={{ flex: 1, justifyContent: "center" }}>
+        <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 32 }}>
           {/* Hero branding */}
           <Text style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>
             👋🎉🌟💜🤝
@@ -229,52 +64,9 @@ export default function SignIn() {
           <View style={{ alignItems: "center" }}>
             <BrandLogo size="large" />
           </View>
-          <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", marginBottom: 32 }}>
+          <Text style={{ fontSize: 15, fontFamily: fonts.body, color: COLORS.textSecondary, textAlign: "center", marginBottom: 40 }}>
             Stop overthinking your first message.{"\n"}Just send 5 emojis.
           </Text>
-
-          {/* Terms acceptance checkbox */}
-          <Pressable
-            onPress={() => {
-              setTermsAccepted(!termsAccepted);
-              setError("");
-            }}
-            style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 20, paddingHorizontal: 4 }}
-          >
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                borderWidth: 2,
-                borderColor: termsAccepted ? COLORS.primary : COLORS.textSecondary,
-                backgroundColor: termsAccepted ? COLORS.primary : "transparent",
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 1,
-              }}
-            >
-              {termsAccepted && (
-                <Ionicons name="checkmark" size={14} color="#FFF" />
-              )}
-            </View>
-            <Text style={{ flex: 1, fontSize: 13, fontFamily: fonts.body, color: COLORS.textSecondary, lineHeight: 18 }}>
-              I agree to the{" "}
-              <Text
-                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
-                onPress={() => router.push("/terms")}
-              >
-                Terms of Service
-              </Text>
-              {" "}and{" "}
-              <Text
-                style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
-                onPress={() => router.push("/privacy")}
-              >
-                Privacy Policy
-              </Text>
-            </Text>
-          </Pressable>
 
           {/* Social auth */}
           {Platform.OS === "ios" && (
@@ -287,7 +79,7 @@ export default function SignIn() {
                 flexDirection: "row",
                 justifyContent: "center",
                 gap: 10,
-                marginBottom: 10,
+                marginBottom: 12,
                 opacity: socialLoading === "apple" ? 0.7 : 1,
               }}
               onPress={handleAppleSignIn}
@@ -315,7 +107,6 @@ export default function SignIn() {
               flexDirection: "row",
               justifyContent: "center",
               gap: 10,
-              marginBottom: 4,
               opacity: socialLoading === "google" ? 0.7 : 1,
               borderWidth: 1,
               borderColor: "rgba(0,0,0,0.08)",
@@ -340,190 +131,31 @@ export default function SignIn() {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 20 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, fontFamily: fonts.bodyMedium, marginHorizontal: 16 }}>
-              or
-            </Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: COLORS.border }} />
-          </View>
-
-          {/* Email */}
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor="#9B9B9B"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.3)",
-              borderRadius: 14,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              fontSize: 16,
-              fontFamily: fonts.body,
-              color: COLORS.text,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.4)",
-              marginBottom: 12,
-            }}
-          />
-
-          {/* Password */}
-          {!forgotPasswordMode && (
-            <View style={{ position: "relative", marginBottom: mode === "sign-up" ? 12 : 4 }}>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Password"
-                placeholderTextColor="#9B9B9B"
-                secureTextEntry={!showPassword}
-                autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                  borderRadius: 14,
-                  paddingHorizontal: 16,
-                  paddingRight: 48,
-                  paddingVertical: 14,
-                  fontSize: 16,
-                  fontFamily: fonts.body,
-                  color: COLORS.text,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.4)",
-                }}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={{ position: "absolute", right: 14, top: 0, bottom: 0, justifyContent: "center" }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Forgot password link — sign-in only */}
-          {mode === "sign-in" && !forgotPasswordMode && (
-            <TouchableOpacity onPress={() => { setForgotPasswordMode(true); setError(""); }} style={{ alignSelf: "flex-end", marginBottom: 8 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, fontFamily: fonts.bodyMedium }}>
-                Forgot password?
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Forgot password sent confirmation */}
-          {forgotPasswordMode && forgotPasswordSent && (
-            <View style={{ backgroundColor: "rgba(255,255,255,0.3)", borderRadius: 14, padding: 16, marginBottom: 8 }}>
-              <Text style={{ fontSize: 14, fontFamily: fonts.body, color: COLORS.text, textAlign: "center", lineHeight: 20 }}>
-                Reset link sent to{" "}
-                <Text style={{ fontFamily: fonts.bodyBold, color: COLORS.primary }}>{email.trim()}</Text>
-                {"\n"}Check your inbox.
-              </Text>
-            </View>
-          )}
-
-          {/* Confirm password — sign-up only */}
-          {mode === "sign-up" && (
-            <View style={{ position: "relative", marginBottom: 8 }}>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Confirm Password"
-                placeholderTextColor="#9B9B9B"
-                secureTextEntry={!showConfirmPassword}
-                autoComplete="new-password"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                  borderRadius: 14,
-                  paddingHorizontal: 16,
-                  paddingRight: 48,
-                  paddingVertical: 14,
-                  fontSize: 16,
-                  fontFamily: fonts.body,
-                  color: COLORS.text,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.4)",
-                }}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={{ position: "absolute", right: 14, top: 0, bottom: 0, justifyContent: "center" }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Error */}
           {error ? (
-            <Text style={{ color: COLORS.accent, fontSize: 14, fontFamily: fonts.bodyMedium, marginBottom: 8, textAlign: "center" }}>
+            <Text style={{ color: COLORS.accent, fontSize: 14, fontFamily: fonts.bodyMedium, marginTop: 16, textAlign: "center" }}>
               {error}
             </Text>
-          ) : (
-            <View style={{ height: 22 }} />
-          )}
+          ) : null}
 
-          {/* Submit */}
-          <TouchableOpacity
-            onPress={forgotPasswordMode ? handleForgotPassword : handleSubmit}
-            disabled={isBusy}
-            style={{
-              backgroundColor: COLORS.primary,
-              borderRadius: 14,
-              paddingVertical: 16,
-              alignItems: "center",
-              marginBottom: 16,
-              opacity: isBusy ? 0.7 : 1,
-            }}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={{ color: "#FFF", fontSize: 17, fontFamily: fonts.bodySemiBold }}>
-                {forgotPasswordMode ? "Send Reset Link" : mode === "sign-up" ? "Create Account" : "Sign In"}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Back to sign-in from forgot password */}
-          {forgotPasswordMode && (
-            <TouchableOpacity
-              onPress={() => { setForgotPasswordMode(false); setForgotPasswordSent(false); setError(""); }}
-              style={{ paddingVertical: 8, marginBottom: 8 }}
+          {/* Legal text */}
+          <Text style={{ fontSize: 12, fontFamily: fonts.body, color: COLORS.textMuted, textAlign: "center", marginTop: 24, lineHeight: 18 }}>
+            By continuing, you agree to our{" "}
+            <Text
+              style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
+              onPress={() => router.push("/terms")}
             >
-              <Text style={{ textAlign: "center", color: COLORS.primary, fontSize: 15, fontFamily: fonts.bodySemiBold }}>
-                Back to Sign In
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Toggle mode */}
-          {!forgotPasswordMode && (
-            <TouchableOpacity
-              onPress={() => {
-                setMode(mode === "sign-in" ? "sign-up" : "sign-in");
-                setError("");
-                setConfirmPassword("");
-              }}
-              style={{ paddingVertical: 8 }}
+              Terms of Service
+            </Text>
+            {" "}and{" "}
+            <Text
+              style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold, textDecorationLine: "underline" }}
+              onPress={() => router.push("/privacy")}
             >
-              <Text style={{ textAlign: "center", color: COLORS.textSecondary, fontSize: 15, fontFamily: fonts.body }}>
-                {mode === "sign-in" ? "Don't have an account? " : "Already have an account? "}
-                <Text style={{ color: COLORS.primary, fontFamily: fonts.bodySemiBold }}>
-                  {mode === "sign-in" ? "Sign Up" : "Sign In"}
-                </Text>
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={{ height: 32 }} />
-          </View>
-        </ScrollView>
-        </KeyboardAvoidingView>
+              Privacy Policy
+            </Text>
+          </Text>
+        </View>
       </SafeAreaView>
     </View>
   );
