@@ -57,7 +57,8 @@
           "locationAlwaysAndWhenInUsePermission": "5Emojis uses your location to show you people nearby.",
           "locationWhenInUsePermission": "5Emojis uses your location to show you people nearby."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},
