@@ -32,19 +32,15 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis }: Pro
             style={[styles.photo, styles.placeholder]}
             onPress={() => router.push("/profile/photos")}
           >
-            <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
-            <Text style={{ fontSize: 10, fontFamily: fonts.bodySemiBold, color: COLORS.primary, marginTop: 2 }}>
+            <Ionicons name="camera-outline" size={36} color={COLORS.primary} />
+            <Text style={{ fontSize: 11, fontFamily: fonts.bodySemiBold, color: COLORS.primary, marginTop: 4 }}>
               Add photo
             </Text>
           </Pressable>
         )}
-        {profile.profile.is_new_to_city && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>🆕 New</Text>
-          </View>
-        )}
-        <View style={styles.previewBadge}>
-          <Ionicons name="eye-outline" size={12} color="#FFF" />
+        <View style={styles.previewHint}>
+          <Ionicons name="eye-outline" size={12} color={COLORS.primary} />
+          <Text style={styles.previewHintText}>View Preview</Text>
         </View>
       </Pressable>
       <Text style={styles.name}>{profile.profile.name}</Text>
@@ -102,44 +98,29 @@ const styles = StyleSheet.create({
   },
   photoContainer: {
     position: "relative",
+    alignItems: "center",
     marginBottom: 12,
   },
+  previewHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+  },
+  previewHintText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+  },
   photo: {
-    width: 96,
-    height: 96,
-    borderRadius: 32,
+    width: 120,
+    height: 120,
+    borderRadius: 40,
     backgroundColor: "#F0EDE8",
   },
   placeholder: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  previewBadge: {
-    position: "absolute",
-    bottom: 2,
-    left: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    bottom: -4,
-    right: -8,
-    backgroundColor: COLORS.highlight,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontFamily: fonts.bodyBold,
-    color: COLORS.text,
   },
   name: {
     fontSize: 22,

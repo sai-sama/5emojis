@@ -220,7 +220,7 @@ function MatchCard({
           <Image source={{ uri: otherPhoto.url }} style={styles.photo} />
         ) : (
           <View style={[styles.photo, styles.photoPlaceholder]}>
-            <Ionicons name="person" size={30} color={COLORS.textMuted} />
+            <Ionicons name="person" size={32} color={COLORS.textMuted} />
           </View>
         )}
         {unreadCount > 0 && (
@@ -887,10 +887,10 @@ const styles = StyleSheet.create({
   // ─── Enhanced match cards ─────────────────────────
   card: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "stretch",
     backgroundColor: "rgba(255,255,255,0.85)",
     borderRadius: 20,
-    padding: 14,
+    overflow: "hidden",
     marginBottom: 12,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -906,14 +906,12 @@ const styles = StyleSheet.create({
   },
   photoWrapper: {
     position: "relative",
+    width: 90,
   },
   photo: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 90,
+    height: "100%" as any,
     backgroundColor: "#F0EDE8",
-    borderWidth: 2,
-    borderColor: "#F0EBFF",
   },
   photoPlaceholder: {
     alignItems: "center",
@@ -921,8 +919,8 @@ const styles = StyleSheet.create({
   },
   unreadDot: {
     position: "absolute",
-    top: -4,
-    right: -4,
+    top: 6,
+    right: 6,
     minWidth: 22,
     height: 22,
     borderRadius: 11,
@@ -940,7 +938,8 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     flex: 1,
-    marginLeft: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   nameRow: {
     flexDirection: "row",
@@ -1027,7 +1026,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   previewText: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: fonts.body,
     color: COLORS.textSecondary,
     flex: 1,
