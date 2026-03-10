@@ -863,7 +863,7 @@ export default function SwipeCardStack() {
             onPress={handleSuperLike}
           >
             <View style={[styles.superLikeFloatingInner, !canSuperLikeNow && styles.superLikeFloatingDisabled]}>
-              <Ionicons name="star" size={18} color={canSuperLikeNow ? "#FFD700" : "rgba(255,215,0,0.4)"} />
+              <Ionicons name="star" size={22} color={canSuperLikeNow ? "#FFD700" : "rgba(255,215,0,0.4)"} />
               <Text style={[styles.superLikeFloatingText, !canSuperLikeNow && { opacity: 0.5 }]}>
                 {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"}
               </Text>
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
   // ─── Super Like floating button (centered above emojis) ────
   superLikeFloating: {
     position: "absolute",
-    bottom: 148,
+    bottom: 160,
     alignSelf: "center",
     left: 0,
     right: 0,
@@ -1014,10 +1014,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.45)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 6,
     borderWidth: 1,
     borderColor: "rgba(255, 215, 0, 0.35)",
   },
@@ -1026,7 +1026,7 @@ const styles = StyleSheet.create({
   },
   superLikeFloatingText: {
     color: "#FFD700",
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: fonts.bodySemiBold,
   },
 });

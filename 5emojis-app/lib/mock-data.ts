@@ -43,5 +43,14 @@ export async function resetMockData(
   });
 
   if (error) return { error: error.message, result: null };
+
+  // Reset daily super like count so the user can keep testing
+  const today = new Date().toISOString().split("T")[0];
+  await supabase
+    .from("daily_swipe_counts")
+    .update({ super_like_count: 0, right_count: 0 })
+    .eq("user_id", userId)
+    .eq("swipe_date", today);
+
   return { error: null, result: data };
 }

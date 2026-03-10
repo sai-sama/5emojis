@@ -189,11 +189,10 @@ function VibeCard({
             <Text style={{ fontSize: 22 }}>🔒</Text>
           </View>
         )}
+        {/* Super like star — top left corner of photo */}
         {vibe.isSuperLike && (
-          <View style={styles.superLikeBadge}>
-            <View style={styles.superLikeBadgeInner}>
-              <Text style={styles.superLikeBadgeText}>⭐ Super Like</Text>
-            </View>
+          <View style={styles.vibeSuperLikeBadge}>
+            <Text style={styles.vibeSuperLikeStar}>⭐</Text>
           </View>
         )}
       </View>
@@ -969,35 +968,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.2)",
   },
-  superLikeBadge: {
+  vibeSuperLikeBadge: {
     position: "absolute",
-    top: 8,
-    left: 0,
-    right: 0,
-    alignItems: "center",
+    top: 6,
+    left: 6,
     zIndex: 10,
-  },
-  superLikeBadgeInner: {
     backgroundColor: "rgba(255, 215, 0, 0.95)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
       },
       android: {
         elevation: 4,
       },
     }),
   },
-  superLikeBadgeText: {
-    fontSize: 12,
-    fontFamily: fonts.bodyBold,
-    color: "#1a1a1a",
+  vibeSuperLikeStar: {
+    fontSize: 13,
   },
   vibeInfoSection: {
     flexDirection: "row",
