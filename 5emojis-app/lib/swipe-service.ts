@@ -42,6 +42,7 @@ export type EnhancedMatch = MatchWithProfile & {
   lastMessageAt: string;
   unreadCount: number;
   friendshipDuration: string;
+  hasSuperLike: boolean;
 };
 
 // ─── Record a swipe and check for new match ─────────────────
@@ -340,11 +341,34 @@ export async function fetchMatchesEnhanced(
 
   // Batch-fetch all messages for these matches in one query
   const matchIds = matches.map((m) => m.match.id);
-  const { data: allMessages } = await supabase
-    .from("messages")
-    .select("*")
-    .in("match_id", matchIds)
-    .order("created_at", { ascending: true });
+  const otherUserIds = matches.map((m) =>
+    m.match.user1_id === userId ? m.match.user2_id : m.match.user1_id
+  );
+
+  const [{ data: allMessages }, { data: superLikesGiven }, { data: superLikesReceived }] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("*")
+      .in("match_id", matchIds)
+      .order("created_at", { ascending: true }),
+    // Super likes I sent to these users
+    supabase
+      .from("super_likes")
+      .select("receiver_id")
+      .eq("sender_id", userId)
+      .in("receiver_id", otherUserIds),
+    // Super likes these users sent to me
+    supabase
+      .from("super_likes")
+      .select("sender_id")
+      .eq("receiver_id", userId)
+      .in("sender_id", otherUserIds),
+  ]);
+
+  // Build set of other user IDs involved in a super like (either direction)
+  const superLikeUserIds = new Set<string>();
+  for (const sl of superLikesGiven ?? []) superLikeUserIds.add(sl.receiver_id);
+  for (const sl of superLikesReceived ?? []) superLikeUserIds.add(sl.sender_id);
 
   // Group messages by match_id
   const messagesByMatch = new Map<string, Message[]>();
@@ -361,7 +385,24 @@ export async function fetchMatchesEnhanced(
       m.match.user1_id === userId ? m.match.user2_id : m.match.user1_id;
 
     const chatState = getChatState(msgs, userId, otherUserId);
-    const lastMessage = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    // Find the last real message (skip icebreaker emoji responses)
+    // Icebreaker responses are the first emoji-only message from each user
+    const myIcebreakerIdx = msgs.findIndex(
+      (m) => m.sender_id === userId && m.is_emoji_only
+    );
+    const otherIcebreakerIdx = msgs.findIndex(
+      (m) => m.sender_id === otherUserId && m.is_emoji_only
+    );
+    const icebreakerIndices = new Set(
+      [myIcebreakerIdx, otherIcebreakerIdx].filter((i) => i >= 0)
+    );
+    const nonIcebreakerMsgs = msgs.filter((_, i) => !icebreakerIndices.has(i));
+    const lastMessage =
+      nonIcebreakerMsgs.length > 0
+        ? nonIcebreakerMsgs[nonIcebreakerMsgs.length - 1]
+        : msgs.length > 0
+          ? msgs[msgs.length - 1]
+          : null;
     const unreadCount = msgs.filter(
       (msg) => msg.sender_id !== userId && msg.read_at === null
     ).length;
@@ -373,6 +414,7 @@ export async function fetchMatchesEnhanced(
       lastMessageAt: lastMessage?.created_at ?? m.match.created_at,
       unreadCount,
       friendshipDuration: formatFriendshipDuration(m.match.created_at),
+      hasSuperLike: superLikeUserIds.has(otherUserId),
     };
   });
 

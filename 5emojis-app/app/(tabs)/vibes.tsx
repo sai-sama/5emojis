@@ -40,15 +40,15 @@ import LottieEmptyState from "../../components/lottie/LottieEmptyState";
 import TabHeader from "../../components/navigation/TabHeader";
 
 // ─── Filter config ──────────────────────────────────────────
-const FILTERS: { key: MatchFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "new", label: "New \u{1F9CA}" },
-  { key: "chatting", label: "Chatting \u{1F4AC}" },
-  { key: "perfect", label: "Perfect \u{2728}" },
+const FILTERS: { key: MatchFilter; label: string; emoji: string }[] = [
+  { key: "all", label: "All Friends", emoji: "" },
+  { key: "new", label: "New", emoji: "\u{1F9CA}" },
+  { key: "chatting", label: "Chatting", emoji: "\u{1F4AC}" },
+  { key: "perfect", label: "Perfect Match", emoji: "\u{2728}" },
 ];
 
-// ─── Filter Chips ───────────────────────────────────────────
-function FilterChips({
+// ─── Filter Dropdown ────────────────────────────────────────
+function FilterDropdown({
   active,
   onChange,
   counts,
@@ -57,52 +57,67 @@ function FilterChips({
   onChange: (f: MatchFilter) => void;
   counts: Record<MatchFilter, number>;
 }) {
+  const [open, setOpen] = useState(false);
+  const activeFilter = FILTERS.find((f) => f.key === active) ?? FILTERS[0];
+
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterRow}
-    >
-      {FILTERS.map((f) => {
-        const isActive = active === f.key;
-        return (
-          <Pressable
-            key={f.key}
-            onPress={() => {
-              onChange(f.key);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            style={[styles.filterChip, isActive && styles.filterChipActive]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                isActive && styles.filterChipTextActive,
-              ]}
-            >
-              {f.label}
-            </Text>
-            {counts[f.key] > 0 && f.key !== "all" && (
-              <View
-                style={[
-                  styles.filterBadge,
-                  isActive && styles.filterBadgeActive,
-                ]}
+    <View style={styles.dropdownContainer}>
+      <Pressable
+        style={styles.dropdownTrigger}
+        onPress={() => {
+          setOpen(!open);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+      >
+        <Text style={styles.dropdownTriggerText}>
+          {activeFilter.emoji ? `${activeFilter.emoji} ` : ""}{activeFilter.label}
+        </Text>
+        {counts[active] > 0 && (
+          <View style={styles.dropdownBadge}>
+            <Text style={styles.dropdownBadgeText}>{counts[active]}</Text>
+          </View>
+        )}
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={COLORS.primary}
+          style={{ marginLeft: 4 }}
+        />
+      </Pressable>
+
+      {open && (
+        <View style={styles.dropdownMenu}>
+          {FILTERS.map((f) => {
+            const isActive = active === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => {
+                  onChange(f.key);
+                  setOpen(false);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
               >
-                <Text
-                  style={[
-                    styles.filterBadgeText,
-                    isActive && styles.filterBadgeTextActive,
-                  ]}
-                >
-                  {counts[f.key]}
+                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
+                  {f.emoji ? `${f.emoji} ` : ""}{f.label}
                 </Text>
-              </View>
-            )}
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+                {counts[f.key] > 0 && (
+                  <View style={[styles.dropdownItemBadge, isActive && styles.dropdownItemBadgeActive]}>
+                    <Text style={[styles.dropdownItemBadgeText, isActive && styles.dropdownItemBadgeTextActive]}>
+                      {counts[f.key]}
+                    </Text>
+                  </View>
+                )}
+                {isActive && (
+                  <Ionicons name="checkmark" size={16} color={COLORS.primary} style={{ marginLeft: 4 }} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -159,7 +174,9 @@ function VibeCard({
         )}
         {vibe.isSuperLike && (
           <View style={styles.superLikeBadge}>
-            <Text style={styles.superLikeBadgeText}>⭐ Super Like</Text>
+            <View style={styles.superLikeBadgeInner}>
+              <Text style={styles.superLikeBadgeText}>⭐ Super Like</Text>
+            </View>
           </View>
         )}
       </View>
@@ -170,7 +187,9 @@ function VibeCard({
           {isPremiumLocked ? "???" : `${vibe.user.name}, ${age}`}
         </Text>
         {!isPremiumLocked && (
-          <Text style={{ fontSize: 12 }}>{genderInfo.emoji}</Text>
+          <View style={[styles.genderDot, { backgroundColor: genderInfo.color }]}>
+            <Text style={styles.genderDotEmoji}>{genderInfo.emoji}</Text>
+          </View>
         )}
       </View>
 
@@ -246,6 +265,7 @@ function MatchCard({
     lastMessage,
     unreadCount,
     friendshipDuration,
+    hasSuperLike,
   } = item;
   const age = calculateAge(otherUser.dob);
   const sortedEmojis = [...otherEmojis].sort((a, b) => a.position - b.position);
@@ -269,7 +289,11 @@ function MatchCard({
 
   return (
     <Pressable
-      style={[styles.card, unreadCount > 0 && styles.cardUnread]}
+      style={[
+        styles.card,
+        unreadCount > 0 && styles.cardUnread,
+        hasSuperLike && styles.cardSuperLike,
+      ]}
       onPress={() => router.push(`/chat/${match.id}`)}
       onLongPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -277,6 +301,20 @@ function MatchCard({
       }}
       delayLongPress={500}
     >
+      {/* Unread badge — top right of entire card */}
+      {unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+        </View>
+      )}
+
+      {/* Super like star — top left of card */}
+      {hasSuperLike && (
+        <View style={styles.superLikeCardBadge}>
+          <Text style={styles.superLikeCardStar}>⭐</Text>
+        </View>
+      )}
+
       {/* Photo */}
       <View style={styles.photoWrapper}>
         {otherPhoto ? (
@@ -284,11 +322,6 @@ function MatchCard({
         ) : (
           <View style={[styles.photo, styles.photoPlaceholder]}>
             <Ionicons name="person" size={32} color={COLORS.textMuted} />
-          </View>
-        )}
-        {unreadCount > 0 && (
-          <View style={styles.unreadDot}>
-            <Text style={styles.unreadDotText}>{unreadCount}</Text>
           </View>
         )}
       </View>
@@ -314,7 +347,9 @@ function MatchCard({
         <View style={styles.detailChips}>
           <Text style={styles.detailChipText}>{zodiac.emoji}</Text>
           <Text style={styles.detailChipDot}>·</Text>
-          <Text style={{ fontSize: 12 }}>{genderInfo.emoji}</Text>
+          <View style={[styles.genderDot, { backgroundColor: genderInfo.color }]}>
+            <Text style={styles.genderDotEmoji}>{genderInfo.emoji}</Text>
+          </View>
           {distance && (
             <>
               <Text style={styles.detailChipDot}>·</Text>
@@ -534,6 +569,7 @@ export default function VibesScreen() {
               lastMessageAt: result.match.created_at,
               unreadCount: 0,
               friendshipDuration: "today",
+              hasSuperLike: vibe.isSuperLike,
             },
             ...prev,
           ]);
@@ -655,17 +691,15 @@ export default function VibesScreen() {
         </View>
       )}
 
-      {/* Filter chips + mark all read */}
+      {/* Filter dropdown + mark all read */}
       {matches.length > 0 && (
         <View style={styles.filterSection}>
           <View style={styles.filterRow_wrapper}>
-            <View style={{ flex: 1 }}>
-              <FilterChips
-                active={activeFilter}
-                onChange={setActiveFilter}
-                counts={filterCounts}
-              />
-            </View>
+            <FilterDropdown
+              active={activeFilter}
+              onChange={setActiveFilter}
+              counts={filterCounts}
+            />
             {unreadCount > 0 && (
               <Pressable
                 style={styles.markReadButton}
@@ -677,6 +711,7 @@ export default function VibesScreen() {
                 hitSlop={8}
               >
                 <Ionicons name="checkmark-done" size={18} color={COLORS.primary} />
+                <Text style={styles.markReadText}>Read all</Text>
               </Pressable>
             )}
           </View>
@@ -907,26 +942,31 @@ const styles = StyleSheet.create({
   },
   superLikeBadge: {
     position: "absolute",
-    top: 6,
-    right: 6,
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  superLikeBadgeInner: {
     backgroundColor: "rgba(255, 215, 0, 0.95)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
   superLikeBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: fonts.bodyBold,
     color: "#1a1a1a",
   },
@@ -944,6 +984,17 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: "center",
     flexShrink: 1,
+  },
+  genderDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  genderDotEmoji: {
+    fontSize: 10,
+    color: "#FFFFFF",
   },
   vibeEmojis: {
     flexDirection: "row",
@@ -1011,64 +1062,125 @@ const styles = StyleSheet.create({
     color: "#FFF",
   },
 
-  // ─── Filter chips ─────────────────────────────────
+  // ─── Filter dropdown ─────────────────────────────────
   filterSection: {
     marginBottom: 14,
+    zIndex: 10,
   },
   filterRow_wrapper: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
   markReadButton: {
-    padding: 6,
-    marginRight: 8,
-  },
-  filterRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 4,
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: COLORS.primarySurface,
   },
-  filterChip: {
+  markReadText: {
+    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+  },
+  dropdownContainer: {
+    position: "relative",
+    zIndex: 10,
+  },
+  dropdownTrigger: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Platform.OS === "android" ? "#F5F2EF" : "rgba(255,255,255,0.7)",
+    paddingVertical: 9,
+    borderRadius: 14,
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.9)",
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: COLORS.primaryBorder,
     gap: 6,
   },
-  filterChipActive: {
-    backgroundColor: COLORS.primarySurface,
-    borderColor: COLORS.primaryBorder,
-  },
-  filterChipText: {
-    fontSize: 13,
+  dropdownTriggerText: {
+    fontSize: 14,
     fontFamily: fonts.bodySemiBold,
-    color: COLORS.textSecondary,
-  },
-  filterChipTextActive: {
     color: COLORS.primary,
   },
-  filterBadge: {
+  dropdownBadge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
   },
-  filterBadgeActive: {
+  dropdownBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodyBold,
+    color: "#FFF",
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    marginTop: 6,
+    minWidth: 200,
+    backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.98)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    gap: 8,
+  },
+  dropdownItemActive: {
+    backgroundColor: COLORS.primarySurface,
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+    flex: 1,
+  },
+  dropdownItemTextActive: {
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+  },
+  dropdownItemBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  dropdownItemBadgeActive: {
     backgroundColor: COLORS.primary,
   },
-  filterBadgeText: {
-    fontSize: 10,
+  dropdownItemBadgeText: {
+    fontSize: 11,
     fontFamily: fonts.bodyBold,
     color: COLORS.textSecondary,
   },
-  filterBadgeTextActive: {
+  dropdownItemBadgeTextActive: {
     color: "#FFF",
   },
 
@@ -1095,8 +1207,49 @@ const styles = StyleSheet.create({
     borderColor: "rgba(124, 58, 237, 0.06)",
   },
   cardUnread: {
-    borderColor: "rgba(124, 58, 237, 0.2)",
+    borderColor: "rgba(124, 58, 237, 0.25)",
     backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.95)",
+  },
+  cardSuperLike: {
+    borderColor: "rgba(255, 215, 0, 0.4)",
+    borderWidth: 1.5,
+  },
+  unreadBadge: {
+    position: "absolute",
+    top: -6,
+    right: -4,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: "#FFF",
+    zIndex: 5,
+  },
+  unreadBadgeText: {
+    fontSize: 11,
+    fontFamily: fonts.bodyBold,
+    color: "#FFF",
+  },
+  superLikeCardBadge: {
+    position: "absolute",
+    top: -6,
+    left: -4,
+    zIndex: 5,
+    backgroundColor: "rgba(255, 215, 0, 0.95)",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  superLikeCardStar: {
+    fontSize: 12,
   },
   photoWrapper: {
     position: "relative",
@@ -1113,25 +1266,6 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  unreadDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 5,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.9)",
-  },
-  unreadDotText: {
-    fontSize: 11,
-    fontFamily: fonts.bodyBold,
-    color: "#FFF",
   },
   cardInfo: {
     flex: 1,

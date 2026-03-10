@@ -69,62 +69,72 @@ export default function ShareableProfileCard({ profile, sortedEmojis }: Props) {
               <View style={styles.bgBlob1} />
               <View style={styles.bgBlob2} />
               <View style={styles.bgBlob3} />
+              <View style={styles.bgBlob4} />
             </View>
 
-            {/* ── Logo — front and center ── */}
-            <View style={styles.logoSection}>
+            {/* ── Top section: Logo + tagline ── */}
+            <View style={styles.topSection}>
               <Image
                 source={require("../../assets/app-icon.png")}
                 style={styles.logoImage}
               />
-              <Text style={styles.logoText}>5emojis</Text>
+              <View style={styles.logoTextWrap}>
+                <Text style={styles.logoText}>5emojis</Text>
+                <Text style={styles.logoSubtext}>Your next friend is 5 emojis away.</Text>
+              </View>
             </View>
 
-            {/* ── Divider ── */}
-            <View style={styles.divider} />
-
-            {/* ── Profile section ── */}
-            <View style={styles.profileSection}>
-              {primaryPhoto ? (
-                <Image
-                  source={{ uri: primaryPhoto.url }}
-                  style={styles.photo}
-                />
-              ) : (
-                <View style={[styles.photo, styles.photoPlaceholder]}>
-                  <Ionicons name="person" size={40} color={COLORS.primarySoft} />
+            {/* ── Profile card (glass effect) ── */}
+            <View style={styles.glassCard}>
+              {/* Photo + name side by side */}
+              <View style={styles.profileRow}>
+                {primaryPhoto ? (
+                  <Image
+                    source={{ uri: primaryPhoto.url }}
+                    style={styles.photo}
+                  />
+                ) : (
+                  <View style={[styles.photo, styles.photoPlaceholder]}>
+                    <Ionicons name="person" size={32} color="rgba(255,255,255,0.5)" />
+                  </View>
+                )}
+                <View style={styles.profileInfo}>
+                  <Text style={styles.name} numberOfLines={1}>{profile.profile.name}</Text>
+                  {profile.profile.profession ? (
+                    <Text style={styles.profession} numberOfLines={1}>{profile.profile.profession}</Text>
+                  ) : null}
+                  {locationDisplay ? (
+                    <View style={styles.locationRow}>
+                      <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
+                      <Text style={styles.locationText}>{locationDisplay}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              )}
+              </View>
 
-              <Text style={styles.name}>{profile.profile.name}</Text>
-
-              {profile.profile.profession ? (
-                <Text style={styles.profession}>{profile.profile.profession}</Text>
-              ) : null}
-
-              {locationDisplay ? (
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.locationText}>{locationDisplay}</Text>
+              {/* Emoji row — the star of the card */}
+              <View style={styles.emojiSection}>
+                <Text style={styles.emojiLabel}>My 5 emojis</Text>
+                <View style={styles.emojiRow}>
+                  {sortedEmojis.map((e) => (
+                    <View key={e.id} style={styles.emojiChip}>
+                      <Text style={styles.emojiChar}>{e.emoji}</Text>
+                    </View>
+                  ))}
                 </View>
-              ) : null}
+              </View>
             </View>
 
-            {/* ── Emoji row ── */}
-            <View style={styles.emojiCard}>
-              {sortedEmojis.map((e, i) => (
-                <View key={e.id} style={styles.emojiChip}>
-                  <Text style={styles.emojiChar}>{e.emoji}</Text>
-                </View>
-              ))}
-            </View>
+            {/* ── CTA label ── */}
+            <Text style={styles.ctaLabel}>Find me on 5emojis</Text>
 
-            {/* ── Tagline ── */}
-            <Text style={styles.tagline}>Stop overthinking. Just send 5 emojis.</Text>
-
-            {/* ── CTA ── */}
-            <View style={styles.ctaBadge}>
-              <Text style={styles.ctaText}>Find me on 5emojis</Text>
+            {/* ── App store availability ── */}
+            <View style={styles.storeRow}>
+              <Ionicons name="logo-apple" size={13} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.storeText}>App Store</Text>
+              <Text style={styles.storeDot}>·</Text>
+              <Ionicons name="logo-google-playstore" size={12} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.storeText}>Google Play</Text>
             </View>
           </View>
         </ViewShot>
@@ -150,7 +160,6 @@ export default function ShareableProfileCard({ profile, sortedEmojis }: Props) {
 }
 
 const CARD_WIDTH = 360;
-const CARD_PADDING = 32;
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -169,11 +178,11 @@ const styles = StyleSheet.create({
   // ── The actual card that gets captured ──
   card: {
     width: CARD_WIDTH,
-    paddingHorizontal: CARD_PADDING,
-    paddingTop: 36,
-    paddingBottom: 32,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 28,
     alignItems: "center",
-    backgroundColor: "#4A1D96",
+    backgroundColor: "#2D1065",
     overflow: "hidden",
   },
 
@@ -184,146 +193,180 @@ const styles = StyleSheet.create({
   },
   bgBlob1: {
     position: "absolute",
-    top: -60,
-    right: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "rgba(124, 58, 237, 0.6)",
+    top: -80,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(124, 58, 237, 0.5)",
   },
   bgBlob2: {
     position: "absolute",
-    bottom: 40,
-    left: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(155, 89, 240, 0.4)",
+    bottom: 20,
+    left: -70,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(155, 89, 240, 0.35)",
   },
   bgBlob3: {
     position: "absolute",
-    top: 120,
-    right: -20,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(249, 115, 22, 0.15)",
+    top: 180,
+    right: -30,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(236, 72, 153, 0.15)",
+  },
+  bgBlob4: {
+    position: "absolute",
+    top: 60,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(249, 115, 22, 0.1)",
   },
 
-  // ── Logo section ──
-  logoSection: {
+  // ── Top section: logo + tagline ──
+  topSection: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 24,
+    alignSelf: "flex-start",
   },
   logoImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
-    marginBottom: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 13,
+  },
+  logoTextWrap: {
+    flexShrink: 1,
   },
   logoText: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: fonts.headingBold,
     color: "#FFFFFF",
     letterSpacing: -0.5,
   },
+  logoSubtext: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 1,
+  },
 
-  // ── Divider ──
-  divider: {
-    width: 48,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 1,
+  // ── Glass card ──
+  glassCard: {
+    width: "100%",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
     marginBottom: 24,
   },
 
-  // ── Profile section ──
-  profileSection: {
+  profileRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 16,
     marginBottom: 20,
   },
   photo: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 3,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2.5,
     borderColor: "rgba(255,255,255,0.3)",
-    marginBottom: 14,
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   photoPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
   },
+  profileInfo: {
+    flexShrink: 1,
+  },
   name: {
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: fonts.headingBold,
     color: "#FFFFFF",
-    textAlign: "center",
   },
   profession: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.bodyMedium,
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 3,
-    textAlign: "center",
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 2,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    marginTop: 4,
+    marginTop: 3,
   },
   locationText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.body,
-    color: "rgba(255,255,255,0.65)",
+    color: "rgba(255,255,255,0.55)",
   },
 
-  // ── Emoji row ──
-  emojiCard: {
+  // ── Emoji section ──
+  emojiSection: {
+    alignItems: "center",
+  },
+  emojiLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: "rgba(255,255,255,0.45)",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  emojiRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 20,
   },
   emojiChip: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   emojiChar: {
-    fontSize: 28,
+    fontSize: 26,
   },
 
-  // ── Tagline ──
-  tagline: {
-    fontSize: 12,
-    fontFamily: fonts.bodyMedium,
-    color: "rgba(255,255,255,0.5)",
-    textAlign: "center",
-    marginBottom: 20,
-    letterSpacing: 0.3,
-  },
-
-  // ── CTA badge ──
-  ctaBadge: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  ctaText: {
-    fontSize: 14,
+  // ── CTA label ──
+  ctaLabel: {
+    fontSize: 15,
     fontFamily: fonts.bodySemiBold,
-    color: "#FFFFFF",
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+    marginBottom: 12,
     letterSpacing: 0.3,
+  },
+
+  // ── Store availability ──
+  storeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  storeText: {
+    fontSize: 11,
+    fontFamily: fonts.body,
+    color: "rgba(255,255,255,0.45)",
+  },
+  storeDot: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.3)",
+    marginHorizontal: 2,
   },
 
   // ── Share button ──
