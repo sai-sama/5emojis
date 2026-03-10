@@ -286,7 +286,7 @@ export async function fetchIncomingVibes(
         emojis: emojiMap.get(swipe.swiper_id) ?? [],
         photo: photoMap.get(swipe.swiper_id) ?? null,
         swipedAt: swipe.created_at,
-        isSuperLike: swipe.is_super_like === true,
+        isSuperLike: !!swipe.is_super_like,
       } satisfies IncomingVibe;
     })
     .filter((v): v is IncomingVibe => v !== null)
@@ -345,30 +345,32 @@ export async function fetchMatchesEnhanced(
     m.match.user1_id === userId ? m.match.user2_id : m.match.user1_id
   );
 
-  const [{ data: allMessages }, { data: superLikesGiven }, { data: superLikesReceived }] = await Promise.all([
+  const [{ data: allMessages }, { data: superLikeSwipesGiven }, { data: superLikeSwipesReceived }] = await Promise.all([
     supabase
       .from("messages")
       .select("*")
       .in("match_id", matchIds)
       .order("created_at", { ascending: true }),
-    // Super likes I sent to these users
+    // Super-like swipes I sent to these users
     supabase
-      .from("super_likes")
-      .select("receiver_id")
-      .eq("sender_id", userId)
-      .in("receiver_id", otherUserIds),
-    // Super likes these users sent to me
+      .from("swipes")
+      .select("swiped_id")
+      .eq("swiper_id", userId)
+      .eq("is_super_like", true)
+      .in("swiped_id", otherUserIds),
+    // Super-like swipes these users sent to me
     supabase
-      .from("super_likes")
-      .select("sender_id")
-      .eq("receiver_id", userId)
-      .in("sender_id", otherUserIds),
+      .from("swipes")
+      .select("swiper_id")
+      .eq("swiped_id", userId)
+      .eq("is_super_like", true)
+      .in("swiper_id", otherUserIds),
   ]);
 
   // Build set of other user IDs involved in a super like (either direction)
   const superLikeUserIds = new Set<string>();
-  for (const sl of superLikesGiven ?? []) superLikeUserIds.add(sl.receiver_id);
-  for (const sl of superLikesReceived ?? []) superLikeUserIds.add(sl.sender_id);
+  for (const sl of superLikeSwipesGiven ?? []) superLikeUserIds.add(sl.swiped_id);
+  for (const sl of superLikeSwipesReceived ?? []) superLikeUserIds.add(sl.swiper_id);
 
   // Group messages by match_id
   const messagesByMatch = new Map<string, Message[]>();

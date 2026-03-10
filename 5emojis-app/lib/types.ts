@@ -190,20 +190,6 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["daily_swipe_counts"]["Insert"]>;
         Relationships: [];
       };
-      super_likes: {
-        Row: {
-          id: string;
-          sender_id: string;
-          receiver_id: string;
-          created_at: string;
-        };
-        Insert: {
-          sender_id: string;
-          receiver_id: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["super_likes"]["Insert"]>;
-        Relationships: [];
-      };
       matches: {
         Row: {
           id: string;

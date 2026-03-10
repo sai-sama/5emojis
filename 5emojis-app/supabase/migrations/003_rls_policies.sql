@@ -21,7 +21,7 @@ ALTER TABLE public.message_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_swipe_counts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.super_likes ENABLE ROW LEVEL SECURITY;
+-- super_likes table removed (flag lives on swipes.is_super_like)
 ALTER TABLE public.ai_content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wellness_tips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.error_logs ENABLE ROW LEVEL SECURITY;
@@ -350,15 +350,8 @@ CREATE POLICY "Users can update own swipe counts"
 
 
 -- ═══════════════════════════════════════════════════════════════
--- SUPER LIKES
+-- (super_likes table removed — super like flag lives on swipes.is_super_like)
 -- ═══════════════════════════════════════════════════════════════
-CREATE POLICY "Users can view super likes involving them"
-  ON public.super_likes FOR SELECT
-  USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-
-CREATE POLICY "Users can insert own super likes"
-  ON public.super_likes FOR INSERT
-  WITH CHECK (auth.uid() = sender_id);
 
 
 -- ═══════════════════════════════════════════════════════════════

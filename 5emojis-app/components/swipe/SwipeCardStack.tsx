@@ -856,16 +856,18 @@ export default function SwipeCardStack() {
           </View>
         )}
 
-        {/* Super Like floating button — premium only, overlaid on card */}
+        {/* Super Like floating button — premium only, centered above emojis */}
         {isPremium && visibleProfiles.length > 0 && !allSwiped && (
           <Pressable
-            style={[styles.superLikeFloating, !canSuperLikeNow && styles.superLikeFloatingDisabled]}
+            style={styles.superLikeFloating}
             onPress={handleSuperLike}
           >
-            <Ionicons name="star" size={16} color={canSuperLikeNow ? COLORS.highlight : "rgba(255,255,255,0.5)"} />
-            <Text style={[styles.superLikeFloatingText, !canSuperLikeNow && { opacity: 0.5 }]}>
-              {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"}
-            </Text>
+            <View style={[styles.superLikeFloatingInner, !canSuperLikeNow && styles.superLikeFloatingDisabled]}>
+              <Ionicons name="star" size={20} color={canSuperLikeNow ? "#1a1a1a" : "rgba(0,0,0,0.4)"} />
+              <Text style={[styles.superLikeFloatingText, !canSuperLikeNow && { opacity: 0.5 }]}>
+                Super Like · {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"} left
+              </Text>
+            </View>
           </Pressable>
         )}
 
@@ -998,26 +1000,36 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: "#FFF",
   },
-  // ─── Super Like floating button ────────────────────
+  // ─── Super Like floating button (centered above emojis) ────
   superLikeFloating: {
     position: "absolute",
-    bottom: 14,
-    right: 20,
+    bottom: 148,
+    alignSelf: "center",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 50,
+  },
+  superLikeFloatingInner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
-    zIndex: 50,
+    backgroundColor: "rgba(255, 215, 0, 0.9)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   superLikeFloatingDisabled: {
     opacity: 0.5,
   },
   superLikeFloatingText: {
-    color: "#FFF",
-    fontSize: 13,
+    color: "#1a1a1a",
+    fontSize: 15,
     fontFamily: fonts.bodySemiBold,
   },
 });

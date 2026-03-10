@@ -68,18 +68,13 @@ export function getRemainingSuperLikes(counts: DailySwipeCounts): number {
   return Math.max(0, PREMIUM_DAILY_SUPER_LIKES - counts.superLikeCount);
 }
 
-// ─── Record a super like ────────────────────────────────────
+// ─── Record a super like (just increments daily counter) ────
+// The actual super-like flag lives on swipes.is_super_like (set via recordSwipe)
 export async function recordSuperLike(
   senderId: string,
-  receiverId: string
+  _receiverId: string
 ): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase
-      .from("super_likes")
-      .insert({ sender_id: senderId, receiver_id: receiverId });
-
-    if (error) return { error: error.message };
-
     await incrementSuperLike(senderId);
     return { error: null };
   } catch (err: any) {

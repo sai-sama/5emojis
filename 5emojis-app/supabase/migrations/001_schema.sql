@@ -292,18 +292,7 @@ CREATE TABLE public.daily_swipe_counts (
 CREATE INDEX idx_daily_swipe_counts_user_date ON public.daily_swipe_counts (user_id, swipe_date);
 
 -- ═══════════════════════════════════════════════════════════════
--- SUPER LIKES (from 014)
--- ═══════════════════════════════════════════════════════════════
-CREATE TABLE public.super_likes (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  sender_id   uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  receiver_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (sender_id, receiver_id)
-);
-
-CREATE INDEX idx_super_likes_receiver ON public.super_likes (receiver_id, created_at DESC);
-
+-- (super_likes table removed — super like flag lives on swipes.is_super_like)
 -- ═══════════════════════════════════════════════════════════════
 -- AI CONTENT (daily batch — serves all users)
 -- ═══════════════════════════════════════════════════════════════

@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
 } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -58,66 +59,80 @@ function FilterDropdown({
   counts: Record<MatchFilter, number>;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<View>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const activeFilter = FILTERS.find((f) => f.key === active) ?? FILTERS[0];
 
-  return (
-    <View style={styles.dropdownContainer}>
-      <Pressable
-        style={styles.dropdownTrigger}
-        onPress={() => {
-          setOpen(!open);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }}
-      >
-        <Text style={styles.dropdownTriggerText}>
-          {activeFilter.emoji ? `${activeFilter.emoji} ` : ""}{activeFilter.label}
-        </Text>
-        {counts[active] > 0 && (
-          <View style={styles.dropdownBadge}>
-            <Text style={styles.dropdownBadgeText}>{counts[active]}</Text>
-          </View>
-        )}
-        <Ionicons
-          name={open ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={COLORS.primary}
-          style={{ marginLeft: 4 }}
-        />
-      </Pressable>
+  const handleOpen = useCallback(() => {
+    triggerRef.current?.measureInWindow((x, y, _w, h) => {
+      setMenuPos({ top: y + h + 6, left: x });
+      setOpen(true);
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
-      {open && (
-        <View style={styles.dropdownMenu}>
-          {FILTERS.map((f) => {
-            const isActive = active === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => {
-                  onChange(f.key);
-                  setOpen(false);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
-              >
-                <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
-                  {f.emoji ? `${f.emoji} ` : ""}{f.label}
-                </Text>
-                {counts[f.key] > 0 && (
-                  <View style={[styles.dropdownItemBadge, isActive && styles.dropdownItemBadgeActive]}>
-                    <Text style={[styles.dropdownItemBadgeText, isActive && styles.dropdownItemBadgeTextActive]}>
-                      {counts[f.key]}
-                    </Text>
-                  </View>
-                )}
-                {isActive && (
-                  <Ionicons name="checkmark" size={16} color={COLORS.primary} style={{ marginLeft: 4 }} />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-    </View>
+  return (
+    <>
+      <View ref={triggerRef} collapsable={false}>
+        <Pressable
+          style={styles.dropdownTrigger}
+          onPress={handleOpen}
+        >
+          <Text style={styles.dropdownTriggerText}>
+            {activeFilter.emoji ? `${activeFilter.emoji} ` : ""}{activeFilter.label}
+          </Text>
+          {counts[active] > 0 && (
+            <View style={styles.dropdownBadge}>
+              <Text style={styles.dropdownBadgeText}>{counts[active]}</Text>
+            </View>
+          )}
+          <Ionicons
+            name={open ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={COLORS.primary}
+            style={{ marginLeft: 4 }}
+          />
+        </Pressable>
+      </View>
+
+      <Modal visible={open} transparent animationType="none" statusBarTranslucent>
+        <Pressable style={styles.dropdownBackdrop} onPress={() => setOpen(false)}>
+          <View
+            style={[styles.dropdownMenu, { position: "absolute", top: menuPos.top, left: menuPos.left }]}
+            onStartShouldSetResponder={() => true}
+          >
+            {FILTERS.map((f) => {
+              const isActive = active === f.key;
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => {
+                    onChange(f.key);
+                    setOpen(false);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
+                >
+                  <Text style={[styles.dropdownItemText, isActive && styles.dropdownItemTextActive]}>
+                    {f.emoji ? `${f.emoji} ` : ""}{f.label}
+                  </Text>
+                  {counts[f.key] > 0 && (
+                    <View style={[styles.dropdownItemBadge, isActive && styles.dropdownItemBadgeActive]}>
+                      <Text style={[styles.dropdownItemBadgeText, isActive && styles.dropdownItemBadgeTextActive]}>
+                        {counts[f.key]}
+                      </Text>
+                    </View>
+                  )}
+                  {isActive && (
+                    <Ionicons name="checkmark" size={16} color={COLORS.primary} style={{ marginLeft: 4 }} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -288,33 +303,34 @@ function MatchCard({
   const timeLabel = lastMessage ? formatMessageTime(lastMessage.created_at) : "";
 
   return (
-    <Pressable
-      style={[
-        styles.card,
-        unreadCount > 0 && styles.cardUnread,
-        hasSuperLike && styles.cardSuperLike,
-      ]}
-      onPress={() => router.push(`/chat/${match.id}`)}
-      onLongPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onLongPress(item);
-      }}
-      delayLongPress={500}
-    >
-      {/* Unread badge — top right of entire card */}
+    <View style={styles.cardOuter}>
+      {/* Unread badge — top right, outside overflow:hidden card */}
       {unreadCount > 0 && (
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
         </View>
       )}
 
-      {/* Super like star — top left of card */}
+      {/* Super like star — top left, outside overflow:hidden card */}
       {hasSuperLike && (
         <View style={styles.superLikeCardBadge}>
           <Text style={styles.superLikeCardStar}>⭐</Text>
         </View>
       )}
 
+      <Pressable
+        style={[
+          styles.card,
+          unreadCount > 0 && styles.cardUnread,
+          hasSuperLike && styles.cardSuperLike,
+        ]}
+        onPress={() => router.push(`/chat/${match.id}`)}
+        onLongPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onLongPress(item);
+        }}
+        delayLongPress={500}
+      >
       {/* Photo */}
       <View style={styles.photoWrapper}>
         {otherPhoto ? (
@@ -416,6 +432,7 @@ function MatchCard({
         </View>
       </View>
     </Pressable>
+    </View>
   );
 }
 
@@ -1065,7 +1082,6 @@ const styles = StyleSheet.create({
   // ─── Filter dropdown ─────────────────────────────────
   filterSection: {
     marginBottom: 14,
-    zIndex: 10,
   },
   filterRow_wrapper: {
     flexDirection: "row",
@@ -1086,9 +1102,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: COLORS.primary,
   },
-  dropdownContainer: {
-    position: "relative",
-    zIndex: 10,
+  dropdownBackdrop: {
+    flex: 1,
   },
   dropdownTrigger: {
     flexDirection: "row",
@@ -1121,10 +1136,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
   },
   dropdownMenu: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    marginTop: 6,
     minWidth: 200,
     backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.98)",
     borderRadius: 16,
@@ -1185,13 +1196,16 @@ const styles = StyleSheet.create({
   },
 
   // ─── Enhanced match cards ─────────────────────────
+  cardOuter: {
+    position: "relative",
+    marginBottom: 12,
+  },
   card: {
     flexDirection: "row",
     alignItems: "stretch",
     backgroundColor: Platform.OS === "android" ? "#FFF9F9" : "rgba(255,255,255,0.85)",
     borderRadius: 20,
     overflow: "hidden",
-    marginBottom: 12,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primary,
