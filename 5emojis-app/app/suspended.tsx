@@ -46,7 +46,7 @@ export default function SuspendedScreen() {
           <Text style={styles.appealBody}>
             You can appeal this suspension by emailing us. Include your account email and we'll review your case.
           </Text>
-          <Text style={styles.appealEmail}>support@5emojis.app</Text>
+          <Text style={styles.appealEmail}>info@saibuilds.com</Text>
         </View>
 
         <View style={{ flex: 1 }} />

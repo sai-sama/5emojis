@@ -151,7 +151,7 @@ Face Detection: Your primary profile photo must contain a recognizable face. We 
 
 Photo Processing: We compress and resize uploaded photos (max 600px width, JPEG quality 0.6) to optimize performance and storage. Original full-resolution images are not retained after processing.
 
-By uploading photos to 5Emojis, you consent to automated screening and processing. If you believe your photo was incorrectly rejected, contact us at support@5emojis.app.`}
+By uploading photos to 5Emojis, you consent to automated screening and processing. If you believe your photo was incorrectly rejected, contact us at info@saibuilds.com.`}
         </Section>
 
         <Section title="8. Matching and Messaging">
@@ -291,7 +291,7 @@ Your continued use of the App after changes become effective constitutes your ac
           {`If you have any questions about these Terms, please contact us at:
 
 Desi Digital LLC
-support@5emojis.app`}
+info@saibuilds.com`}
         </Section>
       </ScrollView>
     </SafeAreaView>

@@ -173,7 +173,7 @@ Reporting: You can report users who violate our community guidelines. Reports ar
 - The right to opt out of the sale of your personal information (we do not sell your data)
 - The right to non-discrimination for exercising your CCPA rights
 
-To exercise these rights, contact us at privacy@5emojis.app.`}
+To exercise these rights, contact us at info@saibuilds.com.`}
         </Section>
 
         <Section title="7. European Residents (GDPR)">
@@ -187,7 +187,7 @@ To exercise these rights, contact us at privacy@5emojis.app.`}
 
 Our legal basis for processing your data includes your consent, performance of our contract with you (these Terms), and our legitimate business interests.
 
-To exercise these rights, contact us at privacy@5emojis.app.`}
+To exercise these rights, contact us at info@saibuilds.com.`}
         </Section>
 
         <Section title="8. Data Security">
@@ -205,7 +205,7 @@ However, no method of transmission over the internet or electronic storage is 10
         <Section title="9. Children's Privacy">
           {`5Emojis is not intended for anyone under the age of 18. We do not knowingly collect personal information from anyone under 18. If we learn that we have collected personal information from a user under 18, we will promptly delete that information and terminate the account.
 
-If you believe a user is under 18, please report them through the App's reporting feature or contact us at privacy@5emojis.app.`}
+If you believe a user is under 18, please report them through the App's reporting feature or contact us at info@saibuilds.com.`}
         </Section>
 
         <Section title="10. International Data Transfers">
@@ -240,7 +240,7 @@ Our use of third-party services (Apple Sign-In, Google Sign-In, OpenAI moderatio
           {`If you have any questions about this Privacy Policy or our data practices, please contact us at:
 
 Desi Digital LLC
-privacy@5emojis.app`}
+info@saibuilds.com`}
         </Section>
       </ScrollView>
     </SafeAreaView>
