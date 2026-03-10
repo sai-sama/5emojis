@@ -167,35 +167,36 @@ function VibeCard({
   };
 
   return (
-    <Pressable
-      style={[styles.vibeCard, vibe.isSuperLike && styles.vibeCardSuperLike]}
-      onPress={handleCardPress}
-    >
-      {/* Photo — fills top of card */}
-      <View style={styles.vibePhotoWrap}>
-        {vibe.photo ? (
-          <Image
-            source={{ uri: vibe.photo.url }}
-            style={[styles.vibePhoto, isPremiumLocked && styles.vibePhotoBlur]}
-            blurRadius={isPremiumLocked ? 25 : 0}
-          />
-        ) : (
-          <View style={[styles.vibePhoto, styles.vibePhotoPlaceholder]}>
-            <Ionicons name="person" size={32} color={COLORS.textMuted} />
-          </View>
-        )}
-        {isPremiumLocked && (
-          <View style={styles.lockOverlay}>
-            <Text style={{ fontSize: 22 }}>🔒</Text>
-          </View>
-        )}
-        {/* Super like star — top left corner of photo */}
-        {vibe.isSuperLike && (
-          <View style={styles.vibeSuperLikeBadge}>
-            <Text style={styles.vibeSuperLikeStar}>⭐</Text>
-          </View>
-        )}
-      </View>
+    <View style={styles.vibeCardOuter}>
+      {/* Super like star — on border, outside overflow:hidden card */}
+      {vibe.isSuperLike && (
+        <View style={styles.vibeSuperLikeBadge}>
+          <Text style={styles.vibeSuperLikeStar}>⭐</Text>
+        </View>
+      )}
+      <Pressable
+        style={[styles.vibeCard, vibe.isSuperLike && styles.vibeCardSuperLike]}
+        onPress={handleCardPress}
+      >
+        {/* Photo — fills top of card */}
+        <View style={styles.vibePhotoWrap}>
+          {vibe.photo ? (
+            <Image
+              source={{ uri: vibe.photo.url }}
+              style={[styles.vibePhoto, isPremiumLocked && styles.vibePhotoBlur]}
+              blurRadius={isPremiumLocked ? 25 : 0}
+            />
+          ) : (
+            <View style={[styles.vibePhoto, styles.vibePhotoPlaceholder]}>
+              <Ionicons name="person" size={32} color={COLORS.textMuted} />
+            </View>
+          )}
+          {isPremiumLocked && (
+            <View style={styles.lockOverlay}>
+              <Text style={{ fontSize: 22 }}>🔒</Text>
+            </View>
+          )}
+        </View>
 
       {/* Info section */}
       <View style={styles.vibeInfoSection}>
@@ -255,6 +256,7 @@ function VibeCard({
         </View>
       )}
     </Pressable>
+    </View>
   );
 }
 
@@ -715,9 +717,10 @@ export default function VibesScreen() {
         </View>
       )}
 
-      {/* Filter dropdown + mark all read */}
+      {/* Friends section header + filter dropdown + mark all read */}
       {matches.length > 0 && (
         <View style={styles.filterSection}>
+          <Text style={styles.friendsSectionTitle}>Your Friends</Text>
           <View style={styles.filterRow_wrapper}>
             <FilterDropdown
               active={activeFilter}
@@ -906,6 +909,9 @@ const styles = StyleSheet.create({
   },
   vibesScroll: {
     gap: 12,
+    paddingLeft: 6,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   vibeCard: {
     width: 160,
@@ -968,10 +974,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.2)",
   },
+  vibeCardOuter: {
+    position: "relative",
+  },
   vibeSuperLikeBadge: {
     position: "absolute",
-    top: 6,
-    left: 6,
+    top: -6,
+    left: -4,
     zIndex: 10,
     backgroundColor: "rgba(255, 215, 0, 0.95)",
     width: 26,
@@ -1091,6 +1100,12 @@ const styles = StyleSheet.create({
   // ─── Filter dropdown ─────────────────────────────────
   filterSection: {
     marginBottom: 14,
+  },
+  friendsSectionTitle: {
+    fontSize: 18,
+    fontFamily: fonts.headingBold,
+    color: COLORS.text,
+    marginBottom: 10,
   },
   filterRow_wrapper: {
     flexDirection: "row",

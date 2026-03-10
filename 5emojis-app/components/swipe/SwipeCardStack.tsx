@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
   // ─── Super Like floating button (centered above emojis) ────
   superLikeFloating: {
     position: "absolute",
-    bottom: 160,
+    bottom: 175,
     alignSelf: "center",
     left: 0,
     right: 0,
@@ -1013,7 +1013,7 @@ const styles = StyleSheet.create({
   superLikeFloatingInner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 24,

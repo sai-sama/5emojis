@@ -1,5 +1,5 @@
 import { memo, useMemo, useState } from "react";
-import { View, Text, Image, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Image, StyleSheet, Dimensions, Platform } from "react-native";
 import Animated, {
   SharedValue,
   useAnimatedStyle,
@@ -375,11 +375,12 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginTop: 4,
   },
   detailText: {
-    fontSize: 15,
+    fontSize: Platform.OS === "android" ? 13 : 15,
     fontFamily: fonts.bodyMedium,
     color: "rgba(255,255,255,0.9)",
     textShadowColor: "rgba(0,0,0,0.4)",
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   detailSep: {
-    fontSize: 15,
+    fontSize: Platform.OS === "android" ? 13 : 15,
     color: "rgba(255,255,255,0.5)",
   },
   newBadge: {
