@@ -98,7 +98,7 @@ export default function UserProfileScreen() {
               return;
             }
 
-            // Only allow viewing profiles of matched users
+            // Allow viewing profiles of matched users OR incoming vibes (they liked you)
             const { data: match } = await supabase
               .from("matches")
               .select("id")
@@ -107,8 +107,18 @@ export default function UserProfileScreen() {
               )
               .limit(1);
             if (!match || match.length === 0) {
-              router.back();
-              return;
+              // Check if this user has swiped right on us (incoming vibe)
+              const { data: incomingSwipe } = await supabase
+                .from("swipes")
+                .select("id")
+                .eq("swiper_id", userId)
+                .eq("swiped_id", currentUserId)
+                .eq("direction", "right")
+                .limit(1);
+              if (!incomingSwipe || incomingSwipe.length === 0) {
+                router.back();
+                return;
+              }
             }
           }
 

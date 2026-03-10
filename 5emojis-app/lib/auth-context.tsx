@@ -59,6 +59,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSuspended, setIsSuspended] = useState(false);
   const [suspendedUntil, setSuspendedUntil] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCached, setAdminCached] = useState(false);
+
+  // Restore cached admin flag so cold starts don't flash free-user mode
+  useEffect(() => {
+    AsyncStorage.getItem("cached_is_admin").then((v) => {
+      if (v === "true") {
+        setIsAdmin(true);
+        setAdminCached(true);
+      }
+    });
+  }, []);
+
+  // Helper: set admin + persist to cache
+  const updateAdmin = useCallback((value: boolean) => {
+    setIsAdmin(value);
+    AsyncStorage.setItem("cached_is_admin", value ? "true" : "false");
+  }, []);
 
   // Configure Google Sign-In once on mount
   // iosClientId is required for the SDK to initialize on iOS (without
@@ -139,15 +156,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setNeedsOnboarding(!result.exists);
             setIsSuspended(result.suspended);
             setSuspendedUntil(result.suspendedUntil);
-            setIsAdmin(result.admin);
+            updateAdmin(result.admin);
             if (result.exists && !result.suspended) {
               registerForPushNotifications(authUser.user.id);
             }
           } catch (err: any) {
             // Network error — set the cached session so app isn't stuck on sign-in.
             // Do NOT set needsOnboarding=true here — profile may exist, we just can't check.
-            // The user will see the main app; if profile is truly missing, the next
-            // successful API call will reveal it.
+            // Admin flag preserved from cache so the user doesn't flash into free mode.
             setSession(s);
             logError(err, { screen: "AuthProvider", context: "session_profile_check" });
           }
@@ -179,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setNeedsOnboarding(!result.exists);
           setIsSuspended(result.suspended);
           setSuspendedUntil(result.suspendedUntil);
-          setIsAdmin(result.admin);
+          updateAdmin(result.admin);
           if (result.exists && !result.suspended) {
             registerForPushNotifications(s.user.id);
           }
@@ -191,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(false);
         setIsSuspended(false);
         setSuspendedUntil(null);
-        setIsAdmin(false);
+        updateAdmin(false);
       }
     });
 
@@ -225,11 +241,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(!result.exists);
         setIsSuspended(result.suspended);
         setSuspendedUntil(result.suspendedUntil);
-        setIsAdmin(result.admin);
+        updateAdmin(result.admin);
       }
       return { error: null };
     },
-    [checkProfile]
+    [checkProfile, updateAdmin]
   );
 
   const signInWithApple = useCallback(async (): Promise<{ error: string | null }> => {
@@ -257,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(!result.exists);
         setIsSuspended(result.suspended);
         setSuspendedUntil(result.suspendedUntil);
-        setIsAdmin(result.admin);
+        updateAdmin(result.admin);
       }
       return { error: null };
     } catch (e: any) {
@@ -296,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setNeedsOnboarding(!result.exists);
         setIsSuspended(result.suspended);
         setSuspendedUntil(result.suspendedUntil);
-        setIsAdmin(result.admin);
+        updateAdmin(result.admin);
       }
       return { error: null };
     } catch (e: any) {
@@ -328,8 +344,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setNeedsOnboarding(false);
     setIsSuspended(false);
     setSuspendedUntil(null);
-    setIsAdmin(false);
-  }, []);
+    updateAdmin(false);
+  }, [updateAdmin]);
 
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
     if (!session?.user) return { error: "Not authenticated" };
@@ -348,7 +364,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setNeedsOnboarding(false);
       setIsSuspended(false);
       setSuspendedUntil(null);
-      setIsAdmin(false);
+      updateAdmin(false);
       return { error: null };
     } catch (err: any) {
       logError(err, { screen: "AuthProvider", context: "delete_account" });

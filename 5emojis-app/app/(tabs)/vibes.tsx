@@ -43,7 +43,9 @@ import TabHeader from "../../components/navigation/TabHeader";
 // ─── Filter config ──────────────────────────────────────────
 const FILTERS: { key: MatchFilter; label: string; emoji: string }[] = [
   { key: "all", label: "All Friends", emoji: "" },
+  { key: "unread", label: "Unread", emoji: "\u{1F534}" },
   { key: "new", label: "New", emoji: "\u{1F9CA}" },
+  { key: "waiting", label: "Waiting", emoji: "\u{23F3}" },
   { key: "chatting", label: "Chatting", emoji: "\u{1F4AC}" },
   { key: "perfect", label: "Perfect Match", emoji: "\u{2728}" },
 ];
@@ -536,8 +538,12 @@ export default function VibesScreen() {
   // ─── Filtering ────────────────────────────────────────────
   const filteredMatches = useMemo(() => {
     switch (activeFilter) {
+      case "unread":
+        return matches.filter((m) => m.unreadCount > 0);
       case "new":
         return matches.filter((m) => m.chatState === "icebreaker_pending");
+      case "waiting":
+        return matches.filter((m) => m.chatState === "icebreaker_waiting");
       case "chatting":
         return matches.filter((m) => m.chatState === "chat_active");
       case "perfect":
@@ -550,7 +556,9 @@ export default function VibesScreen() {
   const filterCounts = useMemo<Record<MatchFilter, number>>(
     () => ({
       all: matches.length,
+      unread: matches.filter((m) => m.unreadCount > 0).length,
       new: matches.filter((m) => m.chatState === "icebreaker_pending").length,
+      waiting: matches.filter((m) => m.chatState === "icebreaker_waiting").length,
       chatting: matches.filter((m) => m.chatState === "chat_active").length,
       perfect: matches.filter((m) => m.match.is_emoji_perfect).length,
     }),
@@ -721,9 +729,13 @@ export default function VibesScreen() {
               <Pressable
                 style={styles.markReadButton}
                 onPress={async () => {
-                  await markAllAsRead();
-                  loadData();
+                  // Optimistically clear unread badges on all cards immediately
+                  setMatches((prev) =>
+                    prev.map((m) => (m.unreadCount > 0 ? { ...m, unreadCount: 0 } : m))
+                  );
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Persist to DB in background
+                  markAllAsRead();
                 }}
                 hitSlop={8}
               >
@@ -1139,6 +1151,7 @@ const styles = StyleSheet.create({
     minWidth: 200,
     backgroundColor: Platform.OS === "android" ? "#FFFFFF" : "rgba(255,255,255,0.98)",
     borderRadius: 16,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingVertical: 4,

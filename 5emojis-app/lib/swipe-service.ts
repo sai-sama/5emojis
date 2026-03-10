@@ -34,7 +34,7 @@ export type IncomingVibe = {
   isSuperLike: boolean;
 };
 
-export type MatchFilter = "all" | "new" | "chatting" | "perfect";
+export type MatchFilter = "all" | "new" | "waiting" | "unread" | "chatting" | "perfect";
 
 export type EnhancedMatch = MatchWithProfile & {
   chatState: ChatState;

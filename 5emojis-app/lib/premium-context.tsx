@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Purchases, {
   PurchasesPackage,
   CustomerInfo,
@@ -41,6 +42,13 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [initialized, setInitialized] = useState(false);
+
+  // Restore cached premium flag so cold starts don't flash free-user mode
+  useEffect(() => {
+    AsyncStorage.getItem("cached_is_premium").then((v) => {
+      if (v === "true") setIsPremium(true);
+    });
+  }, []);
 
   // Initialize RevenueCat
   useEffect(() => {
@@ -121,6 +129,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     (info: CustomerInfo) => {
       const hasPremium = !!info.entitlements.active[PREMIUM_ENTITLEMENT];
       setIsPremium(hasPremium);
+      AsyncStorage.setItem("cached_is_premium", hasPremium ? "true" : "false");
 
       // Sync premium status to database
       if (session?.user) {

@@ -863,9 +863,9 @@ export default function SwipeCardStack() {
             onPress={handleSuperLike}
           >
             <View style={[styles.superLikeFloatingInner, !canSuperLikeNow && styles.superLikeFloatingDisabled]}>
-              <Ionicons name="star" size={20} color={canSuperLikeNow ? "#1a1a1a" : "rgba(0,0,0,0.4)"} />
+              <Ionicons name="star" size={18} color={canSuperLikeNow ? "#FFD700" : "rgba(255,215,0,0.4)"} />
               <Text style={[styles.superLikeFloatingText, !canSuperLikeNow && { opacity: 0.5 }]}>
-                Super Like · {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"} left
+                {canSuperLikeNow ? getRemainingSuperLikes(dailyCounts) : "0"}
               </Text>
             </View>
           </Pressable>
@@ -1013,23 +1013,20 @@ const styles = StyleSheet.create({
   superLikeFloatingInner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 215, 0, 0.9)",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.35)",
   },
   superLikeFloatingDisabled: {
     opacity: 0.5,
   },
   superLikeFloatingText: {
-    color: "#1a1a1a",
-    fontSize: 15,
+    color: "#FFD700",
+    fontSize: 14,
     fontFamily: fonts.bodySemiBold,
   },
 });
