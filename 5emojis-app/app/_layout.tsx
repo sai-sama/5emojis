@@ -87,16 +87,20 @@ export default function RootLayout() {
       });
     }
 
-    // Handle notification taps → navigate to chat (app is running)
-    const cleanup = addNotificationResponseListener((matchId) => {
-      router.push(`/chat/${matchId}`);
-    });
+    // Handle notification taps → navigate to chat or screen (app is running)
+    const navigateToScreen = (screen: string) => {
+      if (screen === "vibes") router.push("/(tabs)/vibes");
+    };
+    const cleanup = addNotificationResponseListener(
+      (matchId) => router.push(`/chat/${matchId}`),
+      navigateToScreen
+    );
 
     // Handle cold start — app was launched from a notification tap
-    checkInitialNotification((matchId) => {
-      // Small delay to let navigation mount first
-      setTimeout(() => router.push(`/chat/${matchId}`), 500);
-    });
+    checkInitialNotification(
+      (matchId) => setTimeout(() => router.push(`/chat/${matchId}`), 500),
+      (screen) => setTimeout(() => navigateToScreen(screen), 500)
+    );
 
     return cleanup;
   }, []);

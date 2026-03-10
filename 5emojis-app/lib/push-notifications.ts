@@ -160,6 +160,66 @@ export async function notifyNewMatch(
 }
 
 /**
+ * Notify a user that someone liked them.
+ * Premium users see who liked them; free users get a teaser.
+ */
+export async function notifyNewLike(
+  recipientUserId: string,
+  likerName: string
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_premium")
+      .eq("id", recipientUserId)
+      .single();
+
+    const isPremium = profile?.is_premium === true;
+
+    await sendPushNotification(
+      recipientUserId,
+      isPremium ? "Someone vibed with you! 💜" : "Someone vibed with you! 💜",
+      isPremium
+        ? `${likerName} liked you! Check who liked you to connect.`
+        : "Someone liked your profile! Keep swiping to find them or upgrade to see who.",
+      { type: "like", screen: "vibes" }
+    );
+  } catch (err: any) {
+    logError(err, { screen: "PushNotifications", context: "notify_new_like" });
+  }
+}
+
+/**
+ * Notify a user that someone super liked them.
+ * Premium users see who; free users get a teaser.
+ */
+export async function notifyNewSuperLike(
+  recipientUserId: string,
+  likerName: string
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_premium")
+      .eq("id", recipientUserId)
+      .single();
+
+    const isPremium = profile?.is_premium === true;
+
+    await sendPushNotification(
+      recipientUserId,
+      "You got a Super Like! ⭐",
+      isPremium
+        ? `${likerName} super liked you! Check who liked you to connect.`
+        : "Someone super liked your profile! Upgrade to see who.",
+      { type: "super_like", screen: "vibes" }
+    );
+  } catch (err: any) {
+    logError(err, { screen: "PushNotifications", context: "notify_new_super_like" });
+  }
+}
+
+/**
  * Notify a user that they received a new message.
  */
 export async function notifyNewMessage(
@@ -181,13 +241,16 @@ export async function notifyNewMessage(
  * Returns a cleanup function.
  */
 export function addNotificationResponseListener(
-  onNavigate: (matchId: string) => void
+  onNavigate: (matchId: string) => void,
+  onNavigateScreen?: (screen: string) => void
 ): () => void {
   const subscription = Notifications.addNotificationResponseReceivedListener(
     (response) => {
       const data = response.notification.request.content.data;
       if (data?.matchId) {
         onNavigate(data.matchId as string);
+      } else if (data?.screen && onNavigateScreen) {
+        onNavigateScreen(data.screen as string);
       }
     }
   );
@@ -200,13 +263,16 @@ export function addNotificationResponseListener(
  * Should be called once on app startup.
  */
 export async function checkInitialNotification(
-  onNavigate: (matchId: string) => void
+  onNavigate: (matchId: string) => void,
+  onNavigateScreen?: (screen: string) => void
 ): Promise<void> {
   const response = await Notifications.getLastNotificationResponseAsync();
   if (response) {
     const data = response.notification.request.content.data;
     if (data?.matchId) {
       onNavigate(data.matchId as string);
+    } else if (data?.screen && onNavigateScreen) {
+      onNavigateScreen(data.screen as string);
     }
   }
 }

@@ -62,7 +62,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useUndo } from "../../lib/undo-context";
 import SwipeTutorial from "./SwipeTutorial";
-import { notifyNewMatch } from "../../lib/push-notifications";
+import { notifyNewMatch, notifyNewLike, notifyNewSuperLike } from "../../lib/push-notifications";
 import { logError } from "../../lib/error-logger";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -559,6 +559,12 @@ export default function SwipeCardStack() {
                 result.match.id
               ).catch(() => {}); // best-effort push
             }
+          } else if (direction === "right" && userName) {
+            // Not a match — notify them someone liked them
+            notifyNewLike(
+              swipedProfile.profile.id,
+              userName
+            ).catch(() => {}); // best-effort push
           }
         }).catch((err: any) => {
           // Swipe recording failed
@@ -615,6 +621,12 @@ export default function SwipeCardStack() {
         if (userName) {
           notifyNewMatch(result.otherUser.id, userName, result.match.id);
         }
+      } else if (userName) {
+        // Not a match — notify them someone super liked them
+        notifyNewSuperLike(
+          swipedProfile.profile.id,
+          userName
+        ).catch(() => {}); // best-effort push
       }
     }).catch((err: any) => {
       logError(err, { screen: "SwipeCardStack", context: "super_like" });

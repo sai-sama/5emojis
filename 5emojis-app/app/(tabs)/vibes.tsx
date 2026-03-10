@@ -136,7 +136,7 @@ function VibeCard({
 
   return (
     <Pressable
-      style={styles.vibeCard}
+      style={[styles.vibeCard, vibe.isSuperLike && styles.vibeCardSuperLike]}
       onPress={handleCardPress}
     >
       {/* Photo — fills top of card */}
@@ -155,6 +155,11 @@ function VibeCard({
         {isPremiumLocked && (
           <View style={styles.lockOverlay}>
             <Text style={{ fontSize: 22 }}>🔒</Text>
+          </View>
+        )}
+        {vibe.isSuperLike && (
+          <View style={styles.superLikeBadge}>
+            <Text style={styles.superLikeBadgeText}>⭐ Super Like</Text>
           </View>
         )}
       </View>
@@ -858,6 +863,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 107, 107, 0.1)",
   },
+  vibeCardSuperLike: {
+    borderColor: "rgba(255, 215, 0, 0.6)",
+    borderWidth: 1.5,
+  },
   vibePerfectStrip: {
     flexDirection: "row",
     alignItems: "center",
@@ -895,6 +904,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.2)",
+  },
+  superLikeBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "rgba(255, 215, 0, 0.95)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  superLikeBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bodyBold,
+    color: "#1a1a1a",
   },
   vibeInfoSection: {
     flexDirection: "row",

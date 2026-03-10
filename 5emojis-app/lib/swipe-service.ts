@@ -31,6 +31,7 @@ export type IncomingVibe = {
   emojis: ProfileEmoji[];
   photo: ProfilePhoto | null;
   swipedAt: string;
+  isSuperLike: boolean;
 };
 
 export type MatchFilter = "all" | "new" | "chatting" | "perfect";
@@ -284,9 +285,16 @@ export async function fetchIncomingVibes(
         emojis: emojiMap.get(swipe.swiper_id) ?? [],
         photo: photoMap.get(swipe.swiper_id) ?? null,
         swipedAt: swipe.created_at,
+        isSuperLike: swipe.is_super_like === true,
       } satisfies IncomingVibe;
     })
-    .filter((v): v is IncomingVibe => v !== null);
+    .filter((v): v is IncomingVibe => v !== null)
+    .sort((a, b) => {
+      // Super likes always appear first
+      if (a.isSuperLike && !b.isSuperLike) return -1;
+      if (!a.isSuperLike && b.isSuperLike) return 1;
+      return 0;
+    });
 }
 
 // ─── Helpers for enhanced matches ────────────────────────────

@@ -107,8 +107,11 @@ BEGIN
 
   -- 5. Pre-seed right swipes from ALL mock users → current user
   --    This means swiping right on any remaining mock profile = instant match!
-  INSERT INTO public.swipes (swiper_id, swiped_id, direction)
-  SELECT unnest(mock_ids), requesting_user_id, 'right'
+  --    Mock users 6-8 (Tyler, Luna, Jordan) are marked as super likes
+  INSERT INTO public.swipes (swiper_id, swiped_id, direction, is_super_like)
+  SELECT mid, requesting_user_id, 'right',
+    (mid = mock_ids[6] OR mid = mock_ids[7] OR mid = mock_ids[8])
+  FROM unnest(mock_ids) AS mid
   ON CONFLICT (swiper_id, swiped_id) DO NOTHING;
   GET DIAGNOSTICS inserted_swipes = ROW_COUNT;
 
@@ -369,5 +372,6 @@ ON CONFLICT DO NOTHING;
 --   3. Check Friends tab — 5 pre-made matches are waiting:
 --      • 3 in "icebreaker_pending" (mock user answered, you haven't)
 --      • 2 in "chat_active" (both answered + text messages)
---   4. Go to Discover tab and swipe right on remaining 20 → instant matches!
+--   4. Check "Who Liked You" — 3 super likes (Tyler, Luna, Jordan) appear first with ⭐ badge
+--   5. Go to Discover tab and swipe right on remaining 20 → instant matches!
 -- ═══════════════════════════════════════════════════════════════

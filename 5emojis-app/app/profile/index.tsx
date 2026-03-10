@@ -22,6 +22,7 @@ import { getZodiacSign } from "../../lib/zodiac";
 import { calculateAge } from "../../components/swipe/mockProfiles";
 import EmojiPicker from "../../components/EmojiPicker";
 import PreviewCard from "../../components/profile/PreviewCard";
+import ShareableProfileCard from "../../components/profile/ShareableProfileCard";
 import ProfileSectionRow from "../../components/profile/ProfileSectionRow";
 import ProfileCompletionCard from "../../components/profile/ProfileCompletionCard";
 import DiscoveryFiltersRibbon from "../../components/profile/DiscoveryFiltersRibbon";
@@ -400,6 +401,9 @@ export default function ProfileOverview() {
           onEditEmojis={handleEditEmojis}
           emojiCooldownLabel={emojiCooldownLabel}
         />
+
+        {/* Share profile card */}
+        <ShareableProfileCard profile={profile} sortedEmojis={sortedEmojis} />
 
         {/* Profile completion nudge */}
         <ProfileCompletionCard profile={profile} />
