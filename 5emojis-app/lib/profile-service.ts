@@ -395,21 +395,23 @@ export async function setMainPhoto(
   userId: string,
   photoId: string
 ): Promise<{ error: string | null }> {
-  // Clear is_primary on all user's photos
-  const { error: clearError } = await supabase
-    .from("profile_photos")
-    .update({ is_primary: false })
-    .eq("user_id", userId);
-
-  if (clearError) return { error: clearError.message };
-
-  // Set the chosen photo as primary
+  // Set the new primary FIRST — if the second step fails, we have two primaries
+  // (queries pick first by position) rather than zero primaries
   const { error: setError } = await supabase
     .from("profile_photos")
     .update({ is_primary: true })
     .eq("id", photoId);
 
   if (setError) return { error: setError.message };
+
+  // Clear is_primary on all OTHER user photos
+  const { error: clearError } = await supabase
+    .from("profile_photos")
+    .update({ is_primary: false })
+    .eq("user_id", userId)
+    .neq("id", photoId);
+
+  if (clearError) return { error: clearError.message };
 
   return { error: null };
 }

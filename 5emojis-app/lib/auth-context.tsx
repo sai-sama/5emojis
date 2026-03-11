@@ -344,6 +344,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // Clear cached Google account so the picker shows on next sign-in
     try { await GoogleSignin.signOut(); } catch {}
+    // Clear cached premium/admin flags so next user starts clean
+    AsyncStorage.multiRemove(["cached_is_premium", "cached_is_admin"]).catch(() => {});
     setSession(null);
     setNeedsOnboarding(false);
     setIsSuspended(false);
@@ -354,6 +356,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
     if (!session?.user) return { error: "Not authenticated" };
     try {
+      // Clear push token before deleting account
+      try { await clearPushToken(session.user.id); } catch {}
       const { error } = await deleteAccountService(session.user.id);
       if (error) return { error };
       // Sign out of Supabase
@@ -364,6 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Clear cached Google/Apple credentials so they can't auto-sign back in
       try { await GoogleSignin.signOut(); } catch {}
+      AsyncStorage.multiRemove(["cached_is_premium", "cached_is_admin"]).catch(() => {});
       setSession(null);
       setNeedsOnboarding(false);
       setIsSuspended(false);

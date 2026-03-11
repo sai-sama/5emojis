@@ -202,6 +202,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         );
       }
 
+      // Auto-seed mock data so testers get profiles, likes & matches immediately
+      (supabase.rpc as any)("reset_mock_data", { requesting_user_id: userId }).catch(() => {});
+
       completeOnboarding();
       setSubmitting(false);
       return { error: null };

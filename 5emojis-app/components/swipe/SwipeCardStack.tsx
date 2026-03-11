@@ -523,19 +523,22 @@ export default function SwipeCardStack() {
         setLastSwipe(null);
       }
 
-      // Record swipe to Supabase + track daily count
+      // Optimistically increment daily count BEFORE async call to prevent rapid-swipe bypass
+      if (direction === "right") {
+        setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
+      }
+
+      // Record swipe to Supabase + persist daily count
       if (session?.user && swipedProfile) {
         recordSwipe(
           session.user.id,
           swipedProfile.profile.id,
           direction
         ).then((result) => {
-          // Increment daily count for right swipes
           if (direction === "right") {
             incrementRightSwipe(session.user.id).catch((err: any) =>
               logError(err, { screen: "SwipeCardStack", context: "increment_right_swipe" })
             );
-            setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
           }
 
           if (result.matched) {

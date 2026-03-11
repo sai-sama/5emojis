@@ -159,29 +159,27 @@ export async function toggleReaction(
   userId: string,
   emoji: string
 ): Promise<{ added: boolean; error: string | null }> {
-  // Check if reaction already exists
-  const { data: existing } = await supabase
+  // Atomic delete — returns count of deleted rows to determine if we toggled off
+  const { data: deleted, error: delError } = await supabase
     .from("message_reactions")
-    .select("id")
+    .delete()
     .eq("message_id", messageId)
     .eq("user_id", userId)
     .eq("emoji", emoji)
-    .single();
+    .select("id");
 
-  if (existing) {
-    // Remove reaction
-    const { error } = await supabase
-      .from("message_reactions")
-      .delete()
-      .eq("id", existing.id);
-    return { added: false, error: error?.message ?? null };
-  } else {
-    // Add reaction
-    const { error } = await supabase
-      .from("message_reactions")
-      .insert({ message_id: messageId, user_id: userId, emoji });
-    return { added: true, error: error?.message ?? null };
+  if (delError) return { added: false, error: delError.message };
+
+  // If we deleted something, the reaction was removed (toggled off)
+  if (deleted && deleted.length > 0) {
+    return { added: false, error: null };
   }
+
+  // Nothing to delete — add the reaction
+  const { error } = await supabase
+    .from("message_reactions")
+    .insert({ message_id: messageId, user_id: userId, emoji });
+  return { added: true, error: error?.message ?? null };
 }
 
 // ─── Fetch reactions for all messages in a match ────────────

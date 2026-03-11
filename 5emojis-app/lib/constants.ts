@@ -105,3 +105,7 @@ export const SUBSCRIPTION_PRICES = {
   monthly: "$7.99",
   annual: "$49.99",
 } as const;
+
+// ─── Mock Profile Detection ─────────────────────────────────
+const MOCK_UUID_PREFIX = "00000000-0000-4000-a000-";
+export const isMockProfile = (id: string) => id.startsWith(MOCK_UUID_PREFIX);
