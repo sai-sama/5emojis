@@ -249,33 +249,38 @@ ON CONFLICT DO NOTHING;
 -- 4. PROFILES (25 diverse mock users)
 --    Location defaults to SF; reset_mock_data() moves them to you
 -- ═══════════════════════════════════════════════════════════════
-INSERT INTO public.profiles (id, name, dob, gender, profession, life_stage, friendship_style, pronouns, is_new_to_city, city, state, latitude, longitude, search_radius_miles, personality_type) VALUES
-('00000000-0000-4000-a000-000000000001', 'Priya',   '1998-03-15', 'female',    'Product Designer',    'Working',     'Deep Convos',    'she/her',   true,  'San Francisco', 'CA', 37.7749, -122.4194, 25, 'ambivert'),
-('00000000-0000-4000-a000-000000000002', 'Marcus',  '1996-08-22', 'male',      'Software Engineer',   'Working',     'Activity Buddy', 'he/him',    false, 'San Francisco', 'CA', 37.7740, -122.4180, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000003', 'Sophie',  '1999-11-03', 'female',    'Grad Student',        'Student',     'Group Hangs',    'she/her',   true,  'San Francisco', 'CA', 37.7760, -122.4200, 25, 'extrovert'),
-('00000000-0000-4000-a000-000000000004', 'Kai',     '1997-05-28', 'nonbinary', 'Photographer',        'Freelancer',  'Adventure Crew', 'they/them', false, 'Oakland',       'CA', 37.8044, -122.2712, 30, 'introvert'),
-('00000000-0000-4000-a000-000000000005', 'Aisha',   '2000-01-12', 'female',    'Marketing Manager',   'Working',     'Deep Convos',    'she/her',   true,  'San Francisco', 'CA', 37.7755, -122.4170, 20, 'extrovert'),
-('00000000-0000-4000-a000-000000000006', 'Tyler',   '1995-09-17', 'male',      'Personal Trainer',    'Working',     'Gym Partner',    'he/him',    false, 'San Francisco', 'CA', 37.7730, -122.4210, 15, 'extrovert'),
-('00000000-0000-4000-a000-000000000007', 'Luna',    '1998-07-04', 'female',    'Nurse',               'Working',     'Activity Buddy', 'she/her',   false, 'San Francisco', 'CA', 37.7780, -122.4230, 25, 'ambivert'),
-('00000000-0000-4000-a000-000000000008', 'Jordan',  '1997-12-20', 'male',      'Music Producer',      'Freelancer',  'Group Hangs',    'he/him',    true,  'San Francisco', 'CA', 37.7745, -122.4160, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000009', 'Mei',     '1999-04-09', 'female',    'Data Scientist',      'Working',     'Deep Convos',    'she/her',   false, 'San Francisco', 'CA', 37.7752, -122.4190, 20, 'introvert'),
-('00000000-0000-4000-a000-000000000010', 'River',   '1996-02-14', 'nonbinary', 'Yoga Instructor',     'Freelancer',  'Adventure Crew', 'they/them', true,  'Berkeley',      'CA', 37.8716, -122.2727, 30, 'ambivert'),
-('00000000-0000-4000-a000-000000000011', 'Sarah',   '2002-03-15', 'female',    'UX Researcher',       'Working',     'Deep Convos',    'she/her',   true,  'San Francisco', 'CA', 37.7770, -122.4185, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000012', 'David',   '1999-07-22', 'male',      'Teacher',             'Working',     'Group Hangs',    'he/him',    false, 'San Francisco', 'CA', 37.7735, -122.4175, 25, 'ambivert'),
-('00000000-0000-4000-a000-000000000013', 'Maya',    '2004-01-10', 'female',    'Art Student',         'Student',     'Activity Buddy', 'she/her',   false, 'San Francisco', 'CA', 37.7765, -122.4205, 20, 'extrovert'),
-('00000000-0000-4000-a000-000000000014', 'Alex',    '2001-09-05', 'male',      'Chef',                'Working',     'Group Hangs',    'he/him',    true,  'San Francisco', 'CA', 37.7742, -122.4165, 25, 'ambivert'),
-('00000000-0000-4000-a000-000000000015', 'Emma',    '1998-11-30', 'female',    'Therapist',           'Working',     'Deep Convos',    'she/her',   false, 'San Francisco', 'CA', 37.7758, -122.4195, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000016', 'Omar',    '2003-05-18', 'male',      'Filmmaker',           'Freelancer',  'Adventure Crew', 'he/him',    false, 'San Francisco', 'CA', 37.7748, -122.4188, 20, 'extrovert'),
-('00000000-0000-4000-a000-000000000017', 'Nina',    '2000-08-12', 'female',    'Dance Instructor',    'Freelancer',  'Activity Buddy', 'she/her',   true,  'San Francisco', 'CA', 37.7775, -122.4215, 25, 'extrovert'),
-('00000000-0000-4000-a000-000000000018', 'Leo',     '2002-04-25', 'male',      'Graphic Designer',    'Working',     'Activity Buddy', 'he/him',    false, 'San Francisco', 'CA', 37.7738, -122.4178, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000019', 'Zoe',     '1997-12-08', 'female',    'Architect',           'Working',     'Deep Convos',    'she/her',   false, 'San Francisco', 'CA', 37.7762, -122.4198, 25, 'ambivert'),
-('00000000-0000-4000-a000-000000000020', 'Chris',   '2001-06-20', 'male',      'Data Analyst',        'Working',     'Gym Partner',    'he/him',    false, 'San Francisco', 'CA', 37.7746, -122.4182, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000021', 'Sam',     '2003-08-28', 'nonbinary', 'Social Worker',       'Working',     'Group Hangs',    'they/them', true,  'San Francisco', 'CA', 37.7772, -122.4208, 30, 'ambivert'),
-('00000000-0000-4000-a000-000000000022', 'Rachel',  '2000-01-15', 'female',    'Lawyer',              'Working',     'Deep Convos',    'she/her',   false, 'San Francisco', 'CA', 37.7756, -122.4192, 20, 'introvert'),
-('00000000-0000-4000-a000-000000000023', 'Ryan',    '2002-07-07', 'male',      'Firefighter',         'Working',     'Gym Partner',    'he/him',    false, 'San Francisco', 'CA', 37.7741, -122.4172, 25, 'extrovert'),
-('00000000-0000-4000-a000-000000000024', 'Jade',    '1996-03-22', 'female',    'Freelance Writer',    'Freelancer',  'Deep Convos',    'she/her',   true,  'San Francisco', 'CA', 37.7768, -122.4202, 25, 'introvert'),
-('00000000-0000-4000-a000-000000000025', 'James',   '2004-11-11', 'male',      'Student',             'Student',     'Group Hangs',    'he/him',    false, 'San Francisco', 'CA', 37.7744, -122.4168, 25, 'ambivert')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.profiles (id, name, dob, gender, profession, life_stage, friendship_style, pronouns, is_new_to_city, city, state, latitude, longitude, search_radius_miles, personality_type, communication_style, kids, relationship_status, work_style) VALUES
+('00000000-0000-4000-a000-000000000001', 'Priya',   '1998-03-15', 'female',    'Product Designer',    'Working',     '["Deep Convos","Coffee Dates"]',      'she/her',   true,  'San Francisco', 'CA', 37.7749, -122.4194, 25, 'ambivert',  'texter',     'no_kids',   'single',             'hybrid'),
+('00000000-0000-4000-a000-000000000002', 'Marcus',  '1996-08-22', 'male',      'Software Engineer',   'Working',     '["Gym Partner","Gaming Buddy"]',      'he/him',    false, 'San Francisco', 'CA', 37.7740, -122.4180, 25, 'introvert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000003', 'Sophie',  '1999-11-03', 'female',    'Grad Student',        'Student',     '["Group Hangs","Brunch Crew"]',       'she/her',   true,  'San Francisco', 'CA', 37.7760, -122.4200, 25, 'extrovert', 'all_of_the_above', 'no_kids', 'single',      'in_office'),
+('00000000-0000-4000-a000-000000000004', 'Kai',     '1997-05-28', 'nonbinary', 'Photographer',        'Freelancer',  '["Adventure Crew","Walking Buddy"]',  'they/them', false, 'Oakland',       'CA', 37.8044, -122.2712, 30, 'introvert', 'in_person',  'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000005', 'Aisha',   '2000-01-12', 'female',    'Marketing Manager',   'Working',     '["Deep Convos","Night Out"]',         'she/her',   true,  'San Francisco', 'CA', 37.7755, -122.4170, 20, 'extrovert', 'caller',     'no_kids',   'in_a_relationship',  'hybrid'),
+('00000000-0000-4000-a000-000000000006', 'Tyler',   '1995-09-17', 'male',      'Personal Trainer',    'Working',     '["Gym Partner","Adventure Crew"]',    'he/him',    false, 'San Francisco', 'CA', 37.7730, -122.4210, 15, 'extrovert', 'in_person',  'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000007', 'Luna',    '1998-07-04', 'female',    'Nurse',               'Working',     '["Walking Buddy","Deep Convos"]',     'she/her',   false, 'San Francisco', 'CA', 37.7780, -122.4230, 25, 'ambivert',  'texter',     'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000008', 'Jordan',  '1997-12-20', 'male',      'Music Producer',      'Freelancer',  '["Group Hangs","Festival Crew"]',     'he/him',    true,  'San Francisco', 'CA', 37.7745, -122.4160, 25, 'introvert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000009', 'Mei',     '1999-04-09', 'female',    'Data Scientist',      'Working',     '["Deep Convos","Coffee Dates"]',      'she/her',   false, 'San Francisco', 'CA', 37.7752, -122.4190, 20, 'introvert', 'texter',     'no_kids',   'in_a_relationship',  'remote'),
+('00000000-0000-4000-a000-000000000010', 'River',   '1996-02-14', 'nonbinary', 'Yoga Instructor',     'Freelancer',  '["Adventure Crew","Walking Buddy"]',  'they/them', true,  'Berkeley',      'CA', 37.8716, -122.2727, 30, 'ambivert',  'in_person',  'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000011', 'Sarah',   '2002-03-15', 'female',    'UX Researcher',       'Working',     '["Deep Convos","Coffee Dates"]',      'she/her',   true,  'San Francisco', 'CA', 37.7770, -122.4185, 25, 'introvert', 'texter',     'no_kids',   'single',             'hybrid'),
+('00000000-0000-4000-a000-000000000012', 'David',   '1999-07-22', 'male',      'Teacher',             'Working',     '["Group Hangs","Running Buddy"]',     'he/him',    false, 'San Francisco', 'CA', 37.7735, -122.4175, 25, 'ambivert',  'all_of_the_above', 'has_kids', 'married',     'in_office'),
+('00000000-0000-4000-a000-000000000013', 'Maya',    '2004-01-10', 'female',    'Art Student',         'Student',     '["Creative Collab","Group Hangs"]',   'she/her',   false, 'San Francisco', 'CA', 37.7765, -122.4205, 20, 'extrovert', 'texter',     'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000014', 'Alex',    '2001-09-05', 'male',      'Chef',                'Working',     '["Foodie Friend","Group Hangs"]',     'he/him',    true,  'San Francisco', 'CA', 37.7742, -122.4165, 25, 'ambivert',  'in_person',  'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000015', 'Emma',    '1998-11-30', 'female',    'Therapist',           'Working',     '["Deep Convos","Walking Buddy"]',     'she/her',   false, 'San Francisco', 'CA', 37.7758, -122.4195, 25, 'introvert', 'caller',     'no_kids',   'in_a_relationship',  'hybrid'),
+('00000000-0000-4000-a000-000000000016', 'Omar',    '2003-05-18', 'male',      'Filmmaker',           'Freelancer',  '["Adventure Crew","Creative Collab"]','he/him',    false, 'San Francisco', 'CA', 37.7748, -122.4188, 20, 'extrovert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000017', 'Nina',    '2000-08-12', 'female',    'Dance Instructor',    'Freelancer',  '["Night Out","Festival Crew"]',       'she/her',   true,  'San Francisco', 'CA', 37.7775, -122.4215, 25, 'extrovert', 'all_of_the_above', 'no_kids', 'single',      'in_office'),
+('00000000-0000-4000-a000-000000000018', 'Leo',     '2002-04-25', 'male',      'Graphic Designer',    'Working',     '["Coffee Dates","Creative Collab"]',  'he/him',    false, 'San Francisco', 'CA', 37.7738, -122.4178, 25, 'introvert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000019', 'Zoe',     '1997-12-08', 'female',    'Architect',           'Working',     '["Deep Convos","Brunch Crew"]',       'she/her',   false, 'San Francisco', 'CA', 37.7762, -122.4198, 25, 'ambivert',  'in_person',  'no_kids',   'married',            'hybrid'),
+('00000000-0000-4000-a000-000000000020', 'Chris',   '2001-06-20', 'male',      'Data Analyst',        'Working',     '["Gym Partner","Running Buddy"]',     'he/him',    false, 'San Francisco', 'CA', 37.7746, -122.4182, 25, 'introvert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000021', 'Sam',     '2003-08-28', 'nonbinary', 'Social Worker',       'Working',     '["Group Hangs"]',                     'they/them', true,  'San Francisco', 'CA', 37.7772, -122.4208, 30, 'ambivert',  'caller',     'no_kids',   'its_complicated',    'hybrid'),
+('00000000-0000-4000-a000-000000000022', 'Rachel',  '2000-01-15', 'female',    'Lawyer',              'Working',     '["Deep Convos","Brunch Crew"]',       'she/her',   false, 'San Francisco', 'CA', 37.7756, -122.4192, 20, 'introvert', 'texter',     'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000023', 'Ryan',    '2002-07-07', 'male',      'Firefighter',         'Working',     '["Gym Partner","Adventure Crew"]',    'he/him',    false, 'San Francisco', 'CA', 37.7741, -122.4172, 25, 'extrovert', 'in_person',  'no_kids',   'single',             'in_office'),
+('00000000-0000-4000-a000-000000000024', 'Jade',    '1996-03-22', 'female',    'Freelance Writer',    'Freelancer',  '["Deep Convos","Coffee Dates"]',      'she/her',   true,  'San Francisco', 'CA', 37.7768, -122.4202, 25, 'introvert', 'texter',     'no_kids',   'single',             'remote'),
+('00000000-0000-4000-a000-000000000025', 'James',   '2004-11-11', 'male',      'Student',             'Student',     '["Group Hangs","Gaming Buddy"]',      'he/him',    false, 'San Francisco', 'CA', 37.7744, -122.4168, 25, 'ambivert',  'texter',     'no_kids',   'single',             'in_office')
+ON CONFLICT (id) DO UPDATE SET
+  friendship_style = EXCLUDED.friendship_style,
+  communication_style = EXCLUDED.communication_style,
+  kids = EXCLUDED.kids,
+  relationship_status = EXCLUDED.relationship_status,
+  work_style = EXCLUDED.work_style;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 5. PROFILE EMOJIS (5 per user = 125 total)
@@ -362,6 +367,120 @@ INSERT INTO public.profile_photos (user_id, url, position, is_primary) VALUES
 ('00000000-0000-4000-a000-000000000023', 'https://i.pravatar.cc/800?img=56', 1, true),
 ('00000000-0000-4000-a000-000000000024', 'https://i.pravatar.cc/800?img=30', 1, true),
 ('00000000-0000-4000-a000-000000000025', 'https://i.pravatar.cc/800?img=57', 1, true)
+ON CONFLICT DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 7. PROFILE INTERESTS (3-5 per user)
+-- ═══════════════════════════════════════════════════════════════
+INSERT INTO public.profile_interests (user_id, interest_tag) VALUES
+-- Priya (Product Designer)
+('00000000-0000-4000-a000-000000000001', 'Art'), ('00000000-0000-4000-a000-000000000001', 'Coffee'), ('00000000-0000-4000-a000-000000000001', 'Yoga'), ('00000000-0000-4000-a000-000000000001', 'Photography'),
+-- Marcus (Software Engineer)
+('00000000-0000-4000-a000-000000000002', 'Tech'), ('00000000-0000-4000-a000-000000000002', 'Gaming'), ('00000000-0000-4000-a000-000000000002', 'Fitness'), ('00000000-0000-4000-a000-000000000002', 'Coffee'),
+-- Sophie (Grad Student)
+('00000000-0000-4000-a000-000000000003', 'Reading'), ('00000000-0000-4000-a000-000000000003', 'Wine'), ('00000000-0000-4000-a000-000000000003', 'Brunch'), ('00000000-0000-4000-a000-000000000003', 'Dancing'),
+-- Kai (Photographer)
+('00000000-0000-4000-a000-000000000004', 'Photography'), ('00000000-0000-4000-a000-000000000004', 'Hiking'), ('00000000-0000-4000-a000-000000000004', 'Travel'), ('00000000-0000-4000-a000-000000000004', 'Music'),
+-- Aisha (Marketing Manager)
+('00000000-0000-4000-a000-000000000005', 'Dancing'), ('00000000-0000-4000-a000-000000000005', 'Movies'), ('00000000-0000-4000-a000-000000000005', 'Brunch'), ('00000000-0000-4000-a000-000000000005', 'Podcasts'),
+-- Tyler (Personal Trainer)
+('00000000-0000-4000-a000-000000000006', 'Fitness'), ('00000000-0000-4000-a000-000000000006', 'Hiking'), ('00000000-0000-4000-a000-000000000006', 'Sports'), ('00000000-0000-4000-a000-000000000006', 'Cooking'),
+-- Luna (Nurse)
+('00000000-0000-4000-a000-000000000007', 'Yoga'), ('00000000-0000-4000-a000-000000000007', 'Coffee'), ('00000000-0000-4000-a000-000000000007', 'Hiking'), ('00000000-0000-4000-a000-000000000007', 'Pets'),
+-- Jordan (Music Producer)
+('00000000-0000-4000-a000-000000000008', 'Music'), ('00000000-0000-4000-a000-000000000008', 'Tech'), ('00000000-0000-4000-a000-000000000008', 'Coffee'), ('00000000-0000-4000-a000-000000000008', 'Movies'),
+-- Mei (Data Scientist)
+('00000000-0000-4000-a000-000000000009', 'Tech'), ('00000000-0000-4000-a000-000000000009', 'Gaming'), ('00000000-0000-4000-a000-000000000009', 'Cooking'), ('00000000-0000-4000-a000-000000000009', 'Board Games'),
+-- River (Yoga Instructor)
+('00000000-0000-4000-a000-000000000010', 'Yoga'), ('00000000-0000-4000-a000-000000000010', 'Hiking'), ('00000000-0000-4000-a000-000000000010', 'Gardening'), ('00000000-0000-4000-a000-000000000010', 'Volunteering'),
+-- Sarah (UX Researcher)
+('00000000-0000-4000-a000-000000000011', 'Art'), ('00000000-0000-4000-a000-000000000011', 'Coffee'), ('00000000-0000-4000-a000-000000000011', 'Reading'), ('00000000-0000-4000-a000-000000000011', 'Podcasts'),
+-- David (Teacher)
+('00000000-0000-4000-a000-000000000012', 'Reading'), ('00000000-0000-4000-a000-000000000012', 'Music'), ('00000000-0000-4000-a000-000000000012', 'Sports'), ('00000000-0000-4000-a000-000000000012', 'Cooking'),
+-- Maya (Art Student)
+('00000000-0000-4000-a000-000000000013', 'Art'), ('00000000-0000-4000-a000-000000000013', 'Photography'), ('00000000-0000-4000-a000-000000000013', 'Music'), ('00000000-0000-4000-a000-000000000013', 'Fashion'),
+-- Alex (Chef)
+('00000000-0000-4000-a000-000000000014', 'Cooking'), ('00000000-0000-4000-a000-000000000014', 'Wine'), ('00000000-0000-4000-a000-000000000014', 'Travel'), ('00000000-0000-4000-a000-000000000014', 'Music'),
+-- Emma (Therapist)
+('00000000-0000-4000-a000-000000000015', 'Reading'), ('00000000-0000-4000-a000-000000000015', 'Yoga'), ('00000000-0000-4000-a000-000000000015', 'Pets'), ('00000000-0000-4000-a000-000000000015', 'Hiking'),
+-- Omar (Filmmaker)
+('00000000-0000-4000-a000-000000000016', 'Movies'), ('00000000-0000-4000-a000-000000000016', 'Photography'), ('00000000-0000-4000-a000-000000000016', 'Music'), ('00000000-0000-4000-a000-000000000016', 'Travel'),
+-- Nina (Dance Instructor)
+('00000000-0000-4000-a000-000000000017', 'Dancing'), ('00000000-0000-4000-a000-000000000017', 'Music'), ('00000000-0000-4000-a000-000000000017', 'Fitness'), ('00000000-0000-4000-a000-000000000017', 'Fashion'),
+-- Leo (Graphic Designer)
+('00000000-0000-4000-a000-000000000018', 'Art'), ('00000000-0000-4000-a000-000000000018', 'Tech'), ('00000000-0000-4000-a000-000000000018', 'Coffee'), ('00000000-0000-4000-a000-000000000018', 'Photography'),
+-- Zoe (Architect)
+('00000000-0000-4000-a000-000000000019', 'Art'), ('00000000-0000-4000-a000-000000000019', 'Coffee'), ('00000000-0000-4000-a000-000000000019', 'Gardening'), ('00000000-0000-4000-a000-000000000019', 'Travel'),
+-- Chris (Data Analyst)
+('00000000-0000-4000-a000-000000000020', 'Gaming'), ('00000000-0000-4000-a000-000000000020', 'Fitness'), ('00000000-0000-4000-a000-000000000020', 'Music'), ('00000000-0000-4000-a000-000000000020', 'Hiking'),
+-- Sam (Social Worker)
+('00000000-0000-4000-a000-000000000021', 'Volunteering'), ('00000000-0000-4000-a000-000000000021', 'Reading'), ('00000000-0000-4000-a000-000000000021', 'Music'), ('00000000-0000-4000-a000-000000000021', 'Hiking'),
+-- Rachel (Lawyer)
+('00000000-0000-4000-a000-000000000022', 'Reading'), ('00000000-0000-4000-a000-000000000022', 'Wine'), ('00000000-0000-4000-a000-000000000022', 'Fitness'), ('00000000-0000-4000-a000-000000000022', 'Podcasts'),
+-- Ryan (Firefighter)
+('00000000-0000-4000-a000-000000000023', 'Fitness'), ('00000000-0000-4000-a000-000000000023', 'Sports'), ('00000000-0000-4000-a000-000000000023', 'Cooking'), ('00000000-0000-4000-a000-000000000023', 'Pets'),
+-- Jade (Freelance Writer)
+('00000000-0000-4000-a000-000000000024', 'Reading'), ('00000000-0000-4000-a000-000000000024', 'Coffee'), ('00000000-0000-4000-a000-000000000024', 'Gardening'), ('00000000-0000-4000-a000-000000000024', 'Podcasts'),
+-- James (Student)
+('00000000-0000-4000-a000-000000000025', 'Gaming'), ('00000000-0000-4000-a000-000000000025', 'Music'), ('00000000-0000-4000-a000-000000000025', 'Fitness'), ('00000000-0000-4000-a000-000000000025', 'Brunch')
+ON CONFLICT DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 8. PROFILE AVAILABILITY (1-3 per user)
+-- ═══════════════════════════════════════════════════════════════
+INSERT INTO public.profile_availability (user_id, slot) VALUES
+('00000000-0000-4000-a000-000000000001', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000001', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000002', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000002', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000003', 'anytime'),
+('00000000-0000-4000-a000-000000000004', 'weekend_mornings'), ('00000000-0000-4000-a000-000000000004', 'weekend_afternoons'), ('00000000-0000-4000-a000-000000000004', 'weekend_evenings'),
+('00000000-0000-4000-a000-000000000005', 'weekday_afternoons'), ('00000000-0000-4000-a000-000000000005', 'weekend_evenings'),
+('00000000-0000-4000-a000-000000000006', 'weekday_mornings'), ('00000000-0000-4000-a000-000000000006', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000007', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000007', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000008', 'anytime'),
+('00000000-0000-4000-a000-000000000009', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000009', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000010', 'weekday_mornings'), ('00000000-0000-4000-a000-000000000010', 'weekday_afternoons'), ('00000000-0000-4000-a000-000000000010', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000011', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000011', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000012', 'weekend_mornings'), ('00000000-0000-4000-a000-000000000012', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000013', 'anytime'),
+('00000000-0000-4000-a000-000000000014', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000014', 'weekend_evenings'),
+('00000000-0000-4000-a000-000000000015', 'weekday_afternoons'), ('00000000-0000-4000-a000-000000000015', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000016', 'weekend_afternoons'), ('00000000-0000-4000-a000-000000000016', 'weekend_evenings'),
+('00000000-0000-4000-a000-000000000017', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000017', 'weekend_evenings'),
+('00000000-0000-4000-a000-000000000018', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000018', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000019', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000019', 'weekend_mornings'), ('00000000-0000-4000-a000-000000000019', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000020', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000020', 'weekend_mornings'),
+('00000000-0000-4000-a000-000000000021', 'anytime'),
+('00000000-0000-4000-a000-000000000022', 'weekday_evenings'), ('00000000-0000-4000-a000-000000000022', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000023', 'weekday_mornings'), ('00000000-0000-4000-a000-000000000023', 'weekend_mornings'), ('00000000-0000-4000-a000-000000000023', 'weekend_afternoons'),
+('00000000-0000-4000-a000-000000000024', 'anytime'),
+('00000000-0000-4000-a000-000000000025', 'weekend_afternoons'), ('00000000-0000-4000-a000-000000000025', 'weekend_evenings')
+ON CONFLICT DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 9. PROFILE PETS (selective — not everyone has pets)
+-- ═══════════════════════════════════════════════════════════════
+INSERT INTO public.profile_pets (user_id, pet) VALUES
+('00000000-0000-4000-a000-000000000004', 'cat'),
+('00000000-0000-4000-a000-000000000007', 'dog'),
+('00000000-0000-4000-a000-000000000010', 'cat'), ('00000000-0000-4000-a000-000000000010', 'dog'),
+('00000000-0000-4000-a000-000000000015', 'dog'),
+('00000000-0000-4000-a000-000000000017', 'cat'),
+('00000000-0000-4000-a000-000000000023', 'dog'),
+('00000000-0000-4000-a000-000000000024', 'cat')
+ON CONFLICT DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 10. PROFILE DIETARY (selective)
+-- ═══════════════════════════════════════════════════════════════
+INSERT INTO public.profile_dietary (user_id, preference) VALUES
+('00000000-0000-4000-a000-000000000001', 'vegetarian'),
+('00000000-0000-4000-a000-000000000004', 'vegan'),
+('00000000-0000-4000-a000-000000000005', 'halal'),
+('00000000-0000-4000-a000-000000000010', 'vegan'),
+('00000000-0000-4000-a000-000000000014', 'no_restrictions'),
+('00000000-0000-4000-a000-000000000015', 'gluten_free'),
+('00000000-0000-4000-a000-000000000019', 'vegetarian'),
+('00000000-0000-4000-a000-000000000022', 'kosher')
 ON CONFLICT DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════

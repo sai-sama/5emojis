@@ -1,5 +1,5 @@
--- Add onboarding_complete check to nearby_profiles so incomplete profiles
--- (no photo/location/emojis) don't appear in discovery.
+-- Filter incomplete profiles from discovery by checking they have
+-- at least 1 photo and 5 emojis (the onboarding requirements).
 
 CREATE OR REPLACE FUNCTION public.nearby_profiles(
   user_lat double precision,
@@ -15,7 +15,13 @@ BEGIN
     FROM public.profiles p
     WHERE p.id != current_user_id
       AND NOT p.is_suspended
-      AND p.onboarding_complete = true
+      -- Ensure profile completed onboarding (has photo + emojis)
+      AND EXISTS (
+        SELECT 1 FROM public.profile_photos ph WHERE ph.user_id = p.id
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.profile_emojis pe WHERE pe.user_id = p.id
+      )
       AND extensions.st_dwithin(
         p.location,
         extensions.st_setsrid(extensions.st_makepoint(user_lng, user_lat), 4326)::extensions.geography,
