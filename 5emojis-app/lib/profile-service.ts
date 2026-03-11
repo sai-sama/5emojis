@@ -302,7 +302,7 @@ export async function addPhoto(
       user_id: userId,
       url: urlData.publicUrl,
       position,
-      is_primary: position === 1,
+      is_primary: isPrimary,
     });
 
   if (insertError) return { url: null, error: insertError.message };
@@ -350,7 +350,8 @@ export async function deleteAccount(
 // ─── Remove a photo ──────────────────────────────────────────
 export async function removePhoto(
   photoId: string,
-  photoUrl: string
+  photoUrl: string,
+  userId?: string
 ): Promise<{ error: string | null }> {
   // Delete from storage (extract path from URL)
   try {
@@ -369,5 +370,22 @@ export async function removePhoto(
     .delete()
     .eq("id", photoId);
 
-  return { error: error?.message ?? null };
+  if (error) return { error: error.message };
+
+  // If userId provided, reassign primary if needed
+  if (userId) {
+    const { data: remaining } = await supabase
+      .from("profile_photos")
+      .select("id, is_primary")
+      .eq("user_id", userId)
+      .order("position");
+
+    if (remaining?.length && !remaining.some((p: any) => p.is_primary)) {
+      await supabase.from("profile_photos")
+        .update({ is_primary: true })
+        .eq("id", remaining[0].id);
+    }
+  }
+
+  return { error: null };
 }

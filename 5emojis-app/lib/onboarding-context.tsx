@@ -135,7 +135,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         gender: final.gender,
         profession: final.profession || null,
         life_stage: final.lifeStage || null,
-        friendship_style: final.friendshipStyles[0] || null,
+        friendship_style: final.friendshipStyles.length > 0 ? JSON.stringify(final.friendshipStyles) : null,
         personality_type: final.personalityType || null,
         preferred_age_min: final.preferredAgeMin,
         preferred_age_max: final.preferredAgeMax,

@@ -260,7 +260,7 @@ export async function fetchIncomingVibes(
   const [profilesRes, emojisRes, photosRes] = await Promise.all([
     supabase.from("profiles").select("*").in("id", pendingIds),
     supabase.from("profile_emojis").select("*").in("user_id", pendingIds).order("position"),
-    supabase.from("profile_photos").select("*").in("user_id", pendingIds).eq("is_primary", true),
+    supabase.from("profile_photos").select("*").in("user_id", pendingIds).order("is_primary", { ascending: false }).order("position"),
   ]);
 
   const profileMap = new Map<string, Profile>();
@@ -273,8 +273,11 @@ export async function fetchIncomingVibes(
     emojiMap.set(e.user_id, list);
   }
 
+  // Keep first (best) photo per user — primary photos sort first
   const photoMap = new Map<string, ProfilePhoto>();
-  for (const p of photosRes.data ?? []) photoMap.set(p.user_id, p);
+  for (const p of photosRes.data ?? []) {
+    if (!photoMap.has(p.user_id)) photoMap.set(p.user_id, p);
+  }
 
   return pendingSwipes
     .map((swipe) => {

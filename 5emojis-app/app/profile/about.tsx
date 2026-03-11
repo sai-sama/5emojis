@@ -38,9 +38,11 @@ export default function AboutScreen() {
 
   // Local editing state — initialised from profile
   const [profession, setProfession] = useState(profile?.profile.profession || "");
-  const [friendshipStyles, setFriendshipStyles] = useState<string[]>(
-    profile?.profile.friendship_style ? [profile.profile.friendship_style] : []
-  );
+  const [friendshipStyles, setFriendshipStyles] = useState<string[]>(() => {
+    const raw = profile?.profile.friendship_style;
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch { return [raw]; }
+  });
   const [interests, setInterests] = useState<string[]>(profile?.interests ?? []);
   const [reveals, setReveals] = useState<string[]>(() => {
     const existing = profile?.reveals ?? [];
@@ -59,7 +61,9 @@ export default function AboutScreen() {
     const existingReveals = [...(profile.reveals ?? []), "", "", "", ""].slice(0, 4);
     return (
       (profession.trim() || null) !== (profile.profile.profession || null) ||
-      (friendshipStyles[0] || null) !== (profile.profile.friendship_style || null) ||
+      JSON.stringify(friendshipStyles) !== JSON.stringify(
+        (() => { const r = profile.profile.friendship_style; if (!r) return []; try { return JSON.parse(r); } catch { return [r]; } })()
+      ) ||
       JSON.stringify([...interests].sort()) !== JSON.stringify([...profile.interests].sort()) ||
       JSON.stringify(reveals) !== JSON.stringify(existingReveals)
     );
@@ -74,14 +78,15 @@ export default function AboutScreen() {
 
     const { error } = await updateProfileFields(session.user.id, {
       profession: profession.trim() || null,
-      friendship_style: friendshipStyles[0] || null,
+      friendship_style: friendshipStyles.length > 0 ? JSON.stringify(friendshipStyles) : null,
     });
     if (error) Alert.alert("Error", error);
 
     await updateInterests(session.user.id, interests);
     await updateReveals(session.user.id, reveals);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    refresh();
+    await refresh();
+    setSaving(false);
     router.back();
   };
 

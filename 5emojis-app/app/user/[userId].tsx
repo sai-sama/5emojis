@@ -180,8 +180,13 @@ export default function UserProfileScreen() {
   };
 
   // Friendship styles (promoted — core to the app)
-  const friendshipStyle = p?.friendship_style;
-  const friendshipIcon = friendshipStyle ? findIcon(friendshipStyle, FRIENDSHIP_STYLES) : "";
+  const friendshipStylesArr: string[] = (() => {
+    const raw = p?.friendship_style;
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch { return [raw]; }
+  })();
+  const friendshipStyle = friendshipStylesArr.length > 0 ? friendshipStylesArr.join(", ") : null;
+  const friendshipIcon = friendshipStylesArr.length > 0 ? findIcon(friendshipStylesArr[0], FRIENDSHIP_STYLES) : "";
 
   // Detail chips — icon + label pairs for the "About" section
   const detailChips = useMemo(() => {

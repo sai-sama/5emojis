@@ -58,7 +58,8 @@ export async function fetchDiscoveryFeed(
       .from("profile_photos")
       .select("*")
       .in("user_id", profileIds)
-      .eq("is_primary", true),
+      .order("is_primary", { ascending: false })
+      .order("position"),
   ]);
 
   // Index by user_id for fast lookup
@@ -69,9 +70,10 @@ export async function fetchDiscoveryFeed(
     emojisByUser.set(emoji.user_id, list);
   }
 
+  // Keep first (best) photo per user — primary photos sort first
   const photoByUser = new Map<string, ProfilePhoto>();
   for (const photo of photosRes.data ?? []) {
-    photoByUser.set(photo.user_id, photo);
+    if (!photoByUser.has(photo.user_id)) photoByUser.set(photo.user_id, photo);
   }
 
   // Build hidden emoji set for fast lookup

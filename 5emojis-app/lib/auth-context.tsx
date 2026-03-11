@@ -12,7 +12,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { deleteAccount as deleteAccountService } from "./profile-service";
-import { registerForPushNotifications } from "./push-notifications";
+import { registerForPushNotifications, clearPushToken } from "./push-notifications";
 import { logError } from "./error-logger";
 
 // DEV MODE: Set to true to bypass auth and explore the UI
@@ -332,6 +332,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [checkProfile]);
 
   const signOut = useCallback(async () => {
+    // Clear push token BEFORE signing out so notifications don't leak to next user
+    if (session?.user) {
+      try { await clearPushToken(session.user.id); } catch {}
+    }
     try {
       await supabase.auth.signOut();
     } catch (err: any) {
@@ -345,7 +349,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsSuspended(false);
     setSuspendedUntil(null);
     updateAdmin(false);
-  }, [updateAdmin]);
+  }, [session, updateAdmin]);
 
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
     if (!session?.user) return { error: "Not authenticated" };

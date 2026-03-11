@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   Modal,
+  AppState,
 } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -502,6 +503,14 @@ export default function VibesScreen() {
       loadData();
     }, [loadData])
   );
+
+  // Refresh when app comes back to foreground (e.g. notification tap)
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") loadData();
+    });
+    return () => sub.remove();
+  }, [loadData]);
 
   // Stable ref to loadData so the subscription doesn't churn
   const loadDataRef = useRef(loadData);

@@ -86,6 +86,13 @@ export async function registerForPushNotifications(
 }
 
 /**
+ * Clear the push token from the user's profile (call on sign-out).
+ */
+export async function clearPushToken(userId: string): Promise<void> {
+  await supabase.from("profiles").update({ push_token: null }).eq("id", userId);
+}
+
+/**
  * Send a push notification to a specific user via their Expo push token.
  * Fetches their token from the DB, then calls Expo's push API.
  */

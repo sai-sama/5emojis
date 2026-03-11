@@ -49,8 +49,11 @@ export default function PhotosScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setSaving(true);
-      const position = profile.photos.length + 1;
-      const { error } = await addPhoto(session.user.id, result.assets[0].uri, position, position === 1);
+      const maxPos = profile.photos.length > 0
+        ? Math.max(...profile.photos.map((p: any) => p.position))
+        : 0;
+      const position = maxPos + 1;
+      const { error } = await addPhoto(session.user.id, result.assets[0].uri, position, profile.photos.length === 0);
       setSaving(false);
       if (error) {
         Alert.alert("Upload failed", error);
@@ -73,7 +76,7 @@ export default function PhotosScreen() {
         style: "destructive",
         onPress: async () => {
           setSaving(true);
-          await removePhoto(photoId, photoUrl);
+          await removePhoto(photoId, photoUrl, session?.user?.id);
           setSaving(false);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           refresh();
