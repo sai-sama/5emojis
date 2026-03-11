@@ -16,7 +16,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth-context";
 import { useProfile } from "../../lib/profile-context";
-import { addPhoto, removePhoto } from "../../lib/profile-service";
+import { addPhoto, removePhoto, setMainPhoto } from "../../lib/profile-service";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 
@@ -59,9 +59,30 @@ export default function PhotosScreen() {
         Alert.alert("Upload failed", error);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        refresh();
+        await refresh();
       }
     }
+  };
+
+  const handleSetMain = (photoId: string) => {
+    if (!session?.user) return;
+    Alert.alert("Set as main photo?", "This photo will appear first on your profile.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Set as Main",
+        onPress: async () => {
+          setSaving(true);
+          const { error } = await setMainPhoto(session.user.id, photoId);
+          setSaving(false);
+          if (error) {
+            Alert.alert("Error", error);
+          } else {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            await refresh();
+          }
+        },
+      },
+    ]);
   };
 
   const handleRemove = (photoId: string, photoUrl: string) => {
@@ -79,7 +100,7 @@ export default function PhotosScreen() {
           await removePhoto(photoId, photoUrl, session?.user?.id);
           setSaving(false);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          refresh();
+          await refresh();
         },
       },
     ]);
@@ -102,12 +123,30 @@ export default function PhotosScreen() {
         contentContainerStyle={styles.grid}
         showsVerticalScrollIndicator={false}
       >
-        {profile.photos.map((photo, i) => (
-          <View key={photo.id} style={styles.photoCard}>
+        {[...profile.photos]
+          .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0) || a.position - b.position)
+          .map((photo) => (
+          <TouchableOpacity
+            key={photo.id}
+            style={styles.photoCard}
+            activeOpacity={0.8}
+            onLongPress={() => {
+              if (!photo.is_primary) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                handleSetMain(photo.id);
+              }
+            }}
+            delayLongPress={400}
+          >
             <Image source={{ uri: photo.url }} style={styles.photoImage} />
-            {i === 0 && (
+            {photo.is_primary && (
               <View style={styles.primaryLabel}>
                 <Text style={styles.primaryLabelText}>Main</Text>
+              </View>
+            )}
+            {!photo.is_primary && (
+              <View style={styles.setMainHint}>
+                <Text style={styles.setMainHintText}>Hold to set as main</Text>
               </View>
             )}
             <TouchableOpacity
@@ -116,7 +155,7 @@ export default function PhotosScreen() {
             >
               <Ionicons name="close" size={14} color="#FFF" />
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
 
         {profile.photos.length < 5 && (
@@ -184,6 +223,20 @@ const styles = StyleSheet.create({
   primaryLabelText: {
     fontSize: 11,
     fontFamily: fonts.bodyBold,
+    color: "#FFF",
+  },
+  setMainHint: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  setMainHintText: {
+    fontSize: 10,
+    fontFamily: fonts.bodyMedium,
     color: "#FFF",
   },
   removeBtn: {

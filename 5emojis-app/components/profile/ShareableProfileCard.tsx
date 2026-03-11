@@ -90,6 +90,7 @@ export default function ShareableProfileCard({ profile, sortedEmojis }: Props) {
               <View style={styles.profileRow}>
                 {primaryPhoto ? (
                   <Image
+                    key={primaryPhoto.id}
                     source={{ uri: primaryPhoto.url }}
                     style={styles.photo}
                   />

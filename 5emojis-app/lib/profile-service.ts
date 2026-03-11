@@ -389,3 +389,27 @@ export async function removePhoto(
 
   return { error: null };
 }
+
+// ─── Set a photo as primary ─────────────────────────────────
+export async function setMainPhoto(
+  userId: string,
+  photoId: string
+): Promise<{ error: string | null }> {
+  // Clear is_primary on all user's photos
+  const { error: clearError } = await supabase
+    .from("profile_photos")
+    .update({ is_primary: false })
+    .eq("user_id", userId);
+
+  if (clearError) return { error: clearError.message };
+
+  // Set the chosen photo as primary
+  const { error: setError } = await supabase
+    .from("profile_photos")
+    .update({ is_primary: true })
+    .eq("id", photoId);
+
+  if (setError) return { error: setError.message };
+
+  return { error: null };
+}

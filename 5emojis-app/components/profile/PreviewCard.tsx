@@ -27,7 +27,7 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis, emoji
         onPress={() => router.push(`/user/${profile.profile.id}`)}
       >
         {primaryPhoto ? (
-          <Image source={{ uri: primaryPhoto.url }} style={styles.photo} />
+          <Image key={primaryPhoto.id} source={{ uri: primaryPhoto.url }} style={styles.photo} />
         ) : (
           <Pressable
             style={[styles.photo, styles.placeholder]}

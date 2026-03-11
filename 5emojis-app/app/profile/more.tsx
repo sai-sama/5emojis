@@ -60,10 +60,17 @@ export default function MoreAboutYou() {
   // ─── Toggle helpers ───────────────────────────────────────
   const toggleAvailability = (value: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (availability.includes(value)) {
-      setAvailability(availability.filter((s) => s !== value));
-    } else if (availability.length < MAX_AVAILABILITY) {
-      setAvailability([...availability, value]);
+    if (value === "anytime") {
+      // "Anytime" is exclusive — toggle it and clear others
+      setAvailability(availability.includes("anytime") ? [] : ["anytime"]);
+    } else {
+      // Selecting a specific slot clears "anytime"
+      const without = availability.filter((s) => s !== "anytime");
+      if (without.includes(value)) {
+        setAvailability(without.filter((s) => s !== value));
+      } else if (without.length < MAX_AVAILABILITY) {
+        setAvailability([...without, value]);
+      }
     }
   };
 
@@ -117,6 +124,7 @@ export default function MoreAboutYou() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await refresh();
     setSaving(false);
+    router.back();
   };
 
   if (!profile) {
