@@ -88,6 +88,9 @@ function DraggableSlot({
     <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.slot, animatedStyle]}>
         <Text style={styles.emojiText}>{emoji}</Text>
+        <View style={styles.removeBadge}>
+          <Text style={styles.removeX}>✕</Text>
+        </View>
       </Animated.View>
     </GestureDetector>
   );
@@ -165,6 +168,25 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 32,
+  },
+  removeBadge: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.background,
+  },
+  removeX: {
+    color: "#FFF",
+    fontSize: 9,
+    fontFamily: fonts.bodyBold,
+    lineHeight: 12,
   },
   hint: {
     fontSize: 12,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -78,6 +78,11 @@ export default function UserProfileScreen() {
       ]
     );
   };
+
+  // Reset photo index when navigating to a different user
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {

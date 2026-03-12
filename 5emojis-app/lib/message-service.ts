@@ -159,29 +159,27 @@ export async function toggleReaction(
   userId: string,
   emoji: string
 ): Promise<{ added: boolean; error: string | null }> {
-  // Check if reaction already exists
-  const { data: existing } = await supabase
+  // Atomic delete — returns count of deleted rows to determine if we toggled off
+  const { data: deleted, error: delError } = await supabase
     .from("message_reactions")
-    .select("id")
+    .delete()
     .eq("message_id", messageId)
     .eq("user_id", userId)
     .eq("emoji", emoji)
-    .single();
+    .select("id");
 
-  if (existing) {
-    // Remove reaction
-    const { error } = await supabase
-      .from("message_reactions")
-      .delete()
-      .eq("id", existing.id);
-    return { added: false, error: error?.message ?? null };
-  } else {
-    // Add reaction
-    const { error } = await supabase
-      .from("message_reactions")
-      .insert({ message_id: messageId, user_id: userId, emoji });
-    return { added: true, error: error?.message ?? null };
+  if (delError) return { added: false, error: delError.message };
+
+  // If we deleted something, the reaction was removed (toggled off)
+  if (deleted && deleted.length > 0) {
+    return { added: false, error: null };
   }
+
+  // Nothing to delete — add the reaction
+  const { error } = await supabase
+    .from("message_reactions")
+    .insert({ message_id: messageId, user_id: userId, emoji });
+  return { added: true, error: error?.message ?? null };
 }
 
 // ─── Fetch reactions for all messages in a match ────────────
@@ -206,10 +204,18 @@ export async function fetchReactions(
 }
 
 // ─── Subscribe to reaction changes ──────────────────────────
+// Note: Supabase Realtime can't filter message_reactions by match_id (no FK column).
+// We debounce the callback to avoid excessive re-fetches from unrelated chats.
 export function subscribeToReactions(
   matchId: string,
   onReactionChange: () => void
 ) {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedChange = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(onReactionChange, 300);
+  };
+
   const channel = supabase
     .channel(`reactions-${matchId}`)
     .on(
@@ -220,13 +226,13 @@ export function subscribeToReactions(
         table: "message_reactions",
       },
       () => {
-        // Re-fetch all reactions when any change happens
-        onReactionChange();
+        debouncedChange();
       }
     )
     .subscribe();
 
   return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
     supabase.removeChannel(channel);
   };
 }

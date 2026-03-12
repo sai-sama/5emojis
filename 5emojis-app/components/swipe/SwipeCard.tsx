@@ -7,7 +7,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, GENDERS } from "../../lib/constants";
+import { COLORS, GENDERS, isMockProfile } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { getZodiacSign } from "../../lib/zodiac";
 import { SwipeProfile, calculateAge, formatDistance } from "./mockProfiles";
@@ -127,7 +127,7 @@ function SwipeCardInner({
   });
 
   return (
-    <View style={styles.card} accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
+    <View style={styles.card} testID="swipe-card" accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
       <View style={styles.photoContainer}>
         {imageError ? (
           <View style={[styles.photo, { alignItems: "center", justifyContent: "center", backgroundColor: "#2a2a2a" }]}>
@@ -160,6 +160,13 @@ function SwipeCardInner({
         {/* Edge glows */}
         <Animated.View style={[styles.edgeGlow, styles.vibeGlow, vibeGlowStyle]} />
         <Animated.View style={[styles.edgeGlow, styles.passGlow, passGlowStyle]} />
+
+        {/* Mock profile badge — top right */}
+        {isMockProfile(p.id) && (
+          <View style={styles.mockBadge}>
+            <Text style={styles.mockBadgeText}>MOCK</Text>
+          </View>
+        )}
 
         {/* Perfect match banner — at top of photo */}
         {isPerfectMatch && (
@@ -401,6 +408,24 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 11,
     fontFamily: fonts.bodySemiBold,
+  },
+  mockBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  mockBadgeText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    letterSpacing: 1,
   },
   // ─── Stamps ─────────────────────────────────────
   stampContainer: {

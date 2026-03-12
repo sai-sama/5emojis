@@ -24,6 +24,7 @@ import {
   fetchMatchesEnhanced,
   fetchIncomingVibes,
   recordSwipe,
+  unmatchUser,
   formatMessageTime,
   type EnhancedMatch,
   type MatchFilter,
@@ -35,7 +36,7 @@ import ReportModal from "../../components/ReportModal";
 import { calculateAge, formatDistance } from "../../components/swipe/mockProfiles";
 import { getZodiacSign } from "../../lib/zodiac";
 import { fonts } from "../../lib/fonts";
-import { COLORS, GENDERS } from "../../lib/constants";
+import { COLORS, GENDERS, isMockProfile } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieLoading from "../../components/lottie/LottieLoading";
 import LottieEmptyState from "../../components/lottie/LottieEmptyState";
@@ -169,6 +170,12 @@ function VibeCard({
 
   return (
     <View style={styles.vibeCardOuter}>
+      {/* Mock badge — top right */}
+      {isMockProfile(vibe.user.id) && (
+        <View style={styles.mockBadge}>
+          <Text style={styles.mockBadgeText}>M</Text>
+        </View>
+      )}
       {/* Super like star — on border, outside overflow:hidden card */}
       {vibe.isSuperLike && (
         <View style={styles.vibeSuperLikeBadge}>
@@ -176,6 +183,7 @@ function VibeCard({
         </View>
       )}
       <Pressable
+        testID="incoming-vibe-card"
         style={[styles.vibeCard, vibe.isSuperLike && styles.vibeCardSuperLike]}
         onPress={handleCardPress}
       >
@@ -308,6 +316,13 @@ function MatchCard({
 
   return (
     <View style={styles.cardOuter}>
+      {/* Mock badge — top right corner */}
+      {isMockProfile(otherUser.id) && (
+        <View style={styles.mockBadgeCard}>
+          <Text style={styles.mockBadgeText}>M</Text>
+        </View>
+      )}
+
       {/* Unread badge — top right, outside overflow:hidden card */}
       {unreadCount > 0 && (
         <View style={styles.unreadBadge}>
@@ -323,6 +338,7 @@ function MatchCard({
       )}
 
       <Pressable
+        testID="match-card"
         style={[
           styles.card,
           unreadCount > 0 && styles.cardUnread,
@@ -443,7 +459,7 @@ function MatchCard({
 // ─── Main Screen ─────────────────────────────────────────────
 export default function VibesScreen() {
   const { session } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
   const { unreadCount, markAllAsRead } = useUnread();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
@@ -516,14 +532,20 @@ export default function VibesScreen() {
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
 
-  // Realtime: refresh when new matches or messages arrive
+  // Realtime: refresh when new matches or messages arrive for this user
   useEffect(() => {
     if (!session?.user) return;
+    const userId = session.user.id;
     const channel = supabase
       .channel("vibes-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "matches" },
+        { event: "INSERT", schema: "public", table: "matches", filter: `user1_id=eq.${userId}` },
+        () => loadDataRef.current()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "matches", filter: `user2_id=eq.${userId}` },
         () => loadDataRef.current()
       )
       .on(
@@ -533,7 +555,7 @@ export default function VibesScreen() {
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "swipes" },
+        { event: "INSERT", schema: "public", table: "swipes", filter: `swiped_id=eq.${userId}` },
         () => loadDataRef.current()
       )
       .subscribe();
@@ -586,8 +608,13 @@ export default function VibesScreen() {
           vibe.user.id,
           "right"
         );
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+        if (!result.success) {
+          Alert.alert("Something went wrong", "Could not vibe back. Please try again.");
+          return;
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setVibes((prev) => prev.filter((v) => v.swipeId !== vibe.swipeId));
 
         if (result.matched) {
@@ -621,7 +648,7 @@ export default function VibesScreen() {
           );
         }
       } catch (err: any) {
-        console.warn("Vibe back failed:", err);
+        Alert.alert("Something went wrong", "Could not vibe back. Please try again.");
         logError(err, { screen: "VibesScreen", context: "vibe_back" });
       } finally {
         setActingOnVibe(null);
@@ -635,11 +662,15 @@ export default function VibesScreen() {
       if (!session?.user || actingOnVibe) return;
       setActingOnVibe(vibe.swipeId);
       try {
-        await recordSwipe(session.user.id, vibe.user.id, "left");
+        const result = await recordSwipe(session.user.id, vibe.user.id, "left");
+        if (!result.success) {
+          Alert.alert("Something went wrong", "Could not pass. Please try again.");
+          return;
+        }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVibes((prev) => prev.filter((v) => v.swipeId !== vibe.swipeId));
       } catch (err: any) {
-        console.warn("Pass failed:", err);
+        Alert.alert("Something went wrong", "Could not pass. Please try again.");
         logError(err, { screen: "VibesScreen", context: "pass_vibe" });
       } finally {
         setActingOnVibe(null);
@@ -660,6 +691,35 @@ export default function VibesScreen() {
 
       Alert.alert(otherName, "What would you like to do?", [
         {
+          text: "Unmatch",
+          onPress: () => {
+            Alert.alert(
+              `Unmatch ${otherName}?`,
+              "Your match and messages will be removed. You may see each other in discovery again.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Unmatch",
+                  style: "destructive",
+                  onPress: async () => {
+                    const { error } = await unmatchUser(item.match.id);
+                    if (error) {
+                      Alert.alert("Error", "Could not unmatch. Please try again.");
+                      return;
+                    }
+                    Haptics.notificationAsync(
+                      Haptics.NotificationFeedbackType.Warning
+                    );
+                    setMatches((prev) =>
+                      prev.filter((m) => m.match.id !== item.match.id)
+                    );
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
           text: "Report",
           onPress: () => setReportTarget({ id: otherUserId, name: otherName }),
         },
@@ -676,7 +736,11 @@ export default function VibesScreen() {
                   text: "Block",
                   style: "destructive",
                   onPress: async () => {
-                    await blockUser(session.user.id, otherUserId);
+                    const { error } = await blockUser(session.user.id, otherUserId);
+                    if (error) {
+                      Alert.alert("Error", "Could not block user. Please try again.");
+                      return;
+                    }
                     Haptics.notificationAsync(
                       Haptics.NotificationFeedbackType.Warning
                     );
@@ -718,7 +782,7 @@ export default function VibesScreen() {
                 vibe={vibe}
                 onVibeBack={() => handleVibeBack(vibe)}
                 onPass={() => handlePass(vibe)}
-                isPremiumLocked={!isPremium}
+                isPremiumLocked={!canAccessPremium}
                 userEmojis={userEmojis}
               />
             ))}
@@ -740,13 +804,12 @@ export default function VibesScreen() {
               <Pressable
                 style={styles.markReadButton}
                 onPress={async () => {
-                  // Optimistically clear unread badges on all cards immediately
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Persist to DB first, then update UI
+                  await markAllAsRead();
                   setMatches((prev) =>
                     prev.map((m) => (m.unreadCount > 0 ? { ...m, unreadCount: 0 } : m))
                   );
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  // Persist to DB in background
-                  markAllAsRead();
                 }}
                 hitSlop={8}
               >
@@ -1013,6 +1076,39 @@ const styles = StyleSheet.create({
   },
   vibeSuperLikeStar: {
     fontSize: 13,
+  },
+  mockBadge: {
+    position: "absolute",
+    top: -6,
+    right: -4,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFF",
+  },
+  mockBadgeCard: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFF",
+  },
+  mockBadgeText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: fonts.bodyBold,
   },
   vibeInfoSection: {
     flexDirection: "row",

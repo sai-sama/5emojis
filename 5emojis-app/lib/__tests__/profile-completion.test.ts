@@ -31,6 +31,15 @@ function makeBaseProfile(overrides: Partial<Profile> = {}): Profile {
     emoji_last_edited_at: null,
     push_token: null,
     search_radius_miles: 50,
+    is_suspended: false,
+    suspended_at: null,
+    suspended_until: null,
+    suspension_reason: null,
+    is_premium: false,
+    premium_until: null,
+    revenucat_customer_id: null,
+    hidden_emojis: [],
+    is_admin: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -43,6 +52,7 @@ function makeEmptyFullProfile(): FullProfile {
     emojis: [],
     photos: [],
     interests: [],
+    languages: [],
     availability: [],
     pets: [],
     dietary: [],
@@ -78,6 +88,7 @@ function makeFullFullProfile(): FullProfile {
       },
     ],
     interests: ["hiking", "coding", "coffee"],
+    languages: ["English"],
     availability: ["weekday_evenings"],
     pets: ["dog"],
     dietary: ["vegetarian"],
@@ -87,7 +98,10 @@ function makeFullFullProfile(): FullProfile {
 
 // ─── Tests ───────────────────────────────────────────────────
 describe("getProfileCompletion", () => {
-  it("returns 0% for a completely empty profile", () => {
+  // Free users: 13 fields (no Hidden Reveals)
+  // Premium users: 14 fields (includes Hidden Reveals)
+
+  it("returns 0% for a completely empty free-user profile", () => {
     const result = getProfileCompletion(makeEmptyFullProfile());
 
     expect(result.percentage).toBe(0);
@@ -96,12 +110,36 @@ describe("getProfileCompletion", () => {
     expect(result.missing).toHaveLength(13);
   });
 
-  it("returns 100% for a fully filled profile", () => {
-    const result = getProfileCompletion(makeFullFullProfile());
+  it("does not include Hidden Reveals for free users", () => {
+    const result = getProfileCompletion(makeEmptyFullProfile());
+    const missingLabels = result.missing.map((f) => f.label);
+    expect(missingLabels).not.toContain("Hidden Reveals");
+  });
+
+  it("includes Hidden Reveals for premium users", () => {
+    const result = getProfileCompletion(makeEmptyFullProfile(), true);
+    expect(result.total).toBe(14);
+    const missingLabels = result.missing.map((f) => f.label);
+    expect(missingLabels).toContain("Hidden Reveals");
+  });
+
+  it("returns 100% for a fully filled free-user profile", () => {
+    const full = makeFullFullProfile();
+    const result = getProfileCompletion(full);
 
     expect(result.percentage).toBe(100);
     expect(result.filled).toBe(13);
     expect(result.total).toBe(13);
+    expect(result.missing).toHaveLength(0);
+  });
+
+  it("returns 100% for a fully filled premium profile", () => {
+    const full = makeFullFullProfile();
+    const result = getProfileCompletion(full, true);
+
+    expect(result.percentage).toBe(100);
+    expect(result.filled).toBe(14);
+    expect(result.total).toBe(14);
     expect(result.missing).toHaveLength(0);
   });
 
@@ -134,6 +172,7 @@ describe("getProfileCompletion", () => {
     expect(missingLabels).toContain("Interests");
     expect(missingLabels).toContain("Availability");
     expect(missingLabels).toContain("Personality");
+    expect(missingLabels).toContain("Languages");
     expect(missingLabels).not.toContain("Photos");
     expect(missingLabels).not.toContain("Emojis");
   });
@@ -177,6 +216,16 @@ describe("getProfileCompletion", () => {
     expect(missingLabels).toContain("Interests");
   });
 
+  it("counts Languages as filled when at least 1 language is set", () => {
+    const partial = makeEmptyFullProfile();
+    partial.languages = ["english"];
+
+    const result = getProfileCompletion(partial);
+    const missingLabels = result.missing.map((f) => f.label);
+    expect(missingLabels).not.toContain("Languages");
+    expect(result.filled).toBe(1);
+  });
+
   it("each missing field has a route for navigation", () => {
     const result = getProfileCompletion(makeEmptyFullProfile());
 
@@ -184,5 +233,42 @@ describe("getProfileCompletion", () => {
       expect(field.route).toBeTruthy();
       expect(field.route.startsWith("/profile")).toBe(true);
     }
+  });
+
+  it("premium user missing reveals counts toward missing fields", () => {
+    const partial = makeEmptyFullProfile();
+    // Fill everything except reveals
+    partial.profile = makeBaseProfile({
+      profession: "Engineer",
+      personality_type: "INTJ",
+      communication_style: "Direct",
+      kids: "None",
+      relationship_status: "Single",
+      work_style: "Remote",
+    });
+    partial.emojis = [
+      { id: "e1", user_id: "user-1", emoji: "1", position: 1 },
+      { id: "e2", user_id: "user-1", emoji: "2", position: 2 },
+      { id: "e3", user_id: "user-1", emoji: "3", position: 3 },
+      { id: "e4", user_id: "user-1", emoji: "4", position: 4 },
+      { id: "e5", user_id: "user-1", emoji: "5", position: 5 },
+    ];
+    partial.photos = [
+      { id: "p1", user_id: "user-1", url: "https://example.com/photo.jpg", position: 1, is_primary: true, created_at: new Date().toISOString() },
+    ];
+    partial.interests = ["a", "b", "c"];
+    partial.languages = ["english"];
+    partial.availability = ["weekday_evenings"];
+    partial.pets = ["dog"];
+    partial.dietary = ["vegan"];
+
+    // As free user — 100% (reveals not counted)
+    const freeResult = getProfileCompletion(partial);
+    expect(freeResult.percentage).toBe(100);
+
+    // As premium user — missing reveals
+    const premResult = getProfileCompletion(partial, true);
+    expect(premResult.percentage).toBeLessThan(100);
+    expect(premResult.missing.map((f) => f.label)).toContain("Hidden Reveals");
   });
 });

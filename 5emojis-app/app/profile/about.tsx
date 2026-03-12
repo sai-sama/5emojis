@@ -32,7 +32,7 @@ import { COLORS } from "../../lib/constants";
 
 export default function AboutScreen() {
   const { session } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
   const { profile, refresh } = useProfile();
   const [saving, setSaving] = useState(false);
 
@@ -116,6 +116,7 @@ export default function AboutScreen() {
         {/* Profession */}
         <Text style={styles.fieldLabel}>What do you do?</Text>
         <TextInput
+          testID="profession-input"
           value={profession}
           onChangeText={setProfession}
           placeholder="e.g. Software Engineer, Teacher"
@@ -218,7 +219,7 @@ export default function AboutScreen() {
           <View style={styles.revealsHeader}>
             <Ionicons name="lock-closed" size={14} color={COLORS.textSecondary} />
             <Text style={styles.fieldLabel}>Hidden Reveals</Text>
-            {!isPremium && (
+            {!canAccessPremium && (
               <TouchableOpacity onPress={() => router.push("/premium")} style={styles.premiumBadge}>
                 <Ionicons name="star" size={10} color="#FFF" />
                 <Text style={styles.premiumBadgeText}>Premium</Text>
@@ -226,16 +227,17 @@ export default function AboutScreen() {
             )}
           </View>
           <Text style={styles.revealsSubtitle}>
-            {isPremium
+            {canAccessPremium
               ? "4 things people discover about you after matching"
               : "Upgrade to premium to add your own hidden reveals"}
           </Text>
           {reveals.map((reveal, index) => (
             <TextInput
+              testID={`reveal-input-${index}`}
               key={index}
               value={reveal}
               onChangeText={(text) => {
-                if (!isPremium) {
+                if (!canAccessPremium) {
                   router.push("/premium");
                   return;
                 }
@@ -254,8 +256,8 @@ export default function AboutScreen() {
               }
               placeholderTextColor="#B2BEC3"
               maxLength={100}
-              editable={isPremium}
-              style={[styles.revealInput, !isPremium && { opacity: 0.5 }]}
+              editable={canAccessPremium}
+              style={[styles.revealInput, !canAccessPremium && { opacity: 0.5 }]}
             />
           ))}
         </View>

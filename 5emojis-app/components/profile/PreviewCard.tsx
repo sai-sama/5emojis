@@ -54,6 +54,7 @@ export default function PreviewCard({ profile, sortedEmojis, onEditEmojis, emoji
       </View>
       {onEditEmojis ? (
         <TouchableOpacity
+          testID="edit-emojis"
           style={[styles.emojiBox, emojiCooldownLabel && styles.emojiBoxCooldown]}
           activeOpacity={0.7}
           onPress={onEditEmojis}

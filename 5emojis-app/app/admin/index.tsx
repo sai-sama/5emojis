@@ -312,6 +312,7 @@ export default function AdminDashboard() {
             {/* Search */}
             <View style={styles.searchRow}>
               <TextInput
+                testID="user-search"
                 value={userSearch}
                 onChangeText={setUserSearch}
                 placeholder="Search by name or email..."

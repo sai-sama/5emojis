@@ -136,6 +136,32 @@ export const DIETARY_OPTIONS = [
   { label: "No Restrictions", value: "no_restrictions", icon: "🍽️" },
 ] as const;
 
+// ─── Languages ─────────────────────────────────────────────
+export const LANGUAGE_OPTIONS = [
+  { label: "English", value: "english", icon: "🇺🇸" },
+  { label: "Spanish", value: "spanish", icon: "🇪🇸" },
+  { label: "French", value: "french", icon: "🇫🇷" },
+  { label: "Mandarin", value: "mandarin", icon: "🇨🇳" },
+  { label: "Hindi", value: "hindi", icon: "🇮🇳" },
+  { label: "Arabic", value: "arabic", icon: "🇸🇦" },
+  { label: "Portuguese", value: "portuguese", icon: "🇧🇷" },
+  { label: "Japanese", value: "japanese", icon: "🇯🇵" },
+  { label: "Korean", value: "korean", icon: "🇰🇷" },
+  { label: "German", value: "german", icon: "🇩🇪" },
+  { label: "Italian", value: "italian", icon: "🇮🇹" },
+  { label: "Russian", value: "russian", icon: "🇷🇺" },
+  { label: "Tagalog", value: "tagalog", icon: "🇵🇭" },
+  { label: "Vietnamese", value: "vietnamese", icon: "🇻🇳" },
+  { label: "Telugu", value: "telugu", icon: "🇮🇳" },
+  { label: "Tamil", value: "tamil", icon: "🇮🇳" },
+  { label: "Urdu", value: "urdu", icon: "🇵🇰" },
+  { label: "Turkish", value: "turkish", icon: "🇹🇷" },
+  { label: "Sign Language", value: "sign_language", icon: "🤟" },
+  { label: "Other", value: "other", icon: "🌍" },
+] as const;
+
+export const MAX_LANGUAGES = 5;
+
 export const COMMON_PROFESSIONS = [
   { label: "Student", icon: "📚" },
   { label: "Engineer", icon: "💻" },

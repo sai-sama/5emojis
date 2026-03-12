@@ -44,3 +44,4 @@ yarn-error.*
 # Firebase service account key (secret)
 *.firebase-adminsdk-*.json
 emojis-b18a1-firebase-adminsdk-*.json
+ios/build/

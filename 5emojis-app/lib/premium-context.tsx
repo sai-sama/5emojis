@@ -19,8 +19,8 @@ const REVENUECAT_ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ??
 const PREMIUM_ENTITLEMENT = "premium";
 
 type PremiumContextType = {
-  isPremium: boolean;
-  isAdmin: boolean;
+  /** True if user is premium subscriber OR admin — use for all premium feature gates */
+  canAccessPremium: boolean;
   loading: boolean;
   packages: PurchasesPackage[];
   purchase: (pkg: PurchasesPackage) => Promise<{ error: string | null }>;
@@ -28,8 +28,7 @@ type PremiumContextType = {
 };
 
 const PremiumContext = createContext<PremiumContextType>({
-  isPremium: false,
-  isAdmin: false,
+  canAccessPremium: false,
   loading: true,
   packages: [],
   purchase: async () => ({ error: null }),
@@ -178,14 +177,13 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     }
   }, [checkEntitlements]);
 
-  // Premium is always gated — only paid subscribers and admins get premium features
-  const effectivePremium = isPremium || isAdmin;
+  // Premium features available to paid subscribers and admins
+  const canAccessPremium = isPremium || isAdmin;
 
   return (
     <PremiumContext.Provider
       value={{
-        isPremium: effectivePremium,
-        isAdmin,
+        canAccessPremium,
         loading,
         packages,
         purchase,

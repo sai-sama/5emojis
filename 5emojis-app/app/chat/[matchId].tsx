@@ -170,7 +170,19 @@ export default function ChatScreen() {
       (newMsg) => {
         setMessages((prev) => {
           if (prev.some((m) => m.id === newMsg.id)) return prev;
-          const updated = [...prev, newMsg];
+
+          // Replace optimistic message if this is the real version from the server
+          // (same sender + content, optimistic ID prefix)
+          const optimisticIdx = prev.findIndex(
+            (m) =>
+              m.id.startsWith("optimistic-") &&
+              m.sender_id === newMsg.sender_id &&
+              m.content === newMsg.content
+          );
+          const updated =
+            optimisticIdx >= 0
+              ? [...prev.slice(0, optimisticIdx), ...prev.slice(optimisticIdx + 1), newMsg]
+              : [...prev, newMsg];
 
           // Recalculate chat state
           const other = matchData;
@@ -233,14 +245,19 @@ export default function ChatScreen() {
     };
   }, [matchId, session]);
 
-  // Broadcast typing when user types
+  // Broadcast typing when user types (debounced to avoid flooding)
+  const typingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const broadcastTyping = useCallback(() => {
     if (!session?.user || !typingChannelRef.current) return;
+    if (typingDebounceRef.current) return; // Already broadcasted recently
     typingChannelRef.current.send({
       type: "broadcast",
       event: "typing",
       payload: { userId: session.user.id },
     });
+    typingDebounceRef.current = setTimeout(() => {
+      typingDebounceRef.current = null;
+    }, 2000);
   }, [session]);
 
   // ─── Derived data ──────────────────────────────────────────
@@ -301,16 +318,20 @@ export default function ChatScreen() {
       selectedEmojis
     );
 
-    if (!error) {
-      // Refresh messages to update chat state
-      const msgs = await fetchMessages(matchId);
-      setMessages(msgs);
-      setChatState(getChatState(msgs, session.user.id, otherUserId));
+    if (error) {
+      Alert.alert("Failed to send", "Please check your connection and try again.");
+      setSendingIcebreaker(false);
+      return;
+    }
 
-      // Notify the other user
-      if (otherUserId) {
-        notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true).catch(() => {});
-      }
+    // Refresh messages to update chat state
+    const msgs = await fetchMessages(matchId);
+    setMessages(msgs);
+    setChatState(getChatState(msgs, session.user.id, otherUserId));
+
+    // Notify the other user
+    if (otherUserId) {
+      notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true).catch(() => {});
     }
     setSendingIcebreaker(false);
   }, [selectedEmojis, session, matchId, otherUserId, other]);
@@ -323,20 +344,36 @@ export default function ChatScreen() {
     setTextInput("");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    await sendMessage(matchId, session.user.id, text);
+    // Optimistic: append message locally before server confirms
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: optimisticId,
+      match_id: matchId,
+      sender_id: session.user.id,
+      content: text,
+      is_emoji_only: false,
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+
+    const { error } = await sendMessage(matchId, session.user.id, text);
+
+    if (error) {
+      // Remove optimistic message and restore input
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      setTextInput(text);
+      Alert.alert("Failed to send", "Please check your connection and try again.");
+      setSendingMessage(false);
+      return;
+    }
 
     // Notify the other user
     if (otherUserId) {
       notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, false).catch(() => {});
     }
-
-    const msgs = await fetchMessages(matchId);
-    setMessages(msgs);
     setSendingMessage(false);
-
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
   }, [textInput, session, matchId, otherUserId, other]);
 
   // ─── Load older messages (pagination) ────────────────────────
@@ -447,7 +484,7 @@ export default function ChatScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <AuroraBackground variant="warm" />
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <SafeAreaView testID="chat-screen" style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -494,6 +531,7 @@ export default function ChatScreen() {
           {/* Three-dots menu */}
           {other && (
             <Pressable
+              testID="chat-menu"
               onPress={() => setShowMenu((v) => !v)}
               hitSlop={12}
               style={styles.menuButton}
@@ -1018,6 +1056,7 @@ export default function ChatScreen() {
                 {/* Text input bar */}
                 <View style={styles.inputBar}>
                   <TextInput
+                    testID="message-input"
                     value={textInput}
                     onChangeText={(text) => {
                       setTextInput(text);
@@ -1030,6 +1069,7 @@ export default function ChatScreen() {
                     maxLength={500}
                   />
                   <Pressable
+                    testID="send-button"
                     onPress={handleSendText}
                     disabled={!textInput.trim() || sendingMessage}
                     style={[

@@ -302,7 +302,7 @@ const SwipeableTopCard = forwardRef<
 
 export default function SwipeCardStack() {
   const { session, devMode } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
   const { setUndo } = useUndo();
   const [profiles, setProfiles] = useState<SwipeProfile[]>([]);
   const [userLat, setUserLat] = useState(0);
@@ -316,8 +316,8 @@ export default function SwipeCardStack() {
 
   // ─── Daily swipe tracking ───────────────────────────────────
   const [dailyCounts, setDailyCounts] = useState({ rightCount: 0, superLikeCount: 0 });
-  const remainingSwipes = getRemainingRightSwipes(dailyCounts, isPremium);
-  const canSuperLikeNow = canSuperLike(dailyCounts, isPremium);
+  const remainingSwipes = getRemainingRightSwipes(dailyCounts, canAccessPremium);
+  const canSuperLikeNow = canSuperLike(dailyCounts, canAccessPremium);
 
   // Load daily counts on focus
   useFocusEffect(
@@ -504,7 +504,7 @@ export default function SwipeCardStack() {
   const onSwipeComplete = useCallback(
     (direction: "left" | "right") => {
       // Enforce swipe limit for free users on right swipes
-      if (direction === "right" && !canSwipeRight(dailyCounts, isPremium)) {
+      if (direction === "right" && !canSwipeRight(dailyCounts, canAccessPremium)) {
         router.push("/premium");
         return;
       }
@@ -523,19 +523,27 @@ export default function SwipeCardStack() {
         setLastSwipe(null);
       }
 
-      // Record swipe to Supabase + track daily count
+      // Optimistically increment daily count BEFORE async call to prevent rapid-swipe bypass
+      if (direction === "right") {
+        setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
+      }
+
+      // Record swipe to Supabase + persist daily count
       if (session?.user && swipedProfile) {
         recordSwipe(
           session.user.id,
           swipedProfile.profile.id,
           direction
         ).then((result) => {
-          // Increment daily count for right swipes
+          if (!result.success) {
+            logError(new Error(result.error), { screen: "SwipeCardStack", context: "record_swipe" });
+            return;
+          }
+
           if (direction === "right") {
             incrementRightSwipe(session.user.id).catch((err: any) =>
               logError(err, { screen: "SwipeCardStack", context: "increment_right_swipe" })
             );
-            setDailyCounts((prev) => ({ ...prev, rightCount: prev.rightCount + 1 }));
           }
 
           if (result.matched) {
@@ -577,12 +585,12 @@ export default function SwipeCardStack() {
       // The new SwipeableTopCard mounts with fresh translateX = 0.
       setCurrentIndex((prev) => prev + 1);
     },
-    [currentIndex, session, filteredProfiles, userEmojis, dailyCounts, isPremium]
+    [currentIndex, session, filteredProfiles, userEmojis, dailyCounts, canAccessPremium]
   );
 
   // ─── Super like handler ────────────────────────────────────
   const handleSuperLike = useCallback(() => {
-    if (!session?.user || !isPremium) {
+    if (!session?.user || !canAccessPremium) {
       router.push("/premium");
       return;
     }
@@ -604,6 +612,11 @@ export default function SwipeCardStack() {
       logError(err, { screen: "SwipeCardStack", context: "record_super_like" });
     });
     recordSwipe(session.user.id, swipedProfile.profile.id, "right", true).then((result) => {
+      if (!result.success) {
+        logError(new Error(result.error), { screen: "SwipeCardStack", context: "super_like" });
+        return;
+      }
+
       incrementRightSwipe(session.user.id).catch((err: any) =>
         logError(err, { screen: "SwipeCardStack", context: "increment_right_swipe_super" })
       );
@@ -633,14 +646,14 @@ export default function SwipeCardStack() {
     });
 
     setCurrentIndex((prev) => prev + 1);
-  }, [session, isPremium, canSuperLikeNow, filteredProfiles, currentIndex, userName]);
+  }, [session, canAccessPremium, canSuperLikeNow, filteredProfiles, currentIndex, userName]);
 
   // ─── Undo handler ──────────────────────────────────────────
   const handleUndo = useCallback(() => {
     if (!lastSwipe || currentIndex === 0) return;
 
     // Premium gate check
-    if (!isPremium) {
+    if (!canAccessPremium) {
       router.push("/premium");
       return;
     }
@@ -857,8 +870,9 @@ export default function SwipeCardStack() {
         )}
 
         {/* Super Like floating button — premium only, centered above emojis */}
-        {isPremium && visibleProfiles.length > 0 && !allSwiped && (
+        {canAccessPremium && visibleProfiles.length > 0 && !allSwiped && (
           <Pressable
+            testID="super-like-button"
             style={styles.superLikeFloating}
             onPress={handleSuperLike}
           >

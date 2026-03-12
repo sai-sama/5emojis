@@ -5,8 +5,13 @@ import { logError } from "./error-logger";
 
 // ─── Types ──────────────────────────────────────────────────
 export type MatchResult = {
+  success: false;
+  error: string;
+} | {
+  success: true;
   matched: false;
 } | {
+  success: true;
   matched: true;
   match: Match;
   otherUser: Profile;
@@ -59,12 +64,12 @@ export async function recordSwipe(
 
   if (error) {
     logError(error, { screen: "SwipeService", context: "record_swipe" });
-    return { matched: false };
+    return { success: false, error: error.message };
   }
 
   // If left swipe, no match possible
   if (direction === "left") {
-    return { matched: false };
+    return { success: true, matched: false };
   }
 
   // Check if a match was just created (canonical ordering: smaller UUID first)
@@ -79,7 +84,7 @@ export async function recordSwipe(
     .single();
 
   if (!match) {
-    return { matched: false };
+    return { success: true, matched: false };
   }
 
   // Fetch the other user's profile, emojis, primary photo, and icebreaker question
@@ -110,10 +115,11 @@ export async function recordSwipe(
 
   // Guard against deleted/missing profile (shouldn't happen but defensive)
   if (!profileRes.data) {
-    return { matched: false };
+    return { success: true, matched: false };
   }
 
   return {
+    success: true,
     matched: true,
     match,
     otherUser: profileRes.data,

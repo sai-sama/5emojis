@@ -11,6 +11,7 @@ import {
   updateAvailability,
   updatePets,
   updateDietary,
+  updateLanguages,
 } from "../../lib/profile-service";
 import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
@@ -24,6 +25,8 @@ import {
   RELATIONSHIP_STATUS_OPTIONS,
   WORK_STYLE_OPTIONS,
   DIETARY_OPTIONS,
+  LANGUAGE_OPTIONS,
+  MAX_LANGUAGES,
 } from "../../lib/profile-constants";
 
 export default function MoreAboutYou() {
@@ -40,6 +43,7 @@ export default function MoreAboutYou() {
   const [relationshipStatus, setRelationshipStatus] = useState(profile?.profile.relationship_status ?? "");
   const [workStyle, setWorkStyle] = useState(profile?.profile.work_style ?? "");
   const [dietary, setDietary] = useState<string[]>(profile?.dietary ?? []);
+  const [languages, setLanguages] = useState<string[]>(profile?.languages ?? []);
 
   // ─── Dirty check ──────────────────────────────────────────
   const isDirty = useMemo(() => {
@@ -53,9 +57,10 @@ export default function MoreAboutYou() {
       JSON.stringify(pets) !== JSON.stringify(profile.pets) ||
       relationshipStatus !== (p.relationship_status ?? "") ||
       workStyle !== (p.work_style ?? "") ||
-      JSON.stringify(dietary) !== JSON.stringify(profile.dietary)
+      JSON.stringify(dietary) !== JSON.stringify(profile.dietary) ||
+      JSON.stringify(languages) !== JSON.stringify(profile.languages)
     );
-  }, [profile, availability, personalityType, communicationStyle, kids, pets, relationshipStatus, workStyle, dietary]);
+  }, [profile, availability, personalityType, communicationStyle, kids, pets, relationshipStatus, workStyle, dietary, languages]);
 
   // ─── Toggle helpers ───────────────────────────────────────
   const toggleAvailability = (value: string) => {
@@ -102,6 +107,15 @@ export default function MoreAboutYou() {
     }
   };
 
+  const toggleLanguage = (value: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (languages.includes(value)) {
+      setLanguages(languages.filter((l) => l !== value));
+    } else if (languages.length < MAX_LANGUAGES) {
+      setLanguages([...languages, value]);
+    }
+  };
+
   // ─── Save ─────────────────────────────────────────────────
   const handleSave = async () => {
     if (!session?.user || !isDirty) return;
@@ -119,6 +133,7 @@ export default function MoreAboutYou() {
       updateAvailability(session.user.id, availability),
       updatePets(session.user.id, pets),
       updateDietary(session.user.id, dietary),
+      updateLanguages(session.user.id, languages),
     ]);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -280,6 +295,21 @@ export default function MoreAboutYou() {
               icon={icon}
               selected={dietary.includes(value)}
               onPress={() => toggleDietary(value)}
+            />
+          ))}
+        </View>
+
+        {/* Languages */}
+        <SectionLabel icon="🌍" title="LANGUAGES" counter={`${languages.length}/${MAX_LANGUAGES}`} />
+        <View style={styles.chipGrid}>
+          {LANGUAGE_OPTIONS.map(({ label, value, icon }) => (
+            <Chip
+              key={value}
+              label={label}
+              icon={icon}
+              selected={languages.includes(value)}
+              disabled={!languages.includes(value) && languages.length >= MAX_LANGUAGES}
+              onPress={() => toggleLanguage(value)}
             />
           ))}
         </View>

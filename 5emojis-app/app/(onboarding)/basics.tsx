@@ -94,6 +94,7 @@ export default function BasicsScreen() {
               👋  YOUR NAME
             </Text>
             <TextInput
+              testID="name-input"
               value={name}
               onChangeText={setName}
               placeholder="Your first name"

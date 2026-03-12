@@ -36,7 +36,8 @@ import { useUnread } from "../../lib/unread-context";
 
 export default function ProfileOverview() {
   const { session, signOut, deleteAccount, isAdmin } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
+  // isAdmin still needed for admin panel visibility (not a premium gate)
   const { refresh: refreshUnread } = useUnread();
   const { profile, loading, refresh } = useProfile();
 
@@ -175,16 +176,18 @@ export default function ProfileOverview() {
 
   const moreSummary = useMemo(() => {
     if (!profile) return "";
-    const completion = getProfileCompletion(profile);
-    const moreFields = completion.total - 4; // exclude core fields (photos, emojis, profession, interests)
-    const moreFilled = completion.filled - [
+    const completion = getProfileCompletion(profile, canAccessPremium);
+    const coreFieldCount = 4; // photos, emojis, profession, interests
+    const moreFields = completion.total - coreFieldCount;
+    const coreFilled = [
       profile.photos.length > 0,
       profile.emojis.length === 5,
       !!profile.profile.profession,
       profile.interests.length >= 3,
     ].filter(Boolean).length;
+    const moreFilled = completion.filled - coreFilled;
     return `${Math.max(0, moreFilled)} of ${moreFields} filled`;
-  }, [profile]);
+  }, [profile, canAccessPremium]);
 
   const locationSummary = useMemo(() => {
     if (!profile) return "";
@@ -209,7 +212,7 @@ export default function ProfileOverview() {
 
   // Cooldown label for the edit button (null = no cooldown active)
   const emojiCooldownLabel = (() => {
-    if (isAdmin || isPremium) return null;
+    if (canAccessPremium) return null;
     const cooldown = getEmojiCooldownRemaining();
     if (!cooldown.blocked) return null;
     return cooldown.hoursLeft > 0
@@ -218,8 +221,7 @@ export default function ProfileOverview() {
   })();
 
   const handleEditEmojis = () => {
-    // Admins and premium users bypass cooldown entirely
-    if (isAdmin || isPremium) {
+    if (canAccessPremium) {
       setEditingEmojis(sortedEmojis.map((e) => e.emoji));
       setEmojiModalVisible(true);
       return;
@@ -254,12 +256,12 @@ export default function ProfileOverview() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { error } = await updateEmojis(session.user.id, editingEmojis);
     setSavingEmojis(false);
-    setEmojiModalVisible(false);
     if (error) {
-      // silent — profile will refresh
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Save Failed", "Could not update your emojis. Please try again.");
+      return; // Keep modal open so user can retry
     }
+    setEmojiModalVisible(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     refresh();
   };
 
@@ -624,11 +626,21 @@ export default function ProfileOverview() {
                     emoji ? styles.emojiEditSlotFilled : styles.emojiEditSlotEmpty,
                   ]}
                 >
-                  {emoji ? <Text style={{ fontSize: 32 }}>{emoji}</Text> : null}
+                  {emoji ? (
+                    <>
+                      <Text style={{ fontSize: 32 }}>{emoji}</Text>
+                      <View style={styles.emojiRemoveBadge}>
+                        <Text style={styles.emojiRemoveX}>✕</Text>
+                      </View>
+                    </>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
           </View>
+          {editingEmojis.length >= 5 && (
+            <Text style={styles.emojiHint}>Tap an emoji above to swap it out</Text>
+          )}
 
           <View style={{ flex: 1 }}>
             <EmojiPicker
@@ -875,6 +887,33 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: "dashed",
     borderColor: COLORS.border,
+  },
+  emojiRemoveBadge: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.background,
+  },
+  emojiRemoveX: {
+    color: "#FFF",
+    fontSize: 9,
+    fontFamily: fonts.bodyBold,
+    lineHeight: 12,
+  },
+  emojiHint: {
+    textAlign: "center",
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: COLORS.textMuted,
+    marginTop: -8,
+    marginBottom: 8,
   },
 
   // Dev tools

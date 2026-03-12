@@ -34,7 +34,7 @@ const PLANS: { key: PlanKey; label: string; price: string; perWeek: string; badg
 ];
 
 export default function PremiumScreen() {
-  const { isPremium, packages, purchase, restore, loading } = usePremium();
+  const { canAccessPremium, packages, purchase, restore, loading } = usePremium();
   const [selectedPlan, setSelectedPlan] = useState<PlanKey>("annual");
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -84,7 +84,7 @@ export default function PremiumScreen() {
   };
 
   // If already premium, show a confirmation
-  if (isPremium) {
+  if (canAccessPremium) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
@@ -110,7 +110,7 @@ export default function PremiumScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Close button */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable testID="close-button" onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={24} color={COLORS.text} />
         </Pressable>
       </View>

@@ -107,37 +107,45 @@ export async function updateSearchRadius(
   return { error: error?.message ?? null };
 }
 
-// ─── Replace emojis (delete all + re-insert) ────────────────
+// ─── Replace emojis (upsert new + delete stale) ─────────────
 export async function updateEmojis(
   userId: string,
   emojis: string[]
 ): Promise<{ error: string | null }> {
-  // Delete existing
+  // Upsert new emojis first — if this fails, old emojis remain intact
+  if (emojis.length > 0) {
+    const { error: upsertError } = await supabase
+      .from("profile_emojis")
+      .upsert(
+        emojis.map((emoji, i) => ({
+          user_id: userId,
+          emoji,
+          position: i + 1,
+        })),
+        { onConflict: "user_id,position" }
+      );
+
+    if (upsertError) return { error: upsertError.message };
+  }
+
+  // Delete any extra positions beyond the new set
   const { error: deleteError } = await supabase
     .from("profile_emojis")
     .delete()
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .gt("position", emojis.length);
 
   if (deleteError) return { error: deleteError.message };
 
-  // Insert new
-  if (emojis.length > 0) {
-    const { error: insertError } = await supabase
-      .from("profile_emojis")
-      .insert(emojis.map((emoji, i) => ({
-        user_id: userId,
-        emoji,
-        position: i + 1,
-      })));
-
-    if (insertError) return { error: insertError.message };
-  }
-
   // Update cooldown timestamp
-  await supabase
+  const { error: cooldownError } = await supabase
     .from("profiles")
     .update({ emoji_last_edited_at: new Date().toISOString() })
     .eq("id", userId);
+
+  if (cooldownError) {
+    logError(cooldownError, { screen: "ProfileService", context: "emoji_cooldown_update" });
+  }
 
   return { error: null };
 }
@@ -259,6 +267,29 @@ export async function updateDietary(
     const { error: insertError } = await supabase
       .from("profile_dietary")
       .insert(preferences.map((preference) => ({ user_id: userId, preference })));
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  return { error: null };
+}
+
+// ─── Update languages ────────────────────────────────────────
+export async function updateLanguages(
+  userId: string,
+  languages: string[]
+): Promise<{ error: string | null }> {
+  const { error: deleteError } = await supabase
+    .from("profile_languages")
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  if (languages.length > 0) {
+    const { error: insertError } = await supabase
+      .from("profile_languages")
+      .insert(languages.map((language) => ({ user_id: userId, language })));
 
     if (insertError) return { error: insertError.message };
   }
@@ -395,21 +426,23 @@ export async function setMainPhoto(
   userId: string,
   photoId: string
 ): Promise<{ error: string | null }> {
-  // Clear is_primary on all user's photos
-  const { error: clearError } = await supabase
-    .from("profile_photos")
-    .update({ is_primary: false })
-    .eq("user_id", userId);
-
-  if (clearError) return { error: clearError.message };
-
-  // Set the chosen photo as primary
+  // Set the new primary FIRST — if the second step fails, we have two primaries
+  // (queries pick first by position) rather than zero primaries
   const { error: setError } = await supabase
     .from("profile_photos")
     .update({ is_primary: true })
     .eq("id", photoId);
 
   if (setError) return { error: setError.message };
+
+  // Clear is_primary on all OTHER user photos
+  const { error: clearError } = await supabase
+    .from("profile_photos")
+    .update({ is_primary: false })
+    .eq("user_id", userId)
+    .neq("id", photoId);
+
+  if (clearError) return { error: clearError.message };
 
   return { error: null };
 }

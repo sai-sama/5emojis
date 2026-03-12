@@ -6,7 +6,7 @@ export type CompletionField = {
   route: string;
 };
 
-export function getProfileCompletion(profile: FullProfile): {
+export function getProfileCompletion(profile: FullProfile, canAccessPremium = false): {
   percentage: number;
   total: number;
   filled: number;
@@ -27,7 +27,11 @@ export function getProfileCompletion(profile: FullProfile): {
     { label: "Relationship Status", filled: !!profile.profile.relationship_status, route: "/profile/more" },
     { label: "Work Style", filled: !!profile.profile.work_style, route: "/profile/more" },
     { label: "Dietary Preferences", filled: profile.dietary.length > 0, route: "/profile/more" },
-    { label: "Hidden Reveals", filled: profile.reveals.length > 0, route: "/profile/about" },
+    { label: "Languages", filled: profile.languages.length > 0, route: "/profile/more" },
+    // Premium-only fields — only count for premium users / admins
+    ...(canAccessPremium
+      ? [{ label: "Hidden Reveals", filled: profile.reveals.length > 0, route: "/profile/about" }]
+      : []),
   ];
 
   const filled = fields.filter((f) => f.filled).length;

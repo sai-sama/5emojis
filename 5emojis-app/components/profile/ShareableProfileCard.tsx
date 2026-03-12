@@ -143,6 +143,7 @@ export default function ShareableProfileCard({ profile, sortedEmojis }: Props) {
 
       {/* ── Share button (visible to user) ── */}
       <Pressable
+        testID="share-profile"
         style={styles.shareButton}
         onPress={handleShare}
         disabled={sharing}

@@ -385,8 +385,12 @@ export async function generateIcebreaker(
   const sharedActivities = [...myTraits, ...theirTraits].map((t) => t.activity);
   const sharedActivity = sharedActivities[Math.floor(Math.random() * sharedActivities.length)];
 
-  // Fill 3 random templates
-  const shuffled = [...ICEBREAKER_TEMPLATES].sort(() => Math.random() - 0.5);
+  // Fill 3 random templates (Fisher-Yates shuffle for uniform distribution)
+  const shuffled = [...ICEBREAKER_TEMPLATES];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   return shuffled.slice(0, 3).map((template) =>
     template
       .replace(/\{my_vibe\}/g, myTraits[0]?.vibe || "fun")
