@@ -93,6 +93,7 @@ function AnimatedTab({
 
   return (
     <TouchableOpacity
+      testID={`${routeName}-tab`}
       style={styles.tab}
       onPress={onPress}
       activeOpacity={0.7}
@@ -168,6 +169,7 @@ export default function CustomTabBar({
       {/* Center undo button — only visible when relevant */}
       {showUndo && (
         <TouchableOpacity
+          testID="undo-button"
           style={styles.undoTab}
           onPress={onUndo!}
           activeOpacity={0.6}

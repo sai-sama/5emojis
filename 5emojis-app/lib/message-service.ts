@@ -204,10 +204,18 @@ export async function fetchReactions(
 }
 
 // ─── Subscribe to reaction changes ──────────────────────────
+// Note: Supabase Realtime can't filter message_reactions by match_id (no FK column).
+// We debounce the callback to avoid excessive re-fetches from unrelated chats.
 export function subscribeToReactions(
   matchId: string,
   onReactionChange: () => void
 ) {
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedChange = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(onReactionChange, 300);
+  };
+
   const channel = supabase
     .channel(`reactions-${matchId}`)
     .on(
@@ -218,13 +226,13 @@ export function subscribeToReactions(
         table: "message_reactions",
       },
       () => {
-        // Re-fetch all reactions when any change happens
-        onReactionChange();
+        debouncedChange();
       }
     )
     .subscribe();
 
   return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
     supabase.removeChannel(channel);
   };
 }

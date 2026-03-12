@@ -150,6 +150,7 @@ export default function PhotosScreen() {
               </View>
             )}
             <TouchableOpacity
+              testID={`remove-photo-${photo.position}`}
               style={styles.removeBtn}
               onPress={() => handleRemove(photo.id, photo.url)}
             >

@@ -44,7 +44,7 @@ export default function DiscoveryFiltersRibbon({
   preferredAgeMax,
   onAgeChange,
 }: Props) {
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
   const [expanded, setExpanded] = useState(false);
 
   const toggle = () => {
@@ -136,7 +136,7 @@ export default function DiscoveryFiltersRibbon({
           <View style={styles.chipRow}>
             {RADIUS_STEPS.map((r) => {
               const active = searchRadius === r;
-              const locked = !isPremium && r > FREE_MAX_RADIUS_MILES;
+              const locked = !canAccessPremium && r > FREE_MAX_RADIUS_MILES;
               return (
                 <Pressable
                   key={r}

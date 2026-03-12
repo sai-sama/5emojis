@@ -5,13 +5,15 @@ import { fonts } from "../../lib/fonts";
 import { COLORS } from "../../lib/constants";
 import { getProfileCompletion, type CompletionField } from "../../lib/profile-completion";
 import { FullProfile } from "../../lib/profile-service";
+import { usePremium } from "../../lib/premium-context";
 
 type Props = {
   profile: FullProfile;
 };
 
 export default function ProfileCompletionCard({ profile }: Props) {
-  const { percentage, filled, total, missing } = getProfileCompletion(profile);
+  const { canAccessPremium } = usePremium();
+  const { percentage, filled, total, missing } = getProfileCompletion(profile, canAccessPremium);
 
   if (percentage >= 100) return null;
 

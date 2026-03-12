@@ -46,20 +46,20 @@ export async function incrementSuperLike(userId: string): Promise<void> {
 }
 
 // ─── Check if user can swipe right ──────────────────────────
-export function canSwipeRight(counts: DailySwipeCounts, isPremium: boolean): boolean {
-  if (isPremium) return true;
+export function canSwipeRight(counts: DailySwipeCounts, canAccessPremium: boolean): boolean {
+  if (canAccessPremium) return true;
   return counts.rightCount < FREE_DAILY_RIGHT_SWIPES;
 }
 
 // ─── Check if user can super like ───────────────────────────
-export function canSuperLike(counts: DailySwipeCounts, isPremium: boolean): boolean {
-  if (!isPremium) return false;
+export function canSuperLike(counts: DailySwipeCounts, canAccessPremium: boolean): boolean {
+  if (!canAccessPremium) return false;
   return counts.superLikeCount < PREMIUM_DAILY_SUPER_LIKES;
 }
 
 // ─── Get remaining right swipes ─────────────────────────────
-export function getRemainingRightSwipes(counts: DailySwipeCounts, isPremium: boolean): number | null {
-  if (isPremium) return null; // unlimited
+export function getRemainingRightSwipes(counts: DailySwipeCounts, canAccessPremium: boolean): number | null {
+  if (canAccessPremium) return null; // unlimited
   return Math.max(0, FREE_DAILY_RIGHT_SWIPES - counts.rightCount);
 }
 

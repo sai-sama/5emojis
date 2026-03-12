@@ -484,7 +484,7 @@ export default function ChatScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <AuroraBackground variant="warm" />
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <SafeAreaView testID="chat-screen" style={styles.safe} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -531,6 +531,7 @@ export default function ChatScreen() {
           {/* Three-dots menu */}
           {other && (
             <Pressable
+              testID="chat-menu"
               onPress={() => setShowMenu((v) => !v)}
               hitSlop={12}
               style={styles.menuButton}
@@ -1055,6 +1056,7 @@ export default function ChatScreen() {
                 {/* Text input bar */}
                 <View style={styles.inputBar}>
                   <TextInput
+                    testID="message-input"
                     value={textInput}
                     onChangeText={(text) => {
                       setTextInput(text);
@@ -1067,6 +1069,7 @@ export default function ChatScreen() {
                     maxLength={500}
                   />
                   <Pressable
+                    testID="send-button"
                     onPress={handleSendText}
                     disabled={!textInput.trim() || sendingMessage}
                     style={[

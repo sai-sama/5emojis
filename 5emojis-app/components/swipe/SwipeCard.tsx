@@ -127,7 +127,7 @@ function SwipeCardInner({
   });
 
   return (
-    <View style={styles.card} accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
+    <View style={styles.card} testID="swipe-card" accessible accessibilityLabel={`${p.name}, age ${age}, ${distance}${p.profession ? `, ${p.profession}` : ""}`}>
       <View style={styles.photoContainer}>
         {imageError ? (
           <View style={[styles.photo, { alignItems: "center", justifyContent: "center", backgroundColor: "#2a2a2a" }]}>

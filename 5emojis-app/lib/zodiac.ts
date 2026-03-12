@@ -18,9 +18,15 @@ const ZODIAC_TABLE: { month: number; day: number; sign: string; emoji: string }[
 ];
 
 export function getZodiacSign(dob: string): ZodiacInfo {
-  const date = new Date(dob);
-  const month = date.getMonth() + 1; // 1-indexed
-  const day = date.getDate();
+  // Parse date components directly to avoid timezone issues
+  // (new Date("2000-01-20") is UTC, but getMonth()/getDate() return local time)
+  const parts = dob.split("-");
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+
+  if (!month || !day || month < 1 || month > 12 || day < 1 || day > 31) {
+    return { sign: "Capricorn", emoji: "♑" }; // fallback for invalid dates
+  }
 
   for (const entry of ZODIAC_TABLE) {
     if (month < entry.month || (month === entry.month && day <= entry.day)) {

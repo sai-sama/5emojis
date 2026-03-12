@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -48,10 +49,18 @@ export default function ReportModal({
     setSubmitting(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
-    await reportUser(reporterId, reportedId, selectedReason, details);
+    const { error: reportError } = await reportUser(reporterId, reportedId, selectedReason, details);
+    if (reportError) {
+      Alert.alert("Error", "Could not submit report. Please try again.");
+      setSubmitting(false);
+      return;
+    }
 
     if (alsoBlock) {
-      await blockUser(reporterId, reportedId);
+      const { error: blockError } = await blockUser(reporterId, reportedId);
+      if (blockError) {
+        Alert.alert("Error", "Report submitted but could not block user. Try blocking from the menu.");
+      }
     }
 
     setSubmitting(false);

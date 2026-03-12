@@ -36,7 +36,8 @@ import { useUnread } from "../../lib/unread-context";
 
 export default function ProfileOverview() {
   const { session, signOut, deleteAccount, isAdmin } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
+  // isAdmin still needed for admin panel visibility (not a premium gate)
   const { refresh: refreshUnread } = useUnread();
   const { profile, loading, refresh } = useProfile();
 
@@ -175,16 +176,18 @@ export default function ProfileOverview() {
 
   const moreSummary = useMemo(() => {
     if (!profile) return "";
-    const completion = getProfileCompletion(profile);
-    const moreFields = completion.total - 4; // exclude core fields (photos, emojis, profession, interests)
-    const moreFilled = completion.filled - [
+    const completion = getProfileCompletion(profile, canAccessPremium);
+    const coreFieldCount = 4; // photos, emojis, profession, interests
+    const moreFields = completion.total - coreFieldCount;
+    const coreFilled = [
       profile.photos.length > 0,
       profile.emojis.length === 5,
       !!profile.profile.profession,
       profile.interests.length >= 3,
     ].filter(Boolean).length;
+    const moreFilled = completion.filled - coreFilled;
     return `${Math.max(0, moreFilled)} of ${moreFields} filled`;
-  }, [profile]);
+  }, [profile, canAccessPremium]);
 
   const locationSummary = useMemo(() => {
     if (!profile) return "";
@@ -209,7 +212,7 @@ export default function ProfileOverview() {
 
   // Cooldown label for the edit button (null = no cooldown active)
   const emojiCooldownLabel = (() => {
-    if (isAdmin || isPremium) return null;
+    if (canAccessPremium) return null;
     const cooldown = getEmojiCooldownRemaining();
     if (!cooldown.blocked) return null;
     return cooldown.hoursLeft > 0
@@ -218,8 +221,7 @@ export default function ProfileOverview() {
   })();
 
   const handleEditEmojis = () => {
-    // Admins and premium users bypass cooldown entirely
-    if (isAdmin || isPremium) {
+    if (canAccessPremium) {
       setEditingEmojis(sortedEmojis.map((e) => e.emoji));
       setEmojiModalVisible(true);
       return;

@@ -183,6 +183,7 @@ function VibeCard({
         </View>
       )}
       <Pressable
+        testID="incoming-vibe-card"
         style={[styles.vibeCard, vibe.isSuperLike && styles.vibeCardSuperLike]}
         onPress={handleCardPress}
       >
@@ -337,6 +338,7 @@ function MatchCard({
       )}
 
       <Pressable
+        testID="match-card"
         style={[
           styles.card,
           unreadCount > 0 && styles.cardUnread,
@@ -457,7 +459,7 @@ function MatchCard({
 // ─── Main Screen ─────────────────────────────────────────────
 export default function VibesScreen() {
   const { session } = useAuth();
-  const { isPremium } = usePremium();
+  const { canAccessPremium } = usePremium();
   const { unreadCount, markAllAsRead } = useUnread();
   const [matches, setMatches] = useState<EnhancedMatch[]>([]);
   const [vibes, setVibes] = useState<IncomingVibe[]>([]);
@@ -606,8 +608,13 @@ export default function VibesScreen() {
           vibe.user.id,
           "right"
         );
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+        if (!result.success) {
+          Alert.alert("Something went wrong", "Could not vibe back. Please try again.");
+          return;
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setVibes((prev) => prev.filter((v) => v.swipeId !== vibe.swipeId));
 
         if (result.matched) {
@@ -655,7 +662,11 @@ export default function VibesScreen() {
       if (!session?.user || actingOnVibe) return;
       setActingOnVibe(vibe.swipeId);
       try {
-        await recordSwipe(session.user.id, vibe.user.id, "left");
+        const result = await recordSwipe(session.user.id, vibe.user.id, "left");
+        if (!result.success) {
+          Alert.alert("Something went wrong", "Could not pass. Please try again.");
+          return;
+        }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setVibes((prev) => prev.filter((v) => v.swipeId !== vibe.swipeId));
       } catch (err: any) {
@@ -771,7 +782,7 @@ export default function VibesScreen() {
                 vibe={vibe}
                 onVibeBack={() => handleVibeBack(vibe)}
                 onPass={() => handlePass(vibe)}
-                isPremiumLocked={!isPremium}
+                isPremiumLocked={!canAccessPremium}
                 userEmojis={userEmojis}
               />
             ))}
@@ -793,13 +804,12 @@ export default function VibesScreen() {
               <Pressable
                 style={styles.markReadButton}
                 onPress={async () => {
-                  // Optimistically clear unread badges on all cards immediately
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Persist to DB first, then update UI
+                  await markAllAsRead();
                   setMatches((prev) =>
                     prev.map((m) => (m.unreadCount > 0 ? { ...m, unreadCount: 0 } : m))
                   );
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  // Persist to DB in background
-                  markAllAsRead();
                 }}
                 hitSlop={8}
               >
