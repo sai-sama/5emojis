@@ -585,7 +585,7 @@ export default function SwipeCardStack() {
       // The new SwipeableTopCard mounts with fresh translateX = 0.
       setCurrentIndex((prev) => prev + 1);
     },
-    [currentIndex, session, filteredProfiles, userEmojis, dailyCounts, canAccessPremium]
+    [currentIndex, session, filteredProfiles, userEmojis, dailyCounts, canAccessPremium, userName]
   );
 
   // ─── Super like handler ────────────────────────────────────
@@ -715,6 +715,11 @@ export default function SwipeCardStack() {
   }, [genderFilters]);
 
   // ─── Card tap tooltip ─────────────────────────────────────
+  const visibleProfiles = filteredProfiles.slice(
+    currentIndex,
+    currentIndex + MAX_VISIBLE
+  );
+
   const [showTapHint, setShowTapHint] = useState(false);
   const tapHintTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCardTap = useCallback(() => {
@@ -741,10 +746,6 @@ export default function SwipeCardStack() {
   }, []);
 
   // ─── Render ─────────────────────────────────────────────
-  const visibleProfiles = filteredProfiles.slice(
-    currentIndex,
-    currentIndex + MAX_VISIBLE
-  );
   const allSwiped = currentIndex >= filteredProfiles.length;
 
   const getCardStyle = (index: number) => {

@@ -316,17 +316,17 @@ function MatchCard({
 
   return (
     <View style={styles.cardOuter}>
-      {/* Mock badge — top right corner */}
-      {isMockProfile(otherUser.id) && (
-        <View style={styles.mockBadgeCard}>
-          <Text style={styles.mockBadgeText}>M</Text>
-        </View>
-      )}
-
       {/* Unread badge — top right, outside overflow:hidden card */}
       {unreadCount > 0 && (
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+        </View>
+      )}
+
+      {/* Mock badge — shifts left when unread badge is present */}
+      {isMockProfile(otherUser.id) && (
+        <View style={[styles.mockBadgeCard, unreadCount > 0 && { right: 20 }]}>
+          <Text style={styles.mockBadgeText}>M</Text>
         </View>
       )}
 

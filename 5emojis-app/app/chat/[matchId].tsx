@@ -257,7 +257,7 @@ export default function ChatScreen() {
     });
     typingDebounceRef.current = setTimeout(() => {
       typingDebounceRef.current = null;
-    }, 2000);
+    }, 3000);
   }, [session]);
 
   // ─── Derived data ──────────────────────────────────────────

@@ -141,7 +141,9 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
               : null,
           })
           .eq("id", session.user.id)
-          .then(() => {});
+          .then(({ error }) => {
+            if (error) logError(error, { screen: "PremiumProvider", context: "sync_premium_to_db" });
+          });
       }
     },
     [session]
