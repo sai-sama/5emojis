@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { supabase } from "./supabase";
 import { useAuth } from "./auth-context";
@@ -57,9 +57,21 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     setUnreadCount(0);
   }, [session]);
 
+  // Track user's match IDs so we can filter realtime messages
+  const matchIdsRef = useRef<Set<string>>(new Set());
+
   // Refresh on mount and subscribe to new messages
   useEffect(() => {
     if (!session?.user) return;
+
+    // Pre-fetch match IDs for realtime filtering
+    supabase
+      .from("matches")
+      .select("id")
+      .or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`)
+      .then(({ data }) => {
+        matchIdsRef.current = new Set((data ?? []).map((m) => m.id));
+      });
     refresh();
 
     const channel = supabase
@@ -72,7 +84,11 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
           table: "messages",
         },
         (payload) => {
-          if (payload.new.sender_id !== session.user.id) {
+          // Only count messages from user's own matches
+          if (
+            payload.new.sender_id !== session.user.id &&
+            matchIdsRef.current.has(payload.new.match_id)
+          ) {
             setUnreadCount((c) => c + 1);
           }
         }
@@ -89,6 +105,18 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
           if (payload.new.read_at && !payload.old?.read_at) {
             refresh();
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "matches",
+        },
+        (payload) => {
+          // New match — add to tracking set so future messages are counted
+          matchIdsRef.current.add(payload.new.id);
         }
       )
       .subscribe();

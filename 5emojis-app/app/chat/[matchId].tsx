@@ -121,8 +121,12 @@ export default function ChatScreen() {
           const matches = await fetchMatches(session.user.id);
           const found = matches.find((m) => m.match.id === matchId);
           if (!found) {
-            // Match was deleted or user is blocked — go back
-            router.back();
+            // Match was deleted or user is blocked — go back safely
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/vibes");
+            }
             return;
           }
           setMatchData(found);
@@ -260,6 +264,13 @@ export default function ChatScreen() {
     }, 3000);
   }, [session]);
 
+  // Clean up typing debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
+    };
+  }, []);
+
   // ─── Derived data ──────────────────────────────────────────
   const other = matchData?.otherUser;
   const otherUserId = matchData
@@ -325,9 +336,13 @@ export default function ChatScreen() {
     }
 
     // Refresh messages to update chat state
-    const msgs = await fetchMessages(matchId);
-    setMessages(msgs);
-    setChatState(getChatState(msgs, session.user.id, otherUserId));
+    try {
+      const msgs = await fetchMessages(matchId);
+      setMessages(msgs);
+      setChatState(getChatState(msgs, session.user.id, otherUserId));
+    } catch (err: any) {
+      logError(err, { screen: "ChatScreen", context: "refresh_after_icebreaker" });
+    }
 
     // Notify the other user
     if (otherUserId) {

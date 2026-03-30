@@ -77,13 +77,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     // Merge any last-second fields (e.g. city from location screen)
     const final = finalFields ? { ...data, ...finalFields } : data;
 
-    // ── Age gate: must be 18+ ──────────────────────────────────
-    if (!final.dob) return { error: "Date of birth is required" };
+    // ── Validation ────────────────────────────────────────────
+    if (!final.dob || isNaN(final.dob.getTime())) return { error: "Date of birth is required" };
     const today = new Date();
     let age = today.getFullYear() - final.dob.getFullYear();
     const m = today.getMonth() - final.dob.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < final.dob.getDate())) age--;
-    if (age < 18) return { error: "You must be 18 or older to use 5Emojis" };
+    if (isNaN(age) || age < 18) return { error: "You must be 18 or older to use 5Emojis" };
+    if (final.emojis.length !== 5) return { error: "Please select exactly 5 emojis" };
+    if (final.interests.length < 3) return { error: "Please select at least 3 interests" };
+    if (final.friendshipStyles.length === 0) return { error: "Please select at least 1 friendship style" };
 
     setSubmitting(true);
     try {
@@ -92,14 +95,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
       // 1. Compress, validate, moderate, then upload photos
       const photoUrls: string[] = [];
+      const photoWarnings: string[] = [];
       for (let i = 0; i < final.photos.length; i++) {
         // Compress + validate size + content moderation
         let prepared: { uri: string; base64: string };
         try {
           prepared = await preparePhoto(final.photos[i], i === 0);
         } catch (err: any) {
-          // Moderation or size rejection — skip this photo
+          // Moderation or size rejection — track warning for user feedback
           console.warn(`Photo ${i + 1} rejected:`, err.message);
+          photoWarnings.push(`Photo ${i + 1}: ${err.message}`);
           continue;
         }
 
@@ -124,7 +129,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       // Fail if zero photos uploaded successfully
       if (photoUrls.length === 0 && final.photos.length > 0) {
         setSubmitting(false);
-        return { error: "Photo upload failed. Please check your connection and try again." };
+        const detail = photoWarnings.length > 0
+          ? `Some photos were rejected:\n${photoWarnings.join("\n")}`
+          : "Photo upload failed. Please check your connection and try again.";
+        return { error: detail };
       }
 
       // 2. Upsert profile (handles re-onboarding after reinstall with cached session)
@@ -153,19 +161,31 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       }
 
       // 3. Replace emojis (delete old, insert new)
-      await supabase.from("profile_emojis").delete().eq("user_id", userId);
+      const { error: emojiDelErr } = await supabase.from("profile_emojis").delete().eq("user_id", userId);
+      if (emojiDelErr) {
+        setSubmitting(false);
+        return { error: "Failed to save emojis. Please try again." };
+      }
       if (final.emojis.length > 0) {
-        await supabase.from("profile_emojis").insert(
+        const { error: emojiInsErr } = await supabase.from("profile_emojis").insert(
           final.emojis.map((emoji, i) => ({
             user_id: userId,
             emoji,
             position: i + 1,
           }))
         );
+        if (emojiInsErr) {
+          setSubmitting(false);
+          return { error: "Failed to save emojis. Please try again." };
+        }
       }
 
       // 4. Replace photos (delete old, insert new)
-      await supabase.from("profile_photos").delete().eq("user_id", userId);
+      const { error: photoDelErr } = await supabase.from("profile_photos").delete().eq("user_id", userId);
+      if (photoDelErr) {
+        setSubmitting(false);
+        return { error: "Failed to save photos. Please try again." };
+      }
       if (photoUrls.length > 0) {
         const { error: photosError } = await supabase.from("profile_photos").insert(
           photoUrls.map((url, i) => ({
@@ -181,25 +201,41 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       }
 
       // 5. Replace interests (delete old, insert new)
-      await supabase.from("profile_interests").delete().eq("user_id", userId);
+      const { error: intDelErr } = await supabase.from("profile_interests").delete().eq("user_id", userId);
+      if (intDelErr) {
+        setSubmitting(false);
+        return { error: "Failed to save interests. Please try again." };
+      }
       if (final.interests.length > 0) {
-        await supabase.from("profile_interests").insert(
+        const { error: intInsErr } = await supabase.from("profile_interests").insert(
           final.interests.map((tag) => ({
             user_id: userId,
             interest_tag: tag,
           }))
         );
+        if (intInsErr) {
+          setSubmitting(false);
+          return { error: "Failed to save interests. Please try again." };
+        }
       }
 
       // 6. Replace availability slots (delete old, insert new)
-      await supabase.from("profile_availability").delete().eq("user_id", userId);
+      const { error: availDelErr } = await supabase.from("profile_availability").delete().eq("user_id", userId);
+      if (availDelErr) {
+        setSubmitting(false);
+        return { error: "Failed to save availability. Please try again." };
+      }
       if (final.availability.length > 0) {
-        await supabase.from("profile_availability").insert(
+        const { error: availInsErr } = await supabase.from("profile_availability").insert(
           final.availability.map((slot) => ({
             user_id: userId,
             slot,
           }))
         );
+        if (availInsErr) {
+          setSubmitting(false);
+          return { error: "Failed to save availability. Please try again." };
+        }
       }
 
       // Auto-seed mock data so testers get profiles, likes & matches immediately

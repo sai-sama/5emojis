@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(loadingTimeout);
       subscription.unsubscribe();
     };
-  }, [checkProfile]);
+  }, [checkProfile, updateAdmin]);
 
   const signUp = useCallback(
     async (email: string, password: string): Promise<{ error: string | null; needsConfirmation: boolean }> => {
@@ -235,6 +235,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       });
       if (error) return { error: error.message };
+      // Set session immediately so navigation doesn't race with onAuthStateChange
+      if (data.session) {
+        setSession(data.session);
+      }
       // Check profile before returning so needsOnboarding is set correctly
       if (data.session?.user) {
         const result = await checkProfile(data.session.user.id);
@@ -267,6 +271,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) return { error: error.message };
+      // Set session immediately so navigation doesn't race with onAuthStateChange
+      if (data.session) {
+        setSession(data.session);
+      }
       // Check profile before returning so needsOnboarding is set correctly
       if (data.session?.user) {
         const result = await checkProfile(data.session.user.id);
@@ -283,7 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logError(e, { screen: "AuthProvider", context: "sign_in_with_apple" });
       return { error: e.message || "Apple Sign-In failed." };
     }
-  }, [checkProfile]);
+  }, [checkProfile, updateAdmin]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     try {
@@ -306,6 +314,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) return { error: error.message };
+      // Set session immediately so navigation doesn't race with onAuthStateChange
+      if (data.session) {
+        setSession(data.session);
+      }
       // Check profile before returning so needsOnboarding is set correctly
       if (data.session?.user) {
         const result = await checkProfile(data.session.user.id);
@@ -329,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logError(e, { screen: "AuthProvider", context: "sign_in_with_google" });
       return { error: e.message || "Google Sign-In failed." };
     }
-  }, [checkProfile]);
+  }, [checkProfile, updateAdmin]);
 
   const signOut = useCallback(async () => {
     // Clear push token BEFORE signing out so notifications don't leak to next user

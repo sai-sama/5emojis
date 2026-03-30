@@ -12,6 +12,9 @@ import { logError } from "../../lib/error-logger";
 export default function TabsLayout() {
   const { session, signOut } = useAuth();
   const appState = useRef(AppState.currentState);
+  // Use ref to avoid stale closure over session in AppState callback
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   // Auto-refresh session + location on app foreground
   useEffect(() => {
@@ -35,13 +38,17 @@ export default function TabsLayout() {
           logError(err, { screen: "TabsLayout", context: "session_refresh_on_resume" });
         }
 
-        refreshLocationIfNeeded(session.user.id);
+        // Use ref to get current session (avoids stale closure)
+        const currentSession = sessionRef.current;
+        if (currentSession?.user) {
+          refreshLocationIfNeeded(currentSession.user.id);
+        }
       }
       appState.current = nextState;
     });
 
     return () => subscription.remove();
-  }, [session]);
+  }, [session, signOut]);
 
   return (
     <UnreadProvider>

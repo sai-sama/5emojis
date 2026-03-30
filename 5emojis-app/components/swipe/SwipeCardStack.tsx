@@ -536,6 +536,10 @@ export default function SwipeCardStack() {
           direction
         ).then((result) => {
           if (!result.success) {
+            // Rollback optimistic swipe count on failure
+            if (direction === "right") {
+              setDailyCounts((prev) => ({ ...prev, rightCount: Math.max(0, prev.rightCount - 1) }));
+            }
             logError(new Error(result.error), { screen: "SwipeCardStack", context: "record_swipe" });
             return;
           }
@@ -575,7 +579,10 @@ export default function SwipeCardStack() {
             ).catch(() => {}); // best-effort push
           }
         }).catch((err: any) => {
-          // Swipe recording failed
+          // Swipe recording failed — rollback optimistic count
+          if (direction === "right") {
+            setDailyCounts((prev) => ({ ...prev, rightCount: Math.max(0, prev.rightCount - 1) }));
+          }
           logError(err, { screen: "SwipeCardStack", context: "record_swipe" });
         });
       }

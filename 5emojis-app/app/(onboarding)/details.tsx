@@ -269,7 +269,6 @@ export default function DetailsScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             update({
               profession: profession.trim(),
-              lifeStage: "",
               friendshipStyles: selectedFriendshipStyles,
               interests: selectedInterests,
             });

@@ -532,6 +532,15 @@ export default function VibesScreen() {
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
 
+  // Debounced reload — avoids firing loadData 100 times when many messages arrive
+  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedReload = useCallback(() => {
+    if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+    realtimeDebounceRef.current = setTimeout(() => {
+      loadDataRef.current();
+    }, 500);
+  }, []);
+
   // Realtime: refresh when new matches or messages arrive for this user
   useEffect(() => {
     if (!session?.user) return;
@@ -551,7 +560,7 @@ export default function VibesScreen() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        () => loadDataRef.current()
+        () => debouncedReload()
       )
       .on(
         "postgres_changes",
@@ -559,8 +568,11 @@ export default function VibesScreen() {
         () => loadDataRef.current()
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [session]);
+    return () => {
+      supabase.removeChannel(channel);
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+    };
+  }, [session, debouncedReload]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -805,11 +817,15 @@ export default function VibesScreen() {
                 style={styles.markReadButton}
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  // Persist to DB first, then update UI
-                  await markAllAsRead();
-                  setMatches((prev) =>
-                    prev.map((m) => (m.unreadCount > 0 ? { ...m, unreadCount: 0 } : m))
-                  );
+                  try {
+                    await markAllAsRead();
+                    setMatches((prev) =>
+                      prev.map((m) => (m.unreadCount > 0 ? { ...m, unreadCount: 0 } : m))
+                    );
+                  } catch (err: any) {
+                    logError(err, { screen: "VibesScreen", context: "mark_all_as_read" });
+                    Alert.alert("Oops", "Couldn't mark messages as read. Try again.");
+                  }
                 }}
                 hitSlop={8}
               >
