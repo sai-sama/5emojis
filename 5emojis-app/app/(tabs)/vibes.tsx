@@ -40,6 +40,8 @@ import { COLORS, GENDERS, isMockProfile } from "../../lib/constants";
 import AuroraBackground from "../../components/skia/AuroraBackground";
 import LottieLoading from "../../components/lottie/LottieLoading";
 import LottieEmptyState from "../../components/lottie/LottieEmptyState";
+import { VibesScreenSkeleton } from "../../components/Skeleton";
+import { getStreaksForMatches, getStreakBadge } from "../../lib/streak-service";
 import TabHeader from "../../components/navigation/TabHeader";
 
 // ─── Filter config ──────────────────────────────────────────
@@ -276,12 +278,14 @@ function MatchCard({
   userEmojis,
   userLat,
   userLng,
+  streak,
 }: {
   item: EnhancedMatch;
   onLongPress: (item: EnhancedMatch) => void;
   userEmojis: Set<string>;
   userLat: number;
   userLng: number;
+  streak?: number;
 }) {
   const {
     otherUser,
@@ -364,11 +368,20 @@ function MatchCard({
 
       {/* Info */}
       <View style={styles.cardInfo}>
-        {/* Row 1: Name + duration */}
+        {/* Row 1: Name + streak + duration */}
         <View style={styles.nameRow}>
           <Text style={styles.cardName} numberOfLines={1}>
             {otherUser.name}, {age}
           </Text>
+          {streak && streak >= 3 && (() => {
+            const badge = getStreakBadge(streak);
+            return badge ? (
+              <View style={[styles.streakBadge, { backgroundColor: badge.color + "18" }]}>
+                <Text style={styles.streakBadgeEmoji}>{badge.emoji}</Text>
+                <Text style={[styles.streakBadgeText, { color: badge.color }]}>{badge.label}</Text>
+              </View>
+            ) : null;
+          })()}
           <Text style={styles.durationText}>{friendshipDuration}</Text>
         </View>
 
@@ -470,6 +483,7 @@ export default function VibesScreen() {
   const [activeFilter, setActiveFilter] = useState<MatchFilter>("all");
   const [userEmojis, setUserEmojis] = useState<Set<string>>(new Set());
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  const [streaks, setStreaks] = useState<Map<string, number>>(new Map());
 
   // Block & Report state
   const [reportTarget, setReportTarget] = useState<{
@@ -498,6 +512,9 @@ export default function VibesScreen() {
       ]);
       setMatches(matchData);
       setVibes(vibeData);
+      // Fetch streaks for all matches
+      const matchIds = matchData.map((m) => m.match.id);
+      getStreaksForMatches(matchIds).then(setStreaks).catch(() => {});
       if (emojisRes.data) {
         setUserEmojis(new Set(emojisRes.data.map((e) => e.emoji)));
       }
@@ -848,9 +865,7 @@ export default function VibesScreen() {
         <TabHeader />
 
         {loading ? (
-          <View style={styles.centered}>
-            <LottieLoading message="Loading your friends..." />
-          </View>
+          <VibesScreenSkeleton />
         ) : loadError && !hasContent ? (
           <LottieEmptyState
             title="Couldn't load matches"
@@ -891,6 +906,7 @@ export default function VibesScreen() {
                 userEmojis={userEmojis}
                 userLat={userLocation.lat}
                 userLng={userLocation.lng}
+                streak={streaks.get(item.match.id)}
               />
             )}
             ListHeaderComponent={renderListHeader}
@@ -1448,6 +1464,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: COLORS.textMuted,
     marginLeft: 8,
+  },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  streakBadgeEmoji: {
+    fontSize: 12,
+  },
+  streakBadgeText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
   },
   cardProfession: {
     fontSize: 13,

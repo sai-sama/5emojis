@@ -244,6 +244,24 @@ export async function notifyNewMessage(
 }
 
 /**
+ * Notify a user that their streak is about to expire.
+ */
+export async function notifyStreakExpiring(
+  recipientUserId: string,
+  friendName: string,
+  streakDays: number,
+  matchId: string
+): Promise<void> {
+  const emoji = streakDays >= 30 ? "💎" : streakDays >= 7 ? "⚡" : "🔥";
+  await sendPushNotification(
+    recipientUserId,
+    `${emoji} Streak expiring!`,
+    `Your ${streakDays}-day streak with ${friendName} ends at midnight! Send a message to keep it alive.`,
+    { type: "message", matchId }
+  );
+}
+
+/**
  * Add a notification response listener to handle taps on notifications.
  * Returns a cleanup function.
  */

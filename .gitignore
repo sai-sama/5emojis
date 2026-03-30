@@ -11,3 +11,6 @@ supabase/.temp/
 *.ipa
 *.apk
 .emoji-cache/
+.vscode/
+.claude/
+**/build/

@@ -15,6 +15,7 @@ import {
   Dimensions,
   Image,
   Alert,
+  ScrollView,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -56,6 +57,7 @@ import { supabase } from "../../lib/supabase";
 import { Profile, ProfileEmoji, ProfilePhoto } from "../../lib/types";
 import { type SwipeProfile, calculateAge } from "./mockProfiles";
 import LottieEmptyState from "../lottie/LottieEmptyState";
+import { SwipeCardSkeleton } from "../Skeleton";
 import { playSwipeSound, isSoundMuted } from "../../lib/sounds";
 import type { GenderValue } from "../../lib/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -297,6 +299,290 @@ const SwipeableTopCard = forwardRef<
 });
 
 // ═════════════════════════════════════════════════════════════
+// Empty state — engagement screen with stats + suggestions
+// ═════════════════════════════════════════════════════════════
+
+function ScrollableEmptyState({
+  hasHiddenEmojis,
+  remainingSwipes,
+  canAccessPremium,
+  totalSwiped,
+  onExpandRadius,
+  onAdjustFilters,
+  onStartOver,
+  onUpgrade,
+}: {
+  hasHiddenEmojis: boolean;
+  remainingSwipes: number;
+  canAccessPremium: boolean;
+  totalSwiped: number;
+  onExpandRadius: () => void;
+  onAdjustFilters: () => void;
+  onStartOver?: () => void;
+  onUpgrade: () => void;
+}) {
+  // Calculate time until midnight reset
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const msUntilReset = midnight.getTime() - now.getTime();
+  const hoursLeft = Math.floor(msUntilReset / (1000 * 60 * 60));
+  const minsLeft = Math.floor((msUntilReset % (1000 * 60 * 60)) / (1000 * 60));
+
+  const hitSwipeLimit = !canAccessPremium && remainingSwipes <= 0;
+  const tips = [
+    { emoji: "📸", text: "Add more photos to get 2x more vibes" },
+    { emoji: "✏️", text: "Update your interests to attract like-minded people" },
+    { emoji: "🌍", text: "Expand your search radius to discover more friends" },
+  ];
+
+  return (
+    <ScrollView
+      contentContainerStyle={emptyStyles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Hero */}
+      <Text style={emptyStyles.heroEmoji}>{hitSwipeLimit ? "⏳" : "🎉"}</Text>
+      <Text style={emptyStyles.title}>
+        {hitSwipeLimit ? "Daily limit reached!" : "That's everyone nearby!"}
+      </Text>
+      <Text style={emptyStyles.subtitle}>
+        {hitSwipeLimit
+          ? "You've used all your free swipes for today."
+          : "New friends are joining every day. Check back soon!"}
+      </Text>
+
+      {/* Stats card */}
+      {totalSwiped > 0 && (
+        <View style={emptyStyles.statsCard}>
+          <View style={emptyStyles.statRow}>
+            <Text style={emptyStyles.statEmoji}>👀</Text>
+            <Text style={emptyStyles.statText}>
+              You checked out <Text style={emptyStyles.statBold}>{totalSwiped}</Text> {totalSwiped === 1 ? "profile" : "profiles"} this session
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Reset countdown */}
+      {hitSwipeLimit && (
+        <View style={emptyStyles.countdownCard}>
+          <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+          <Text style={emptyStyles.countdownText}>
+            Swipes reset in{" "}
+            <Text style={emptyStyles.countdownBold}>
+              {hoursLeft}h {minsLeft}m
+            </Text>
+          </Text>
+        </View>
+      )}
+
+      {/* Profile tips */}
+      <View style={emptyStyles.tipsCard}>
+        <Text style={emptyStyles.tipsTitle}>Boost your profile</Text>
+        {tips.map((tip, i) => (
+          <View key={i} style={emptyStyles.tipRow}>
+            <Text style={emptyStyles.tipEmoji}>{tip.emoji}</Text>
+            <Text style={emptyStyles.tipText}>{tip.text}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Actions */}
+      <View style={emptyStyles.actions}>
+        <Pressable style={emptyStyles.primaryButton} onPress={onExpandRadius}>
+          <Ionicons name="expand-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+          <Text style={emptyStyles.primaryButtonText}>Expand Radius</Text>
+        </Pressable>
+        <Pressable style={emptyStyles.outlineButton} onPress={onAdjustFilters}>
+          <Ionicons name="options-outline" size={16} color={COLORS.primary} style={{ marginRight: 4 }} />
+          <Text style={emptyStyles.outlineButtonText}>Adjust Filters</Text>
+        </Pressable>
+        {onStartOver && (
+          <Pressable style={emptyStyles.outlineButton} onPress={onStartOver}>
+            <Text style={emptyStyles.outlineButtonText}>Start Over</Text>
+          </Pressable>
+        )}
+        {hitSwipeLimit && !canAccessPremium && (
+          <Pressable style={emptyStyles.upgradeButton} onPress={onUpgrade}>
+            <Ionicons name="star" size={16} color="#FFD700" style={{ marginRight: 6 }} />
+            <Text style={emptyStyles.upgradeButtonText}>Get Unlimited Swipes</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {hasHiddenEmojis && (
+        <Text style={emptyStyles.hint}>
+          Your hidden emojis filter may be narrowing results. Try adjusting it in your profile.
+        </Text>
+      )}
+    </ScrollView>
+  );
+}
+
+const emptyStyles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  heroEmoji: { fontSize: 56, marginBottom: 12 },
+  title: {
+    fontSize: 24,
+    fontFamily: fonts.headingBold,
+    color: COLORS.text,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 15,
+    fontFamily: fonts.body,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 22,
+  },
+  statsCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 20,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  statRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  statEmoji: { fontSize: 22 },
+  statText: {
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  statBold: {
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.text,
+  },
+  countdownCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 16,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+  },
+  countdownText: {
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: COLORS.text,
+  },
+  countdownBold: {
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+  },
+  tipsCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 16,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  tipsTitle: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  tipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  tipEmoji: { fontSize: 18 },
+  tipText: {
+    fontSize: 13,
+    fontFamily: fonts.body,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  actions: {
+    marginTop: 20,
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: "100%",
+  },
+  primaryButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+  },
+  outlineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryBorder,
+    backgroundColor: COLORS.primarySoft,
+    width: "100%",
+  },
+  outlineButtonText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontFamily: fonts.bodySemiBold,
+  },
+  upgradeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1a1a2e",
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "rgba(255,215,0,0.3)",
+  },
+  upgradeButtonText: {
+    color: "#FFD700",
+    fontSize: 16,
+    fontFamily: fonts.bodySemiBold,
+  },
+  hint: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 18,
+  },
+});
+
+// ═════════════════════════════════════════════════════════════
 // Main Stack
 // ═════════════════════════════════════════════════════════════
 
@@ -313,6 +599,23 @@ export default function SwipeCardStack() {
   const [feedLoaded, setFeedLoaded] = useState(false);
   const [feedError, setFeedError] = useState(false);
   const [hasHiddenEmojis, setHasHiddenEmojis] = useState(false);
+
+  // ─── Undo toast state ──────────────────────────────────────
+  const [undoToast, setUndoToast] = useState<{ name: string } | null>(null);
+  const undoToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showUndoToast = useCallback((name: string) => {
+    if (undoToastTimer.current) clearTimeout(undoToastTimer.current);
+    setUndoToast({ name });
+    undoToastTimer.current = setTimeout(() => setUndoToast(null), 3500);
+  }, []);
+
+  // Clean up undo toast timer
+  useEffect(() => {
+    return () => {
+      if (undoToastTimer.current) clearTimeout(undoToastTimer.current);
+    };
+  }, []);
 
   // ─── Daily swipe tracking ───────────────────────────────────
   const [dailyCounts, setDailyCounts] = useState({ rightCount: 0, superLikeCount: 0 });
@@ -519,8 +822,10 @@ export default function SwipeCardStack() {
       const swipedProfile = filteredProfiles[currentIndex];
       if (swipedProfile && direction === "left") {
         setLastSwipe({ swipedId: swipedProfile.profile.id, direction });
+        showUndoToast(swipedProfile.profile.name);
       } else {
         setLastSwipe(null);
+        setUndoToast(null);
       }
 
       // Optimistically increment daily count BEFORE async call to prevent rapid-swipe bypass
@@ -678,6 +983,7 @@ export default function SwipeCardStack() {
     // Go back one card — React re-mounts SwipeableTopCard with fresh translateX=0
     setCurrentIndex((prev) => prev - 1);
     setLastSwipe(null);
+    setUndoToast(null);
   }, [lastSwipe, currentIndex, session]);
 
   // ─── Expose undo to tab bar via context ────────────────────
@@ -764,6 +1070,15 @@ export default function SwipeCardStack() {
     <View style={styles.container}>
       {/* Card stack area — empty state sits behind cards */}
       <View style={styles.cardArea}>
+        {/* Skeleton loading — shown before feed loads */}
+        {!feedLoaded && (
+          <View style={[StyleSheet.absoluteFill, { paddingHorizontal: 6 }]}>
+            <View style={[styles.cardWrapper, { height: CARD_HEIGHT }]}>
+              <SwipeCardSkeleton />
+            </View>
+          </View>
+        )}
+
         {/* Error state — network error loading feed */}
         {feedError && allSwiped && (
           <View style={StyleSheet.absoluteFill}>
@@ -782,41 +1097,18 @@ export default function SwipeCardStack() {
         )}
 
         {/* Empty state — always rendered, revealed when last card exits */}
-        {allSwiped && !feedError && (
+        {allSwiped && !feedError && feedLoaded && (
           <View style={StyleSheet.absoluteFill}>
-            <LottieEmptyState
-              title="That's everyone nearby!"
-              subtitle={
-                hasHiddenEmojis
-                  ? "Your hidden emojis filter may be narrowing results. Try adjusting it, expanding your radius, or check back soon!"
-                  : "New friends are joining every day. Try expanding your search radius to find more people."
-              }
-            >
-              <View style={styles.emptyActions}>
-                <Pressable
-                  style={styles.refreshButton}
-                  onPress={() => router.push("/profile/location")}
-                >
-                  <Ionicons name="expand-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.refreshText}>Expand Radius</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.secondaryButton}
-                  onPress={() => router.push("/profile")}
-                >
-                  <Ionicons name="options-outline" size={16} color={COLORS.primary} style={{ marginRight: 4 }} />
-                  <Text style={styles.secondaryButtonText}>Adjust Filters</Text>
-                </Pressable>
-                {filteredProfiles.length > 0 && (
-                  <Pressable
-                    style={styles.secondaryButton}
-                    onPress={() => setCurrentIndex(0)}
-                  >
-                    <Text style={styles.secondaryButtonText}>Start Over</Text>
-                  </Pressable>
-                )}
-              </View>
-            </LottieEmptyState>
+            <ScrollableEmptyState
+              hasHiddenEmojis={hasHiddenEmojis}
+              remainingSwipes={remainingSwipes ?? 0}
+              canAccessPremium={canAccessPremium}
+              totalSwiped={currentIndex}
+              onExpandRadius={() => router.push("/profile/location")}
+              onAdjustFilters={() => router.push("/profile")}
+              onStartOver={filteredProfiles.length > 0 ? () => setCurrentIndex(0) : undefined}
+              onUpgrade={() => router.push("/premium")}
+            />
           </View>
         )}
 
@@ -894,6 +1186,35 @@ export default function SwipeCardStack() {
         )}
 
       </View>
+
+      {/* Undo toast — appears after left swipe */}
+      {undoToast && (
+        <Animated.View
+          style={styles.undoToast}
+        >
+          <Text style={styles.undoToastText}>
+            Passed on {undoToast.name}
+          </Text>
+          <Pressable
+            style={styles.undoToastButton}
+            onPress={handleUndo}
+          >
+            <Ionicons name="arrow-undo" size={14} color={COLORS.primary} />
+            <Text style={styles.undoToastButtonText}>Undo</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+
+      {/* Tutorial replay button — top right corner */}
+      {!showTutorial && !allSwiped && feedLoaded && (
+        <Pressable
+          style={styles.tutorialReplayButton}
+          onPress={() => setShowTutorial(true)}
+          hitSlop={8}
+        >
+          <Ionicons name="help-circle-outline" size={22} color={COLORS.textMuted} />
+        </Pressable>
+      )}
 
       {/* First-time swipe tutorial overlay */}
       {showTutorial && <SwipeTutorial onDismiss={dismissTutorial} />}
@@ -1050,5 +1371,63 @@ const styles = StyleSheet.create({
     color: "#FFD700",
     fontSize: 16,
     fontFamily: fonts.bodySemiBold,
+  },
+
+  // ─── Undo toast ──────────────────────────────────────────────
+  undoToast: {
+    position: "absolute",
+    bottom: 24,
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    zIndex: 200,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  undoToastText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+    color: COLORS.text,
+    flex: 1,
+  },
+  undoToastButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginLeft: 12,
+  },
+  undoToastButtonText: {
+    fontSize: 14,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+  },
+
+  // ─── Tutorial replay button ──────────────────────────────────
+  tutorialReplayButton: {
+    position: "absolute",
+    top: 8,
+    right: 14,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
   },
 });

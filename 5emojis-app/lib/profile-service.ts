@@ -446,3 +446,16 @@ export async function setMainPhoto(
 
   return { error: null };
 }
+
+export async function reorderPhotos(
+  photoIds: { id: string; position: number }[]
+): Promise<{ error: string | null }> {
+  for (const { id, position } of photoIds) {
+    const { error } = await supabase
+      .from("profile_photos")
+      .update({ position })
+      .eq("id", id);
+    if (error) return { error: error.message };
+  }
+  return { error: null };
+}

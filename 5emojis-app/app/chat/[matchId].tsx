@@ -51,7 +51,18 @@ import { COLORS } from "../../lib/constants";
 import { fonts } from "../../lib/fonts";
 import { Message, MessageReaction } from "../../lib/types";
 import EmojiPicker from "../../components/EmojiPicker";
+import { ChatSkeleton } from "../../components/Skeleton";
 import { logError } from "../../lib/error-logger";
+import {
+  getStreak,
+  recordMessageForStreak,
+  getTodaysSpark,
+  isSparkDismissed,
+  dismissSpark,
+  getStreakBadge,
+  type StreakInfo,
+  type DailySpark,
+} from "../../lib/streak-service";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -97,6 +108,11 @@ export default function ChatScreen() {
   // Block & Report state
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Streak & Daily Spark state
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [dailySpark, setDailySpark] = useState<DailySpark | null>(null);
+  const [sparkDismissed, setSparkDismissed] = useState(true); // default hidden until loaded
 
   const currentUserId = session?.user?.id ?? "";
 
@@ -154,6 +170,17 @@ export default function ChatScreen() {
           // Fetch reactions
           const rxns = await fetchReactions(matchId);
           setReactions(rxns);
+
+          // Fetch streak info
+          if (found) {
+            getStreak(matchId, session.user.id, found.match.user1_id)
+              .then(setStreakInfo)
+              .catch(() => {});
+          }
+
+          // Fetch daily spark
+          setDailySpark(getTodaysSpark());
+          isSparkDismissed(matchId).then(setSparkDismissed).catch(() => {});
         } catch (err: any) {
           console.warn("Chat data load failed:", err);
           logError(err, { screen: "ChatScreen", context: "load_chat_data" });
@@ -348,8 +375,16 @@ export default function ChatScreen() {
     if (otherUserId) {
       notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, true).catch(() => {});
     }
+
+    // Update streak
+    if (matchData) {
+      recordMessageForStreak(matchId, session.user.id, matchData.match.user1_id)
+        .then(setStreakInfo)
+        .catch(() => {});
+    }
+
     setSendingIcebreaker(false);
-  }, [selectedEmojis, session, matchId, otherUserId, other]);
+  }, [selectedEmojis, session, matchId, otherUserId, other, matchData]);
 
   // ─── Send text message ────────────────────────────────────
   const handleSendText = useCallback(async () => {
@@ -388,8 +423,16 @@ export default function ChatScreen() {
     if (otherUserId) {
       notifyNewMessage(otherUserId, other?.name ?? "Someone", matchId, false).catch(() => {});
     }
+
+    // Update streak
+    if (matchData) {
+      recordMessageForStreak(matchId, session.user.id, matchData.match.user1_id)
+        .then(setStreakInfo)
+        .catch(() => {});
+    }
+
     setSendingMessage(false);
-  }, [textInput, session, matchId, otherUserId, other]);
+  }, [textInput, session, matchId, otherUserId, other, matchData]);
 
   // ─── Load older messages (pagination) ────────────────────────
   const loadMoreMessages = useCallback(async () => {
@@ -533,9 +576,20 @@ export default function ChatScreen() {
                 </View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.headerName}>
-                  {other.name}, {age} {zodiac?.emoji}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={styles.headerName}>
+                    {other.name}, {age} {zodiac?.emoji}
+                  </Text>
+                  {streakInfo && streakInfo.currentStreak >= 3 && (() => {
+                    const badge = getStreakBadge(streakInfo.currentStreak);
+                    return badge ? (
+                      <View style={[styles.streakHeaderBadge, { backgroundColor: badge.color + "18" }]}>
+                        <Text style={{ fontSize: 11 }}>{badge.emoji}</Text>
+                        <Text style={[styles.streakHeaderText, { color: badge.color }]}>{badge.label}</Text>
+                      </View>
+                    ) : null;
+                  })()}
+                </View>
                 {other.profession ? (
                   <Text style={styles.headerProfession}>{other.profession}</Text>
                 ) : null}
@@ -615,9 +669,7 @@ export default function ChatScreen() {
         )}
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
+          <ChatSkeleton />
         ) : (
           <View style={{ flex: 1 }}>
             {/* ─── Icebreaker Question Card (pending/waiting only) ── */}
@@ -1066,6 +1118,38 @@ export default function ChatScreen() {
                     </Text>
                     <Text style={styles.typingDots}>...</Text>
                   </View>
+                )}
+
+                {/* Daily Spark — conversation starter */}
+                {dailySpark && !sparkDismissed && chatState === "chat_active" && (
+                  <Animated.View entering={FadeInDown.duration(300)} style={styles.sparkCard}>
+                    <View style={styles.sparkContent}>
+                      <Text style={styles.sparkEmoji}>{dailySpark.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.sparkLabel}>Daily Spark</Text>
+                        <Text style={styles.sparkQuestion}>{dailySpark.question}</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          dismissSpark(matchId);
+                          setSparkDismissed(true);
+                        }}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                      </Pressable>
+                    </View>
+                    <Pressable
+                      style={styles.sparkUseButton}
+                      onPress={() => {
+                        setTextInput(dailySpark.question);
+                        dismissSpark(matchId);
+                        setSparkDismissed(true);
+                      }}
+                    >
+                      <Text style={styles.sparkUseText}>Use as message</Text>
+                    </Pressable>
+                  </Animated.View>
                 )}
 
                 {/* Text input bar */}
@@ -1782,5 +1866,66 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#FFF",
     fontFamily: fonts.headingBold,
+  },
+
+  // ─── Streak badge in header ───────────────────────────────
+  streakHeaderBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  streakHeaderText: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+  },
+
+  // ─── Daily Spark card ─────────────────────────────────────
+  sparkCard: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+  },
+  sparkContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  sparkEmoji: {
+    fontSize: 24,
+  },
+  sparkLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bodySemiBold,
+    color: COLORS.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  sparkQuestion: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+    color: COLORS.text,
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  sparkUseButton: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    marginLeft: 34,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  sparkUseText: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemiBold,
+    color: "#FFF",
   },
 });
